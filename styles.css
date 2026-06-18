@@ -96,6 +96,9 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;}
 .btn.primary:hover{background:#000;}
 .btn:disabled{opacity:.45;cursor:not-allowed;}
 .btn.small{padding:7px 11px;font-size:12px;}
+a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
+.contact-row{display:flex;gap:8px;flex-wrap:wrap;}
+.dash-row .ds-sms{flex-shrink:0;padding:6px 11px;font-size:12px;}
 .namefield{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px;margin-bottom:9px;}
 .namefield:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 1px var(--ink);}
 

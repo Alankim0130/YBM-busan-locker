@@ -103,6 +103,29 @@
     return c ? c.category + " · " + c.name : "반 미지정";
   }
 
+  /* ---------- 연락 (무료·수동: 직원 폰 문자/전화 앱 열기) ---------- */
+  function digits(s) { return String(s || "").replace(/[^0-9]/g, ""); }
+  function contactMsg(r, fid, num) {
+    var f = floorById(fid); var dl = deadlineOf(r);
+    var when = dl ? fmtShort(dl) : "곧 마감 예정";
+    return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함 마감일이 " + when +
+      "입니다. 계속 사용하시려면 데스크로 연장 의사를 알려주세요. 감사합니다.";
+  }
+  function smsHref(phone, msg) { return "sms:" + digits(phone) + "?body=" + encodeURIComponent(msg); }
+  function telHref(phone) { return "tel:" + digits(phone); }
+  function copyText(t) {
+    function ok() { toast("문구가 복사되었습니다."); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(ok, function () { fallbackCopy(t, ok); });
+    } else { fallbackCopy(t, ok); }
+  }
+  function fallbackCopy(t, ok) {
+    var ta = document.createElement("textarea"); ta.value = t;
+    ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); ok(); } catch (e) { toast("복사 실패 — 직접 복사해주세요."); }
+    document.body.removeChild(ta);
+  }
+
   /* ---------- 카운트 ---------- */
   function counts(f) {
     var used = 0, over = 0;
@@ -235,12 +258,19 @@
     var note = s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
       : !dl ? "이 반의 종강일이 아직 입력되지 않았습니다. ‘반 관리’에서 종강일을 입력하면 마감일이 자동 계산됩니다."
       : "마감일은 반 종강일 + 10일입니다. 종강일이 갱신되면 마감일도 자동으로 미뤄집니다.";
+    var cmsg = contactMsg(r, fid, num);
+    var contactHTML = r.phone
+      ? '<div class="contact-row"><a class="btn small" href="' + smsHref(r.phone, cmsg) + '">문자</a>' +
+        '<a class="btn small" href="' + telHref(r.phone) + '">전화</a>' +
+        '<button class="btn small" id="copyMsgBtn">문구 복사</button></div>'
+      : '<div class="v" style="color:var(--ink-soft);font-size:13px;">전화번호가 없습니다. ‘정보 수정’에서 입력하세요.</div>';
     body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
       '<div class="field"><label>대여자</label><div class="v">' + esc(r.name) + "</div></div>" +
       '<div class="field"><label>전화번호</label><div class="v mono">' + (r.phone ? esc(r.phone) : "—") + "</div></div>" +
       '<div class="field"><label>반</label><div class="v">' + esc(classLabel(r)) + "</div></div>" +
       '<div class="field"><label>등록일</label><div class="v mono">' + fmtDate(r.started_on) + "</div></div>" +
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + "</div></div>" +
+      '<div class="field"><label>연락 (마감 안내)</label>' + contactHTML + "</div>" +
       '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 10일)</span>' +
       '<span class="dd" style="color:' + st.color + '">' + dd.label + "</span></div>" +
       '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div></div>";
@@ -250,6 +280,7 @@
     $("editBtn").onclick = function () { renderEdit(key); };
     $("moveBtn").onclick = function () { beginMove(key); };
     $("returnBtn").onclick = function () { returnRental(key); };
+    var cb = $("copyMsgBtn"); if (cb) cb.onclick = function () { copyText(cmsg); };
   }
 
   function renderEdit(key) {
@@ -446,12 +477,17 @@
       var st = STATE[it.s];
       var row = document.createElement("div");
       row.className = "dash-row";
+      var smsBtn = it.r.phone
+        ? '<a class="btn small ds-sms" href="' + smsHref(it.r.phone, contactMsg(it.r, it.f.id, it.n)) + '">문자</a>'
+        : "";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
         '<span class="ds-loc">' + it.f.name + " No." + pad(it.n) + "</span>" +
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
         '<span class="ds-phone">' + (it.r.phone ? esc(it.r.phone) : "전화 미입력") + "</span>" +
-        '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>";
+        '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>" + smsBtn;
       row.onclick = function () { currentId = it.f.id; closeDash(); renderAll(); select(it.key); };
+      var a = row.querySelector(".ds-sms");
+      if (a) a.addEventListener("click", function (ev) { ev.stopPropagation(); });
       list.appendChild(row);
     });
   }
