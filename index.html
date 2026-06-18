@@ -13,7 +13,7 @@
   <header>
     <div class="brand"><div class="mark">L</div><div><h1>LOCKER</h1><p>서면 YBM · 사물함 관리</p></div></div>
     <div class="head-right">
-      <div class="deadline">이번 달 갱신 마감 (마지막 주 금요일)<b id="deadlineText">—</b></div>
+      <div class="deadline">오늘<b id="deadlineText">—</b></div>
       <div class="user-box" id="userBox" hidden>
         <span class="who-email" id="userEmail">—</span>
         <button class="btn small" id="logoutBtn" style="margin-top:4px;">로그아웃</button>
@@ -25,25 +25,32 @@
     <aside>
       <div><p class="rail-label">층 선택</p><div class="floors" id="floorList"></div></div>
       <div>
-        <p class="rail-label">갱신 마감</p>
+        <p class="rail-label">마감 관리</p>
         <button class="rail-btn" id="dashBtn">
-          <span>미확인 사물함</span>
+          <span>마감·임박 사물함</span>
           <span class="rb-count" id="dashCount">0</span>
+        </button>
+        <button class="rail-btn" id="classBtn" style="margin-top:8px;">
+          <span>반 관리 · 종강일</span>
+          <span class="rb-count" id="classCount" style="background:var(--canvas);color:var(--ink-soft);">0</span>
         </button>
       </div>
       <div>
         <p class="rail-label">상태</p>
         <div class="legend">
-          <div class="row"><span class="dot" style="background:var(--free)"></span>사용 가능</div>
-          <div class="row"><span class="dot" style="background:var(--rent)"></span>사용 중</div>
-          <div class="row"><span class="dot" style="background:var(--due)"></span>갱신 임박 (마감 7일 이내)</div>
-          <div class="row"><span class="dot" style="background:var(--over)"></span>연체 (마감 경과·미확인)</div>
+          <div class="row"><span class="dot" style="background:var(--free)"></span>빈 공간</div>
+          <div class="row"><span class="dot" style="background:var(--rent)"></span>마감 전 (사용 중)</div>
+          <div class="row"><span class="dot" style="background:var(--over)"></span>마감됨 (종강+10일 경과·연락 필요)</div>
         </div>
       </div>
-      <p class="hint">사물함을 클릭하면 대여자·등록일·보증금·갱신 마감이 보입니다. 대여·반납·갱신 확인은 상세 패널에서 처리합니다.</p>
+      <p class="hint">사물함을 클릭하면 대여자·전화번호·반·종강일·마감일이 보입니다. 대여·반납·이동은 상세 패널에서 처리합니다. 마감일 = 반 종강일 + 10일.</p>
     </aside>
     <main>
       <div class="stage-top"><div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div></div>
+      <div class="move-banner" id="moveBanner" hidden>
+        <span id="moveBannerText">이동할 빈 칸을 선택하세요.</span>
+        <button class="btn small" id="moveCancel">이동 취소</button>
+      </div>
       <div class="stage"><div class="wall"><div class="grid" id="grid"></div></div></div>
       <div class="drawer" id="drawer">
         <div class="d-head"><div><div class="d-id" id="dId">—</div><div class="d-floor" id="dFloor">—</div></div><button class="close" id="closeBtn" aria-label="닫기">&times;</button></div>
@@ -86,6 +93,23 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
         <button class="close" id="dashClose" aria-label="닫기">&times;</button>
       </div>
       <div class="dash-list" id="dashList"></div>
+    </div>
+  </div>
+
+  <!-- 반 관리 / 종강일 -->
+  <div class="overlay" id="classView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>반 관리 · 종강일</h2><p class="lead" style="margin:4px 0 0;">각 반의 종강일을 입력하세요. 마감일은 자동으로 <b>종강일 + 10일</b>로 계산됩니다.</p></div>
+        <button class="close" id="classClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="class-add">
+        <input id="newClassCat" placeholder="카테고리 (예: 토익)" list="catList" />
+        <datalist id="catList"></datalist>
+        <input id="newClassName" placeholder="반 이름 (예: 역전토익)" />
+        <button class="btn primary small" id="addClassBtn">반 추가</button>
+      </div>
+      <div class="dash-list" id="classList"></div>
     </div>
   </div>
 
