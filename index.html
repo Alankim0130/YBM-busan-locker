@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LOCKER · 서면 YBM 사물함 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="mark">L</div><div><h1>LOCKER</h1><p>서면 YBM · 사물함 관리</p></div></div>
+    <div class="head-right">
+      <div class="deadline">이번 달 갱신 마감 (마지막 주 금요일)<b id="deadlineText">—</b></div>
+      <div class="user-box" id="userBox" hidden>
+        <span class="who-email" id="userEmail">—</span>
+        <button class="btn small" id="logoutBtn" style="margin-top:4px;">로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside>
+      <div><p class="rail-label">층 선택</p><div class="floors" id="floorList"></div></div>
+      <div>
+        <p class="rail-label">갱신 마감</p>
+        <button class="rail-btn" id="dashBtn">
+          <span>미확인 사물함</span>
+          <span class="rb-count" id="dashCount">0</span>
+        </button>
+      </div>
+      <div>
+        <p class="rail-label">상태</p>
+        <div class="legend">
+          <div class="row"><span class="dot" style="background:var(--free)"></span>사용 가능</div>
+          <div class="row"><span class="dot" style="background:var(--rent)"></span>사용 중</div>
+          <div class="row"><span class="dot" style="background:var(--due)"></span>갱신 임박 (마감 7일 이내)</div>
+          <div class="row"><span class="dot" style="background:var(--over)"></span>연체 (마감 경과·미확인)</div>
+        </div>
+      </div>
+      <p class="hint">사물함을 클릭하면 대여자·등록일·보증금·갱신 마감이 보입니다. 대여·반납·갱신 확인은 상세 패널에서 처리합니다.</p>
+    </aside>
+    <main>
+      <div class="stage-top"><div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div></div>
+      <div class="stage"><div class="wall"><div class="grid" id="grid"></div></div></div>
+      <div class="drawer" id="drawer">
+        <div class="d-head"><div><div class="d-id" id="dId">—</div><div class="d-floor" id="dFloor">—</div></div><button class="close" id="closeBtn" aria-label="닫기">&times;</button></div>
+        <div class="d-body" id="dBody"></div>
+        <div class="d-actions" id="dActions"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 로그인 -->
+  <div class="overlay" id="loginView">
+    <form class="card" id="loginForm" autocomplete="on">
+      <h2>직원 로그인</h2>
+      <p class="lead">서면 YBM 사물함 관리 시스템입니다. 등록된 직원 계정으로 로그인하세요.</p>
+      <label class="fl" for="loginEmail">이메일</label>
+      <input id="loginEmail" type="email" autocomplete="username" required />
+      <label class="fl" for="loginPw">비밀번호</label>
+      <input id="loginPw" type="password" autocomplete="current-password" required />
+      <p class="err" id="loginErr"></p>
+      <button class="btn primary full" id="loginBtn" type="submit">로그인</button>
+    </form>
+  </div>
+
+  <!-- 설정 필요 안내 -->
+  <div class="overlay" id="setupView">
+    <div class="card">
+      <h2>설정이 필요합니다</h2>
+      <p class="lead"><code>config.js</code> 파일에 Supabase 접속 정보를 입력하세요. (대시보드 → Settings → API)</p>
+      <pre>window.SUPABASE_URL = "https://...supabase.co";
+window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
+      <p class="lead" style="margin-top:14px;">스키마와 시드(SQL)는 <code>supabase/schema.sql</code> → <code>supabase/seed.sql</code> 순서로 실행하세요. 자세한 내용은 <code>README.md</code> 참고.</p>
+    </div>
+  </div>
+
+  <!-- 갱신 마감 대시보드 -->
+  <div class="overlay" id="dashView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>갱신 마감 대시보드</h2><p class="lead" id="dashLead" style="margin:4px 0 0;">—</p></div>
+        <button class="close" id="dashClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="dash-list" id="dashList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>

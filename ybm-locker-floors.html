@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LOCKER · 서면 YBM 사물함 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --canvas:#e9edf1; --paper:#f6f8fa; --ink:#1b2430; --ink-soft:#5a6675;
+    --line:#cbd3dc; --line-soft:#dde3ea;
+    --free:#3ba776; --rent:#3b6fd4; --due:#e0a100; --over:#d7503a;
+    --radius:10px; --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px rgba(27,36,48,.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--canvas);color:var(--ink);font-family:"Inter",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh;}
+  .mono{font-family:"JetBrains Mono",monospace;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 22px;background:var(--paper);border-bottom:1px solid var(--line);}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand .mark{width:30px;height:30px;border-radius:7px;background:var(--ink);display:grid;
+    place-items:center;color:#fff;font-family:"Space Grotesk";font-weight:700;font-size:15px;}
+  .brand h1{font-family:"Space Grotesk";font-weight:600;font-size:16px;letter-spacing:.02em;margin:0;line-height:1;}
+  .brand p{margin:3px 0 0;font-size:12px;color:var(--ink-soft);letter-spacing:.04em;}
+  .deadline{text-align:right;font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .deadline b{display:block;font-family:"Space Grotesk";font-weight:600;font-size:15px;color:var(--ink);letter-spacing:.01em;}
+  .app{display:flex;flex:1;min-height:0;}
+  aside{width:222px;flex-shrink:0;background:var(--paper);border-right:1px solid var(--line);
+    padding:18px 16px;display:flex;flex-direction:column;gap:22px;overflow:auto;}
+  .rail-label{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 10px;}
+  .floors{display:flex;flex-direction:column;gap:8px;}
+  .floor-btn{appearance:none;border:1px solid var(--line);background:#fff;cursor:pointer;
+    border-radius:var(--radius);padding:11px 13px;text-align:left;width:100%;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;font:inherit;color:var(--ink);
+    transition:border-color .15s,box-shadow .15s,transform .05s;}
+  .floor-btn:hover{border-color:var(--ink-soft);}
+  .floor-btn:active{transform:translateY(1px);}
+  .floor-btn.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink);}
+  .floor-btn .fname{font-family:"Space Grotesk";font-weight:600;font-size:15px;}
+  .floor-btn .fbar{display:flex;gap:3px;margin-top:6px;width:108px;}
+  .floor-btn .seg{height:5px;border-radius:2px;}
+  .floor-btn .fmeta{font-size:11px;color:var(--ink-soft);white-space:nowrap;}
+  .floor-left{display:flex;flex-direction:column;}
+  .legend{display:flex;flex-direction:column;gap:9px;}
+  .legend .row{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);}
+  .dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+  .hint{font-size:11.5px;color:var(--ink-soft);line-height:1.6;border-top:1px solid var(--line-soft);padding-top:14px;margin-top:auto;}
+  main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;}
+  .stage-top{display:flex;align-items:center;justify-content:space-between;padding:16px 24px 6px;gap:12px;}
+  .stage-top h2{margin:0;font-family:"Space Grotesk";font-weight:600;font-size:19px;letter-spacing:.01em;}
+  .stage-top .sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .stage{flex:1;min-height:0;overflow:auto;display:grid;place-items:center;padding:24px;}
+  .wall{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:34px 18px 18px;position:relative;}
+  .wall::after{content:"벽면";position:absolute;top:12px;left:18px;font-size:10px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-soft);opacity:.6;}
+  .grid{display:grid;gap:8px;}
+  .locker{position:relative;border-radius:7px;cursor:pointer;border:none;font:inherit;
+    background:var(--c);overflow:hidden;text-align:left;padding:9px 10px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.12);
+    transition:transform .14s ease, box-shadow .14s ease, filter .14s;}
+  .locker .id{font-family:"Space Grotesk";font-weight:700;font-size:15px;color:#fff;line-height:1;text-shadow:0 1px 1px rgba(0,0,0,.2);}
+  .locker .who{font-size:11px;color:rgba(255,255,255,.94);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .locker .handle{position:absolute;right:10px;top:50%;width:14px;height:5px;border-radius:3px;background:rgba(0,0,0,.28);transform:translateY(-50%);}
+  .locker:hover{filter:brightness(1.06);transform:translateY(-1px);}
+  .locker:focus-visible{outline:none;}
+  .locker.sel,.locker:focus-visible{box-shadow:inset 0 0 0 2px #fff,0 0 0 3px var(--ink);transform:translateY(-1px);}
+  .drawer{position:absolute;top:0;right:0;bottom:0;width:330px;max-width:86vw;background:var(--paper);
+    border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(27,36,48,.10);
+    transform:translateX(102%);transition:transform .45s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column;z-index:5;}
+  .drawer.open{transform:translateX(0);}
+  .d-head{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .d-id{font-family:"Space Grotesk";font-weight:700;font-size:24px;letter-spacing:.01em;}
+  .d-floor{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .close{border:none;background:none;cursor:pointer;font-size:20px;color:var(--ink-soft);line-height:1;padding:4px;border-radius:6px;}
+  .close:hover{background:#e3e8ee;color:var(--ink);}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;color:#fff;}
+  .badge .bd{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.85);}
+  .d-body{padding:18px 20px;display:flex;flex-direction:column;gap:16px;overflow:auto;flex:1;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
+  .field .v{font-size:14.5px;font-weight:500;}
+  .field .v.mono{font-size:13.5px;}
+  .deadline-box{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;display:flex;flex-direction:column;gap:7px;}
+  .deadline-box .top{display:flex;align-items:baseline;justify-content:space-between;}
+  .deadline-box .dd{font-family:"Space Grotesk";font-weight:700;font-size:18px;}
+  .deadline-box .note{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+  .d-actions{padding:16px 20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px;}
+  .d-actions .line{display:flex;gap:9px;}
+  .d-actions .btn{flex:1;text-align:center;}
+  .btn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:9px 14px;font-size:13px;font-weight:500;transition:border-color .15s,background .15s;}
+  .btn:hover{border-color:var(--ink-soft);}
+  .btn.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .btn.primary:hover{background:#000;}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .namefield{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px;margin-bottom:9px;}
+  .namefield:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 1px var(--ink);}
+  @media (prefers-reduced-motion:reduce){.drawer,.locker{transition:none;}}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="mark">L</div><div><h1>LOCKER</h1><p>서면 YBM · 사물함 관리</p></div></div>
+    <div class="deadline">이번 달 갱신 마감 (마지막 주 금요일)<b id="deadlineText">—</b></div>
+  </header>
+  <div class="app">
+    <aside>
+      <div><p class="rail-label">층 선택</p><div class="floors" id="floorList"></div></div>
+      <div>
+        <p class="rail-label">상태</p>
+        <div class="legend">
+          <div class="row"><span class="dot" style="background:var(--free)"></span>사용 가능</div>
+          <div class="row"><span class="dot" style="background:var(--rent)"></span>사용 중</div>
+          <div class="row"><span class="dot" style="background:var(--due)"></span>갱신 임박 (마감 7일 이내)</div>
+          <div class="row"><span class="dot" style="background:var(--over)"></span>연체 (마감 경과·미확인)</div>
+        </div>
+      </div>
+      <p class="hint">사물함을 클릭하면 대여자·등록일·보증금·갱신 마감이 보입니다. 대여·반납·갱신 확인은 상세 패널에서 처리합니다.</p>
+    </aside>
+    <main>
+      <div class="stage-top"><div><h2 id="floorTitle">1층 사물함</h2><div class="sub" id="floorSub">—</div></div></div>
+      <div class="stage"><div class="wall"><div class="grid" id="grid"></div></div></div>
+      <div class="drawer" id="drawer">
+        <div class="d-head"><div><div class="d-id" id="dId">—</div><div class="d-floor" id="dFloor">—</div></div><button class="close" id="closeBtn" aria-label="닫기">&times;</button></div>
+        <div class="d-body" id="dBody"></div>
+        <div class="d-actions" id="dActions"></div>
+      </div>
+    </main>
+  </div>
+<script>
+/* ===== 갱신 규정: 매월 마지막 주 금요일 ===== */
+function lastFridayOfMonth(y,m){var d=new Date(y,m+1,0);var back=(d.getDay()-5+7)%7;d.setDate(d.getDate()-back);d.setHours(23,59,0,0);return d;}
+var NOW=new Date(2026,5,17);
+var DEADLINE=lastFridayOfMonth(NOW.getFullYear(),NOW.getMonth());
+var DAY=86400000;
+function pad(n){return String(n).padStart(2,'0');}
+function fmt(d){return d.getFullYear()+'.'+pad(d.getMonth()+1)+'.'+pad(d.getDate());}
+function fmtShort(d){var w=['일','월','화','수','목','금','토'][d.getDay()];return (d.getMonth()+1)+'월 '+d.getDate()+'일 ('+w+')';}
+document.getElementById('deadlineText').textContent=fmtShort(DEADLINE);
+
+/* ===== 실제 층 구성 =====
+   cols=가로, rows=세로, start=시작번호. tallCount=첫 줄 키 큰 칸 수(0이면 없음) */
+var FLOORS=[
+  {id:1, name:'1층', cols:6, rows:5, start:1,  tallCount:0},   // 1-30, 오른쪽으로 번호
+  {id:2, name:'2층', cols:5, rows:5, start:31, tallCount:0},   // 31-55
+  {id:3, name:'3층', cols:6, rows:6, start:56, tallCount:6},   // 56-91, 56-61 키 큰 칸
+  {id:7, name:'7층', cols:6, rows:6, start:1,  tallCount:6}    // 1-36(새 번호), 1-6 키 큰 칸
+];
+FLOORS.forEach(function(f){f.total=f.cols*f.rows; f.end=f.start+f.total-1;});
+
+/* 대여 정보: key = "층id-번호". demo는 색 다양성 표시용(실서비스는 규정대로 자동 계산) */
+var RENTALS={
+  '1-1':{name:'김서연',start:'2026.03.04',confirmed:true},
+  '1-3':{name:'박도윤',start:'2026.05.12',confirmed:true},
+  '1-8':{name:'이하준',start:'2026.04.21',confirmed:false,demo:'due'},
+  '1-15':{name:'최유나',start:'2026.02.10',confirmed:false,demo:'over'},
+  '1-22':{name:'정민재',start:'2026.05.30',confirmed:true},
+  '2-31':{name:'한지우',start:'2026.06.02',confirmed:true},
+  '2-35':{name:'오세훈',start:'2026.04.07',confirmed:true},
+  '2-40':{name:'강은우',start:'2026.05.20',confirmed:false,demo:'due'},
+  '3-56':{name:'윤서아',start:'2026.03.28',confirmed:true},
+  '3-70':{name:'임채원',start:'2026.01.15',confirmed:true},
+  '3-88':{name:'배준호',start:'2026.02.22',confirmed:false,demo:'over'},
+  '7-1':{name:'신아인',start:'2026.06.01',confirmed:true},
+  '7-12':{name:'문가람',start:'2026.04.30',confirmed:true},
+  '7-30':{name:'서지호',start:'2026.05.05',confirmed:true}
+};
+var STATE={
+  free:{c:'var(--free)',label:'사용 가능',color:'#3ba776'},
+  rent:{c:'var(--rent)',label:'사용 중',color:'#3b6fd4'},
+  due:{c:'var(--due)',label:'갱신 임박',color:'#e0a100'},
+  over:{c:'var(--over)',label:'연체',color:'#d7503a'}
+};
+function statusOf(r){
+  if(!r)return 'free';
+  if(r.confirmed)return 'rent';
+  if(r.demo==='over')return 'over';
+  if(r.demo==='due')return 'due';
+  if(NOW>DEADLINE)return 'over';
+  if(DEADLINE-NOW<=7*DAY)return 'due';
+  return 'rent';
+}
+
+var currentId=1, selectedKey=null;
+var grid=document.getElementById('grid');
+var drawer=document.getElementById('drawer');
+function floorById(id){return FLOORS.find(function(f){return f.id===id;});}
+function keyOf(f,n){return f.id+'-'+n;}
+
+function counts(f){var used=0,due=0,over=0;for(var n=f.start;n<=f.end;n++){var s=statusOf(RENTALS[keyOf(f,n)]);if(s!=='free')used++;if(s==='due')due++;if(s==='over')over++;}return{used:used,due:due,over:over,free:f.total-used};}
+
+function renderFloorList(){
+  var list=document.getElementById('floorList');list.innerHTML='';
+  FLOORS.forEach(function(f){
+    var c=counts(f);
+    var btn=document.createElement('button');
+    btn.className='floor-btn'+(f.id===currentId?' active':'');
+    btn.innerHTML='<div class="floor-left"><span class="fname">'+f.name+'</span>'+
+      '<div class="fbar">'+
+        '<span class="seg" style="flex:'+c.free+';background:var(--free)"></span>'+
+        '<span class="seg" style="flex:'+Math.max(c.used-c.due-c.over,0)+';background:var(--rent)"></span>'+
+        '<span class="seg" style="flex:'+c.due+';background:var(--due)"></span>'+
+        '<span class="seg" style="flex:'+c.over+';background:var(--over)"></span>'+
+      '</div></div><span class="fmeta">'+c.free+'/'+f.total+' 빈칸</span>';
+    btn.onclick=function(){currentId=f.id;closeDrawer();renderAll();};
+    list.appendChild(btn);
+  });
+}
+
+function renderGrid(){
+  var f=floorById(currentId);
+  grid.style.gridTemplateColumns='repeat('+f.cols+',112px)';
+  var rowsCss=[];
+  for(var rr=0;rr<f.rows;rr++){rowsCss.push((f.tallCount>0&&rr===0)?'106px':'80px');}
+  grid.style.gridTemplateRows=rowsCss.join(' ');
+  grid.innerHTML='';
+  for(var i=0;i<f.total;i++){
+    var n=f.start+i;
+    var key=keyOf(f,n);
+    var r=RENTALS[key];var s=statusOf(r);var st=STATE[s];
+    var el=document.createElement('button');
+    el.className='locker'+(key===selectedKey?' sel':'');
+    el.style.setProperty('--c',st.c);
+    el.innerHTML='<span class="id">'+pad(n)+'</span><span class="who">'+(r?r.name:'비어 있음')+'</span><span class="handle"></span>';
+    (function(k){el.onclick=function(){select(k);};})(key);
+    grid.appendChild(el);
+  }
+}
+function renderHeader(){
+  var f=floorById(currentId);var c=counts(f);
+  document.getElementById('floorTitle').textContent=f.name+' 사물함';
+  document.getElementById('floorSub').textContent='전체 '+f.total+'칸 ('+f.cols+' × '+f.rows+') · 사용 중 '+c.used+' · 빈칸 '+c.free+(c.due?' · 갱신 임박 '+c.due:'')+(c.over?' · 연체 '+c.over:'');
+}
+function renderAll(){renderFloorList();renderGrid();renderHeader();}
+function select(key){selectedKey=key;renderGrid();renderDrawer();drawer.classList.add('open');}
+function closeDrawer(){selectedKey=null;drawer.classList.remove('open');renderGrid();}
+
+function renderDrawer(){
+  var key=selectedKey;var parts=key.split('-');var fid=parseInt(parts[0],10);var num=parseInt(parts[1],10);
+  var f=floorById(fid);var r=RENTALS[key];var s=statusOf(r);var st=STATE[s];
+  document.getElementById('dId').textContent='No. '+pad(num);
+  document.getElementById('dFloor').textContent=f.name;
+  var body=document.getElementById('dBody');var actions=document.getElementById('dActions');
+  if(!r){
+    body.innerHTML='<span class="badge" style="background:'+st.color+'"><span class="bd"></span>'+st.label+'</span>'+
+      '<div class="field"><label>안내</label><div class="v">대여 가능한 사물함입니다. 학생 이름을 입력하고 대여를 시작하면 보증금 1만원 수령으로 기록됩니다.</div></div>'+
+      '<input class="namefield" id="newName" placeholder="학생 이름 입력" />';
+    actions.innerHTML='<div class="line"><button class="btn primary" id="rentBtn">대여 시작 · 보증금 1만원 수령</button></div>';
+    document.getElementById('rentBtn').onclick=function(){
+      var nm=document.getElementById('newName').value.trim();
+      if(!nm){document.getElementById('newName').focus();return;}
+      RENTALS[key]={name:nm,start:fmt(NOW),confirmed:true};renderAll();renderDrawer();
+    };
+    return;
+  }
+  var ddDays=Math.ceil((DEADLINE-NOW)/DAY);
+  var ddLabel=ddDays>0?'D-'+ddDays:(ddDays===0?'D-DAY':'마감 '+Math.abs(ddDays)+'일 경과');
+  var note=s==='over'?'마감일까지 갱신 의사를 확인하지 못했습니다. 학생에게 연락하거나 반납·보증금 환급을 처리하세요.'
+    :s==='due'?'갱신 마감이 임박했습니다. 연장 의사를 확인하고 갱신 확인을 눌러주세요.'
+    :'이번 달 갱신이 확인되었습니다.';
+  body.innerHTML='<span class="badge" style="background:'+st.color+'"><span class="bd"></span>'+st.label+'</span>'+
+    '<div class="field"><label>대여자</label><div class="v">'+r.name+'</div></div>'+
+    '<div class="field"><label>등록일</label><div class="v mono">'+r.start+'</div></div>'+
+    '<div class="field"><label>보증금</label><div class="v">10,000원 수령 · 반납 시 환급</div></div>'+
+    '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">이번 달 갱신 마감</span>'+
+    '<span class="dd" style="color:'+st.color+'">'+ddLabel+'</span></div>'+
+    '<div class="v mono">'+fmtShort(DEADLINE)+'</div><div class="note">'+note+'</div></div>';
+  actions.innerHTML='<div class="line"><button class="btn" id="confirmBtn" '+(r.confirmed?'disabled':'')+'>'+(r.confirmed?'갱신 확인됨':'갱신 확인')+'</button>'+
+    '<button class="btn" id="returnBtn">반납 · 보증금 환급</button></div>';
+  document.getElementById('confirmBtn').onclick=function(){RENTALS[key].confirmed=true;delete RENTALS[key].demo;renderAll();renderDrawer();};
+  document.getElementById('returnBtn').onclick=function(){delete RENTALS[key];renderAll();renderDrawer();};
+}
+document.getElementById('closeBtn').onclick=closeDrawer;
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer();});
+renderAll();
+</script>
+</body>
+</html>
