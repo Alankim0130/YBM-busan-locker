@@ -69,6 +69,8 @@
   var RENTALS = {};        // "floor-number" -> { id, name, phone, class_id, started_on, deposit_held }
   var CLASSES = [];        // [{ id, category, name, closing_date, sort }]
   var CLASSES_BY_ID = {};  // id -> class
+  var NOTICES = [];        // 특별공지 [{ id, body, author, author_email, created_at }]
+  var ME = { name: "직원", email: "" }; // 로그인한 직원
 
   function floorById(id) { return FLOORS.find(function (f) { return f.id === id; }); }
   function keyOf(f, n) { return f.id + "-" + n; }
@@ -491,6 +493,62 @@
     }).catch(function (e) { toast("데이터 로드 실패: " + (e.message || e)); });
   }
 
+  /* ---------- 특별공지 ---------- */
+  function displayName(session) {
+    var u = session && session.user; if (!u) return "직원";
+    var m = u.user_metadata || {};
+    return m.name || m.full_name || m.display_name || (u.email ? u.email.split("@")[0] : "직원");
+  }
+  function fmtNoticeTime(ts) {
+    var d = new Date(ts);
+    return (d.getMonth() + 1) + "/" + d.getDate() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function loadNotices() {
+    return sb.from("notices").select("id, body, author, author_email, created_at")
+      .order("created_at", { ascending: false }).then(function (res) {
+        if (res.error) return;
+        NOTICES = res.data || []; renderNotices();
+      });
+  }
+  function renderNotices() {
+    var list = $("noticeList"); list.innerHTML = "";
+    if (!NOTICES.length) {
+      list.innerHTML = '<div class="notice-empty">특별공지 없음 · 특이사항이 있으면 오른쪽 ‘＋ 특별공지’로 남겨주세요.</div>';
+      return;
+    }
+    NOTICES.forEach(function (n) {
+      var el = document.createElement("div"); el.className = "notice";
+      el.innerHTML = '<div class="ntxt">' + esc(n.body) + "</div>" +
+        '<div class="nmeta"><span class="nwho">' + esc(n.author || "직원") + "</span><span>" + fmtNoticeTime(n.created_at) + "</span></div>" +
+        '<button class="ndel" title="삭제">✕</button>';
+      el.querySelector(".ndel").onclick = function () { deleteNotice(n); };
+      list.appendChild(el);
+    });
+  }
+  function openNotice() {
+    $("noticeAuthor").textContent = ME.name; $("noticeBody").value = ""; $("noticeErr").textContent = "";
+    $("noticeView").classList.add("open");
+    setTimeout(function () { $("noticeBody").focus(); }, 40);
+  }
+  function closeNotice() { $("noticeView").classList.remove("open"); }
+  function postNotice() {
+    var body = $("noticeBody").value.trim();
+    if (!body) { $("noticeErr").textContent = "내용을 입력하세요."; return; }
+    var btn = $("noticePost"); btn.disabled = true; btn.textContent = "등록 중…";
+    sb.from("notices").insert({ body: body, author: ME.name, author_email: ME.email }).then(function (res) {
+      btn.disabled = false; btn.textContent = "등록";
+      if (res.error) { $("noticeErr").textContent = "등록 실패: " + res.error.message; return; }
+      closeNotice(); toast("특별공지를 등록했습니다."); loadNotices();
+    });
+  }
+  function deleteNotice(n) {
+    if (!window.confirm("이 공지를 삭제할까요?\n\n" + n.body)) return;
+    sb.from("notices").delete().eq("id", n.id).then(function (res) {
+      if (res.error) { toast("삭제 실패: " + res.error.message); return; }
+      toast("공지를 삭제했습니다."); loadNotices();
+    });
+  }
+
   /* ---------- Realtime ---------- */
   var channel = null;
   function subscribeRealtime() {
@@ -498,6 +556,7 @@
     channel = sb.channel("ybm-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "rentals" }, function () { reload(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "classes" }, function () { reload(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "notices" }, function () { loadNotices(); })
       .subscribe();
   }
   function unsubscribeRealtime() { if (channel) { sb.removeChannel(channel); channel = null; } }
@@ -512,15 +571,17 @@
 
   /* ---------- 인증 게이트 ---------- */
   var entered = false;
-  function showLogin() { $("userBox").hidden = true; $("loginView").classList.add("open"); }
+  function showLogin() { $("userBox").hidden = true; $("noticeBar").hidden = true; $("loginView").classList.add("open"); }
   function enterApp(session) {
     $("loginView").classList.remove("open");
-    $("userEmail").textContent = (session && session.user && session.user.email) || "직원";
+    ME = { name: displayName(session), email: (session && session.user && session.user.email) || "" };
+    $("userEmail").textContent = ME.email || ME.name;
     $("userBox").hidden = false;
+    $("noticeBar").hidden = false;
     if (entered) return;
     entered = true;
     busy(true);
-    loadLockers().then(function () { return Promise.all([loadClasses(), loadRentals()]); }).then(function () {
+    loadLockers().then(function () { return Promise.all([loadClasses(), loadRentals(), loadNotices()]); }).then(function () {
       busy(false); renderAll();
     }).catch(function (e) {
       busy(false);
@@ -538,9 +599,16 @@
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
+  $("noticeAddBtn").onclick = openNotice;
+  $("noticePost").onclick = postNotice;
+  $("noticeCancel").onclick = closeNotice;
+  $("noticeBody").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); postNotice(); }
+  });
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
-    if ($("classView").classList.contains("open")) closeClasses();
+    if ($("noticeView").classList.contains("open")) closeNotice();
+    else if ($("classView").classList.contains("open")) closeClasses();
     else if ($("dashView").classList.contains("open")) closeDash();
     else if (moveSourceKey) cancelMove();
     else closeDrawer();
@@ -567,6 +635,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); cancelMove(); showLogin(); }
+    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeNotice(); cancelMove(); NOTICES = []; showLogin(); }
   });
 })();

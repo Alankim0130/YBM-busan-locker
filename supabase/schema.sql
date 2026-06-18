@@ -103,3 +103,24 @@ select
 from lockers l;
 
 grant select on public.locker_status to anon, authenticated;
+
+-- ============================================================
+-- 특별공지 (직원 간 빠른 공유) — 화면 최상단 고정 표시
+-- ============================================================
+create table if not exists notices (
+  id            bigint generated always as identity primary key,
+  body          text not null,
+  author        text,                    -- 작성자 표시 이름
+  author_email  text,
+  created_at    timestamptz default now()
+);
+
+alter table notices enable row level security;
+drop policy if exists "notices_read"   on notices;
+drop policy if exists "notices_insert" on notices;
+drop policy if exists "notices_delete" on notices;
+create policy "notices_read"   on notices for select to authenticated using (true);
+create policy "notices_insert" on notices for insert to authenticated with check (true);
+create policy "notices_delete" on notices for delete to authenticated using (true);
+
+do $$ begin alter publication supabase_realtime add table notices; exception when duplicate_object then null; end $$;

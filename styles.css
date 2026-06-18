@@ -138,6 +138,26 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;}
 .dash-row .ds-dd{font-family:"Space Grotesk";font-weight:700;font-size:13px;}
 .dash-empty{text-align:center;color:var(--ink-soft);font-size:13.5px;padding:30px 0;}
 
+/* ===== 특별공지 바 (최상단 고정) ===== */
+.notice-bar{flex:0 0 auto;display:flex;align-items:stretch;gap:10px;
+  background:#fbf3da;border-bottom:1px solid #e6cf8a;padding:9px 16px;}
+.notice-list{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;
+  max-height:148px;overflow:auto;}
+.notice-empty{font-size:12.5px;color:#9a8540;align-self:center;}
+.notice{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid #ecd99a;
+  border-radius:9px;padding:8px 11px;border-left:4px solid #e0a100;}
+.notice .ntxt{flex:1;min-width:0;font-size:13.5px;line-height:1.5;color:var(--ink);white-space:pre-wrap;word-break:break-word;}
+.notice .nmeta{flex-shrink:0;font-size:11.5px;color:#9a8540;white-space:nowrap;display:flex;flex-direction:column;align-items:flex-end;gap:1px;padding-top:1px;}
+.notice .nmeta .nwho{font-weight:600;color:#7a5a00;font-family:"Space Grotesk";}
+.notice .ndel{flex-shrink:0;border:none;background:none;cursor:pointer;color:#bca85f;font-size:15px;line-height:1;padding:2px 5px;border-radius:6px;}
+.notice .ndel:hover{background:#f0e3b8;color:#7a5a00;}
+.notice-add{flex-shrink:0;align-self:flex-start;border:1px solid #d9b94e;background:#fff;color:#7a5a00;
+  border-radius:9px;padding:8px 13px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.notice-add:hover{background:#fdf6e3;border-color:#c4a23a;}
+.ta{width:100%;min-height:96px;resize:vertical;border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font:inherit;font-size:14px;line-height:1.5;margin-bottom:12px;}
+.ta:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 1px var(--ink);}
+
 /* ===== 이동 모드 배너 ===== */
 .move-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;
   margin:0 24px;padding:10px 14px;border-radius:9px;background:#fef6e0;border:1px solid #e6cf8a;

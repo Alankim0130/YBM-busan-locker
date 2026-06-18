@@ -10,6 +10,10 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="notice-bar" id="noticeBar" hidden>
+    <div class="notice-list" id="noticeList"></div>
+    <button class="notice-add" id="noticeAddBtn">＋ 특별공지</button>
+  </div>
   <header>
     <div class="brand"><div class="mark">L</div><div><h1>LOCKER</h1><p>서면 YBM · 사물함 관리</p></div></div>
     <div class="head-right">
@@ -110,6 +114,20 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
         <button class="btn primary small" id="addClassBtn">반 추가</button>
       </div>
       <div class="dash-list" id="classList"></div>
+    </div>
+  </div>
+
+  <!-- 특별공지 작성 -->
+  <div class="overlay" id="noticeView">
+    <div class="card">
+      <h2>특별공지 작성</h2>
+      <p class="lead">등록하면 모든 직원 화면 <b>최상단</b>에 표시됩니다. 작성자: <b id="noticeAuthor">—</b></p>
+      <textarea class="ta" id="noticeBody" placeholder="특이사항을 입력하세요. (예: 3층 7번 사물함 문 고장 — 수리 요청함)"></textarea>
+      <p class="err" id="noticeErr"></p>
+      <div style="display:flex;gap:9px;">
+        <button class="btn primary full" id="noticePost">등록</button>
+        <button class="btn" id="noticeCancel">취소</button>
+      </div>
     </div>
   </div>
 
