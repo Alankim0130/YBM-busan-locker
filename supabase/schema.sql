@@ -86,3 +86,20 @@ create policy "logs_insert"    on rental_logs for insert to authenticated with c
 -- ============================================================
 do $$ begin alter publication supabase_realtime add table rentals; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table classes; exception when duplicate_object then null; end $$;
+
+-- ============================================================
+-- 학생용 공개 조회 뷰 (student.html)
+-- 개인정보(이름·전화)는 노출하지 않고 '빈/사용중'만 공개.
+-- definer 권한 뷰라 anon 은 rentals 테이블 직접 접근 없이 점유 여부만 읽음.
+-- ============================================================
+create or replace view public.locker_status as
+select
+  l.floor,
+  l.number,
+  l.col,
+  l."row",
+  l.is_tall,
+  exists (select 1 from rentals r where r.locker_id = l.id and r.active) as occupied
+from lockers l;
+
+grant select on public.locker_status to anon, authenticated;

@@ -121,12 +121,28 @@ CLI로도 가능: `npm i -g vercel && vercel`
 ## 6. 파일 구조
 
 ```
-index.html      메인 화면 (로그인 게이트 + 사물함 벽 + 반 관리/대시보드 모달)
+index.html      메인 화면 (직원용: 로그인 + 사물함 벽 + 반 관리/대시보드)
+student.html    학생용 빈자리 보기 (모바일 반응형, 로그인 없음, 개인정보 비공개)
 styles.css      디자인 시스템 (관제판 톤, 상태색)
 app.js          로직: 인증 · 렌더링 · 상태계산 · DB CRUD · 반 관리 · 이동 · Realtime
 config.js       Supabase URL / anon key (직접 입력)
 supabase/
-  schema.sql    테이블(classes·lockers·rentals·rental_logs) · 인덱스 · RLS
+  schema.sql    테이블 · locker_status 뷰 · 인덱스 · RLS
   seed.sql      반 13개 + 사물함 127칸 시드
 vercel.json     정적 배포 설정
 ```
+
+---
+
+## 7. 학생용 빈자리 보기 (`student.html`)
+
+학생이 휴대폰으로 빈 사물함을 확인하는 **공개 페이지**입니다.
+
+- **로그인 없음** · 모바일 반응형 · 30초 자동 갱신
+- **개인정보 비공개**: 다른 학생의 이름·전화번호는 표시되지 않고, 각 칸이 **빈자리/사용중**인지만 보입니다.
+  (DB의 `locker_status` 뷰가 점유 여부만 노출 → anon 권한으로 안전하게 조회)
+
+### 학생에게 안내하는 법
+- 배포 주소 뒤에 `/student.html` 을 붙인 링크 공유. 예: `https://이름.vercel.app/student.html`
+- 이 링크로 **QR 코드**를 만들어 데스크/게시판에 부착하면 학생이 스캔해서 바로 확인.
+- 학생은 빈자리(초록) 번호를 확인 → 데스크에 신청 → 직원이 `index.html`에서 대여 처리.
