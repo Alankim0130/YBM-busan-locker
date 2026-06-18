@@ -124,3 +124,24 @@ create policy "notices_insert" on notices for insert to authenticated with check
 create policy "notices_delete" on notices for delete to authenticated using (true);
 
 do $$ begin alter publication supabase_realtime add table notices; exception when duplicate_object then null; end $$;
+
+-- ============================================================
+-- 앱 설정 (편집 가능한 문구 등) — 사물함 이용 안내(초기 비밀번호/변경 방법)
+-- ============================================================
+create table if not exists app_settings (
+  key         text primary key,
+  value       text,
+  updated_at  timestamptz default now()
+);
+
+insert into app_settings (key, value) values
+  ('password_guide', E'초기 비밀번호는 0000입니다.\n비밀번호 변경 방법: (관리자 화면 ‘이용안내 설정’에서 실제 변경 방법으로 수정하세요)')
+on conflict (key) do nothing;
+
+alter table app_settings enable row level security;
+drop policy if exists "settings_read"  on app_settings;
+drop policy if exists "settings_write" on app_settings;
+create policy "settings_read"  on app_settings for select to authenticated using (true);
+create policy "settings_write" on app_settings for all    to authenticated using (true) with check (true);
+
+do $$ begin alter publication supabase_realtime add table app_settings; exception when duplicate_object then null; end $$;

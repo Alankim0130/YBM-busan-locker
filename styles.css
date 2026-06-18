@@ -98,6 +98,8 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;}
 .btn.small{padding:7px 11px;font-size:12px;}
 a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
 .contact-row{display:flex;gap:8px;flex-wrap:wrap;}
+.guide-prev{margin-top:7px;background:#fff;border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;font-size:12.5px;line-height:1.55;color:var(--ink-soft);white-space:pre-wrap;word-break:break-word;}
 .dash-row .ds-sms{flex-shrink:0;padding:6px 11px;font-size:12px;}
 .namefield{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit;font-size:14px;margin-bottom:9px;}
 .namefield:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 1px var(--ink);}

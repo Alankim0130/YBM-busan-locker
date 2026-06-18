@@ -71,6 +71,7 @@
   var CLASSES_BY_ID = {};  // id -> class
   var NOTICES = [];        // 특별공지 [{ id, body, author, author_email, created_at }]
   var ME = { name: "직원", email: "" }; // 로그인한 직원
+  var GUIDE = "초기 비밀번호는 0000입니다.\n비밀번호 변경 방법은 데스크에 문의하세요."; // 이용 안내(편집 가능)
 
   function floorById(id) { return FLOORS.find(function (f) { return f.id === id; }); }
   function keyOf(f, n) { return f.id + "-" + n; }
@@ -103,7 +104,7 @@
     return c ? c.category + " · " + c.name : "반 미지정";
   }
 
-  /* ---------- 연락 (무료·수동: 직원 폰 문자/전화 앱 열기) ---------- */
+  /* ---------- 연락 (무료·수동: 직원 폰 문자앱 열기 / 문구 복사) ---------- */
   function digits(s) { return String(s || "").replace(/[^0-9]/g, ""); }
   function contactMsg(r, fid, num) {
     var f = floorById(fid); var dl = deadlineOf(r);
@@ -111,8 +112,11 @@
     return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함 마감일이 " + when +
       "입니다. 계속 사용하시려면 데스크로 연장 의사를 알려주세요. 감사합니다.";
   }
+  function guideMsg(r, fid, num) {
+    var f = floorById(fid);
+    return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함 이용 안내입니다.\n" + GUIDE;
+  }
   function smsHref(phone, msg) { return "sms:" + digits(phone) + "?body=" + encodeURIComponent(msg); }
-  function telHref(phone) { return "tel:" + digits(phone); }
   function copyText(t) {
     function ok() { toast("문구가 복사되었습니다."); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -258,19 +262,22 @@
     var note = s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
       : !dl ? "이 반의 종강일이 아직 입력되지 않았습니다. ‘반 관리’에서 종강일을 입력하면 마감일이 자동 계산됩니다."
       : "마감일은 반 종강일 + 10일입니다. 종강일이 갱신되면 마감일도 자동으로 미뤄집니다.";
-    var cmsg = contactMsg(r, fid, num);
-    var contactHTML = r.phone
-      ? '<div class="contact-row"><a class="btn small" href="' + smsHref(r.phone, cmsg) + '">문자</a>' +
-        '<a class="btn small" href="' + telHref(r.phone) + '">전화</a>' +
-        '<button class="btn small" id="copyMsgBtn">문구 복사</button></div>'
-      : '<div class="v" style="color:var(--ink-soft);font-size:13px;">전화번호가 없습니다. ‘정보 수정’에서 입력하세요.</div>';
+    var dmsg = contactMsg(r, fid, num);   // 마감 안내
+    var gmsg = guideMsg(r, fid, num);     // 비밀번호 이용 안내
+    var deadlineContact = r.phone
+      ? '<a class="btn small" href="' + smsHref(r.phone, dmsg) + '">문자</a><button class="btn small" id="copyDeadlineBtn">복사</button>'
+      : '<button class="btn small" id="copyDeadlineBtn">문구 복사</button>';
+    var guideContact = r.phone
+      ? '<a class="btn small" href="' + smsHref(r.phone, gmsg) + '">안내 문자</a><button class="btn small" id="copyGuideBtn">복사</button>'
+      : '<button class="btn small" id="copyGuideBtn">문구 복사</button>';
     body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
       '<div class="field"><label>대여자</label><div class="v">' + esc(r.name) + "</div></div>" +
       '<div class="field"><label>전화번호</label><div class="v mono">' + (r.phone ? esc(r.phone) : "—") + "</div></div>" +
       '<div class="field"><label>반</label><div class="v">' + esc(classLabel(r)) + "</div></div>" +
       '<div class="field"><label>등록일</label><div class="v mono">' + fmtDate(r.started_on) + "</div></div>" +
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + "</div></div>" +
-      '<div class="field"><label>연락 (마감 안내)</label>' + contactHTML + "</div>" +
+      '<div class="field"><label>이용 안내 (비밀번호)</label><div class="contact-row">' + guideContact + '</div><div class="guide-prev">' + esc(GUIDE) + "</div></div>" +
+      '<div class="field"><label>마감 안내</label><div class="contact-row">' + deadlineContact + "</div></div>" +
       '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 10일)</span>' +
       '<span class="dd" style="color:' + st.color + '">' + dd.label + "</span></div>" +
       '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div></div>";
@@ -280,7 +287,8 @@
     $("editBtn").onclick = function () { renderEdit(key); };
     $("moveBtn").onclick = function () { beginMove(key); };
     $("returnBtn").onclick = function () { returnRental(key); };
-    var cb = $("copyMsgBtn"); if (cb) cb.onclick = function () { copyText(cmsg); };
+    var cd = $("copyDeadlineBtn"); if (cd) cd.onclick = function () { copyText(dmsg); };
+    var cg = $("copyGuideBtn"); if (cg) cg.onclick = function () { copyText(gmsg); };
   }
 
   function renderEdit(key) {
@@ -342,7 +350,7 @@
       busy(false);
       if (res.error) { toast("대여 실패: " + res.error.message); return; }
       logAction(lk.id, "rent", { student_name: name, phone: phone });
-      toast(name + " 님 대여 시작 · 보증금 1만원 수령");
+      toast(name + " 님 대여 시작 · 보증금 1만원 수령 · 학생에게 비밀번호 안내를 보내세요");
       reload();
     });
   }
@@ -585,6 +593,27 @@
     });
   }
 
+  /* ---------- 이용 안내(비밀번호) 설정 ---------- */
+  function loadSettings() {
+    return sb.from("app_settings").select("key,value").eq("key", "password_guide").then(function (res) {
+      if (res.error) return;
+      var row = (res.data || [])[0];
+      if (row && row.value) GUIDE = row.value;
+    });
+  }
+  function openGuide() { $("guideBody").value = GUIDE; $("guideErr").textContent = ""; $("guideView").classList.add("open"); setTimeout(function () { $("guideBody").focus(); }, 40); }
+  function closeGuide() { $("guideView").classList.remove("open"); }
+  function saveGuide() {
+    var v = $("guideBody").value.trim();
+    if (!v) { $("guideErr").textContent = "내용을 입력하세요."; return; }
+    var btn = $("guideSave"); btn.disabled = true; btn.textContent = "저장 중…";
+    sb.from("app_settings").upsert({ key: "password_guide", value: v, updated_at: new Date().toISOString() }).then(function (res) {
+      btn.disabled = false; btn.textContent = "저장";
+      if (res.error) { $("guideErr").textContent = "저장 실패: " + res.error.message; return; }
+      GUIDE = v; closeGuide(); toast("이용 안내 문구를 저장했습니다."); if (selectedKey) renderDrawer();
+    });
+  }
+
   /* ---------- Realtime ---------- */
   var channel = null;
   function subscribeRealtime() {
@@ -593,6 +622,7 @@
       .on("postgres_changes", { event: "*", schema: "public", table: "rentals" }, function () { reload(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "classes" }, function () { reload(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "notices" }, function () { loadNotices(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, function () { loadSettings().then(function () { if (selectedKey) renderDrawer(); }); })
       .subscribe();
   }
   function unsubscribeRealtime() { if (channel) { sb.removeChannel(channel); channel = null; } }
@@ -617,7 +647,7 @@
     if (entered) return;
     entered = true;
     busy(true);
-    loadLockers().then(function () { return Promise.all([loadClasses(), loadRentals(), loadNotices()]); }).then(function () {
+    loadLockers().then(function () { return Promise.all([loadClasses(), loadRentals(), loadNotices(), loadSettings()]); }).then(function () {
       busy(false); renderAll();
     }).catch(function (e) {
       busy(false);
@@ -635,6 +665,9 @@
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
+  $("guideBtn").onclick = openGuide;
+  $("guideSave").onclick = saveGuide;
+  $("guideCancel").onclick = closeGuide;
   $("noticeAddBtn").onclick = openNotice;
   $("noticePost").onclick = postNotice;
   $("noticeCancel").onclick = closeNotice;
@@ -643,7 +676,8 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
-    if ($("noticeView").classList.contains("open")) closeNotice();
+    if ($("guideView").classList.contains("open")) closeGuide();
+    else if ($("noticeView").classList.contains("open")) closeNotice();
     else if ($("classView").classList.contains("open")) closeClasses();
     else if ($("dashView").classList.contains("open")) closeDash();
     else if (moveSourceKey) cancelMove();
@@ -671,6 +705,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeNotice(); cancelMove(); NOTICES = []; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeNotice(); closeGuide(); cancelMove(); NOTICES = []; showLogin(); }
   });
 })();
