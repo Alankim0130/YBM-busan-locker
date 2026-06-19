@@ -628,7 +628,7 @@
     $("classAddRow").hidden = !classEditMode;
     $("classLead").innerHTML = classEditMode
       ? "<b>편집 모드</b> · 반 추가 · 이름 수정 · 순서 이동(↑↓) · 삭제를 할 수 있습니다."
-      : "각 반의 <b>날짜 선택</b>을 눌러 달력에서 종강일을 고르세요. 마감일 = 종강일 + 15일.";
+      : "위에서 <b>수업 월</b>을 고른 뒤, 각 반의 날짜를 눌러 그 달의 종강일을 설정하세요. 마감일 = 종강일 + 15일.";
   }
   function toggleClassEdit() { classEditMode = !classEditMode; applyClassMode(); renderClasses(); }
 
@@ -638,6 +638,7 @@
   }
 
   function renderClasses() {
+    if ($("cTermLabel")) $("cTermLabel").textContent = classTermM + "월";
     var list = $("classList"); list.innerHTML = "";
     if (!CLASSES.length) { list.innerHTML = '<div class="dash-empty">등록된 반이 없습니다. ‘편집’에서 추가하세요.</div>'; return; }
     orderedCategories().forEach(function (cat) {
@@ -664,17 +665,14 @@
           card.querySelector(".cc-del2").onclick = function () { deleteClass(c); };
         } else {
           var cl = c.closings || {};
-          var hasCl = Object.keys(cl).filter(function (k) { return cl[k]; }).length > 0;
-          var ymNow = NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1);
-          var cur = cl[ymNow]; // 이번 달 수업의 종강 날짜
-          var dateLabel, unset;
-          if (cur) { dateLabel = (+cur.slice(5, 7)) + "월 " + (+cur.slice(8, 10)) + "일"; unset = false; }
-          else if (!hasCl && c.closing_date) { var lp = String(c.closing_date).slice(0, 10).split("-"); dateLabel = (+lp[1]) + "월 " + (+lp[2]) + "일"; unset = false; }
-          else { dateLabel = (NOW.getMonth() + 1) + "월 수업 날짜 선택"; unset = true; }
-          var summary = closingsSummary(c);
-          var due = summary || (c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "");
+          var key = termKey(); // 상단에서 선택한 수업 월
+          var cur = cl[key];
+          // 선택 월에 설정값이 없고, 레거시 종강일이 그 달이면 레거시 표시
+          if (!cur && c.closing_date && String(c.closing_date).slice(0, 7) === key) cur = String(c.closing_date).slice(0, 10);
+          var dateLabel = cur ? ((+cur.slice(5, 7)) + "월 " + (+cur.slice(8, 10)) + "일") : "날짜 선택";
+          var due = cur ? "마감 " + addDaysFmt(cur, GRACE) : "";
           card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
-            '<button class="cc-date' + (unset ? " unset" : "") + '">' + dateLabel + "</button>" +
+            '<button class="cc-date' + (cur ? "" : " unset") + '">' + dateLabel + "</button>" +
             '<span class="cc-due">' + esc(due) + "</span>";
           card.querySelector(".cc-date").onclick = function () { openCalendar(c); };
         }
@@ -710,18 +708,24 @@
   }
 
   /* ---------- 종강일 달력 ---------- */
-  // calTermY/M = 설정 대상 '수업 월', calY/M = 종강 날짜를 고르는 달력의 표시 월(다른 달 가능)
-  var calClassId = null, calY = 0, calM = 0, calTermY = 0, calTermM = 0;
-  function termKey() { return calTermY + "-" + pad(calTermM); }
+  // 반 관리 화면 상단의 '수업 월' 선택값(전역). 달력 팝업은 이 수업월의 종강 날짜를 고름.
+  var classTermY = NOW.getFullYear(), classTermM = NOW.getMonth() + 1;
+  var calClassId = null, calY = 0, calM = 0; // calY/M = 종강 날짜를 고르는 달력의 표시 월(다른 달 가능)
+  function termKey() { return classTermY + "-" + pad(classTermM); }
+  function classTermShift(delta) {
+    classTermM += delta;
+    if (classTermM < 1) { classTermM = 12; classTermY--; }
+    if (classTermM > 12) { classTermM = 1; classTermY++; }
+    renderClasses();
+  }
   function syncCalToTerm() {
     var c = CLASSES_BY_ID[calClassId]; var cl = (c && c.closings) || {};
     var v = cl[termKey()];
     if (v) { calY = +v.slice(0, 4); calM = +v.slice(5, 7); }   // 저장된 종강 날짜의 달로
-    else { calY = calTermY; calM = calTermM; }                 // 없으면 수업 월부터
+    else { calY = classTermY; calM = classTermM; }             // 없으면 수업 월부터
   }
   function openCalendar(c) {
     calClassId = c.id;
-    calTermY = NOW.getFullYear(); calTermM = NOW.getMonth() + 1; // 기본: 이번 달 수업
     syncCalToTerm();
     renderCalendar();
     $("calView").classList.add("open");
@@ -733,18 +737,10 @@
     if (calM > 12) { calM = 1; calY++; }
     renderCalendar();
   }
-  function calTermShift(delta) {
-    calTermM += delta;
-    if (calTermM < 1) { calTermM = 12; calTermY--; }
-    if (calTermM > 12) { calTermM = 1; calTermY++; }
-    syncCalToTerm();
-    renderCalendar();
-  }
   function renderCalendar() {
     var c = CLASSES_BY_ID[calClassId];
     var cl = (c && c.closings) || {};
-    $("calCls").textContent = c ? (c.category + " · " + c.name) : "";
-    $("calTermLabel").textContent = calTermM + "월 수업 종강일";
+    $("calCls").textContent = (c ? (c.category + " · " + c.name + " · ") : "") + classTermM + "월 수업 종강일";
     $("calTitle").textContent = calY + "년 " + calM + "월";
     // 종강 날짜 달력 좌우 버튼에 이동할 달 표시
     var pm = calM - 1 < 1 ? 12 : calM - 1;
@@ -754,8 +750,8 @@
     var key = termKey();
     var cur = cl[key];
     $("calSub").textContent = cur
-      ? (calTermM + "월 수업 종강일: " + (+cur.slice(5, 7)) + "월 " + (+cur.slice(8, 10)) + "일 (다른 날짜로 변경 가능)")
-      : (calTermM + "월 수업의 종강 날짜를 고르세요. (다음 달 날짜도 가능)");
+      ? (classTermM + "월 수업 종강일: " + (+cur.slice(5, 7)) + "월 " + (+cur.slice(8, 10)) + "일 (다른 날짜로 변경 가능)")
+      : (classTermM + "월 수업의 종강 날짜를 고르세요. (다음 달 날짜도 가능)");
     var first = new Date(calY, calM - 1, 1).getDay(); // 0=일
     var days = lastDayOf(calY, calM);
     var ym = calY + "-" + pad(calM);
@@ -1330,8 +1326,8 @@
   $("calNext").onclick = function () { calShift(1); };
   $("calClose").onclick = closeCalendar;
   $("calClear").onclick = function () { if (calClassId) { saveClosing(calClassId, termKey(), null); closeCalendar(); } };
-  $("calTermPrev").onclick = function () { calTermShift(-1); };
-  $("calTermNext").onclick = function () { calTermShift(1); };
+  $("cTermPrev").onclick = function () { classTermShift(-1); };
+  $("cTermNext").onclick = function () { classTermShift(1); };
   $("guideBtn").onclick = openGuide;
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;
