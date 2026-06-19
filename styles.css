@@ -241,6 +241,14 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .class-card .cc-due{flex-shrink:0;font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;}
 .class-card .cc-del{flex-shrink:0;border:none;background:none;cursor:pointer;color:var(--ink-3);font-size:16px;line-height:1;padding:3px 5px;border-radius:6px;transition:background .15s,color .15s;}
 .class-card .cc-del:hover{background:#f3dcd6;color:var(--over);}
+/* 편집 모드 */
+.class-card .cc-name-edit{flex:1;min-width:0;border:1px solid var(--line-strong);border-radius:7px;padding:7px 9px;font:inherit;font-size:13px;font-weight:600;background:var(--surface);}
+.class-card .cc-name-edit:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 2px rgba(59,111,212,.15);}
+.class-card .cc-move{flex-shrink:0;border:1px solid var(--line-strong);background:var(--surface);border-radius:7px;width:30px;height:32px;cursor:pointer;color:var(--ink-2);font-size:13px;transition:border-color .15s,background .15s;}
+.class-card .cc-move:hover{border-color:var(--ink-3);background:var(--surface-2);color:var(--ink);}
+.class-card .cc-move:disabled{opacity:.35;cursor:not-allowed;}
+.class-card .cc-del2{flex-shrink:0;border:1px solid #e6b8ad;background:var(--surface);color:var(--over);border-radius:7px;padding:7px 11px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s;}
+.class-card .cc-del2:hover{background:#fcefec;}
 
 /* 달력 팝업 */
 .cal-card{width:452px;max-width:100%;}

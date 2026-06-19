@@ -398,38 +398,89 @@
     return (d.getMonth() + 1) + "/" + d.getDate();
   }
 
-  function openClasses() { renderClasses(); refreshCatList(); $("classView").classList.add("open"); }
+  var classEditMode = false;
+  function openClasses() { classEditMode = false; applyClassMode(); renderClasses(); refreshCatList(); $("classView").classList.add("open"); }
   function closeClasses() { $("classView").classList.remove("open"); }
   function refreshCatList() {
     $("catList").innerHTML = orderedCategories().map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
   }
+  function applyClassMode() {
+    $("classEditBtn").textContent = classEditMode ? "완료" : "편집";
+    $("classEditBtn").classList.toggle("primary", classEditMode);
+    $("classAddRow").hidden = !classEditMode;
+    $("classLead").innerHTML = classEditMode
+      ? "<b>편집 모드</b> · 반 추가 · 이름 수정 · 순서 이동(↑↓) · 삭제를 할 수 있습니다."
+      : "각 반의 <b>날짜 선택</b>을 눌러 달력에서 종강일을 고르세요. 마감일 = 종강일 + 10일.";
+  }
+  function toggleClassEdit() { classEditMode = !classEditMode; applyClassMode(); renderClasses(); }
+
+  function classGroup(cat) {
+    return CLASSES.filter(function (c) { return c.category === cat; })
+      .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); });
+  }
 
   function renderClasses() {
     var list = $("classList"); list.innerHTML = "";
-    if (!CLASSES.length) { list.innerHTML = '<div class="dash-empty">등록된 반이 없습니다. 위에서 추가하세요.</div>'; return; }
+    if (!CLASSES.length) { list.innerHTML = '<div class="dash-empty">등록된 반이 없습니다. ‘편집’에서 추가하세요.</div>'; return; }
     orderedCategories().forEach(function (cat) {
       var lbl = document.createElement("div");
       lbl.className = "class-cat-label"; lbl.textContent = cat;
       list.appendChild(lbl);
       var wrap = document.createElement("div");
       wrap.className = "class-cards";
-      CLASSES.filter(function (c) { return c.category === cat; })
-        .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); })
-        .forEach(function (c) {
+      var group = classGroup(cat);
+      group.forEach(function (c, gi) {
+        var card = document.createElement("div");
+        card.className = "class-card";
+        if (classEditMode) {
+          card.innerHTML = '<input class="cc-name-edit" value="' + esc(c.name) + '" />' +
+            '<button class="cc-move" data-d="-1"' + (gi === 0 ? " disabled" : "") + '>↑</button>' +
+            '<button class="cc-move" data-d="1"' + (gi === group.length - 1 ? " disabled" : "") + '>↓</button>' +
+            '<button class="cc-del2">삭제</button>';
+          var inp = card.querySelector(".cc-name-edit");
+          inp.onchange = function () { renameClass(c, inp.value.trim()); };
+          inp.addEventListener("keydown", function (e) { if (e.key === "Enter") inp.blur(); });
+          var mv = card.querySelectorAll(".cc-move");
+          mv[0].onclick = function () { moveClass(c, -1); };
+          mv[1].onclick = function () { moveClass(c, 1); };
+          card.querySelector(".cc-del2").onclick = function () { deleteClass(c); };
+        } else {
           var p = c.closing_date ? String(c.closing_date).slice(0, 10).split("-") : null;
           var dateLabel = p ? (+p[1]) + "월 " + (+p[2]) + "일" : "날짜 선택";
           var due = c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "";
-          var card = document.createElement("div");
-          card.className = "class-card";
           card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
             '<button class="cc-date' + (p ? "" : " unset") + '">' + dateLabel + "</button>" +
-            '<span class="cc-due">' + due + "</span>" +
-            '<button class="cc-del" title="삭제">&times;</button>';
+            '<span class="cc-due">' + due + "</span>";
           card.querySelector(".cc-date").onclick = function () { openCalendar(c); };
-          card.querySelector(".cc-del").onclick = function () { deleteClass(c); };
-          wrap.appendChild(card);
-        });
+        }
+        wrap.appendChild(card);
+      });
       list.appendChild(wrap);
+    });
+  }
+
+  function allOrdered() {
+    var arr = [];
+    orderedCategories().forEach(function (cat) { classGroup(cat).forEach(function (c) { arr.push(c); }); });
+    return arr;
+  }
+  function moveClass(c, dir) {
+    var arr = allOrdered();
+    var idx = -1;
+    for (var i = 0; i < arr.length; i++) if (arr[i].id === c.id) { idx = i; break; }
+    var j = idx + dir;
+    if (j < 0 || j >= arr.length || arr[j].category !== c.category) return; // 같은 카테고리 안에서만
+    var tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+    var ups = [];
+    arr.forEach(function (g, k) { if (g.sort !== k + 1) ups.push(sb.from("classes").update({ sort: k + 1 }).eq("id", g.id)); });
+    if (!ups.length) return;
+    Promise.all(ups).then(function () { reload(); });
+  }
+  function renameClass(c, name) {
+    if (!name || name === c.name) { renderClasses(); return; }
+    sb.from("classes").update({ name: name }).eq("id", c.id).then(function (res) {
+      if (res.error) { toast(/duplicate|unique/i.test(res.error.message) ? "이미 있는 반 이름입니다." : "이름 변경 실패: " + res.error.message); renderClasses(); return; }
+      toast("반 이름을 변경했습니다."); reload();
     });
   }
 
@@ -707,6 +758,7 @@
   $("dashClose").onclick = closeDash;
   $("classBtn").onclick = openClasses;
   $("classClose").onclick = closeClasses;
+  $("classEditBtn").onclick = toggleClassEdit;
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
