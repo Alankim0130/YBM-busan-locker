@@ -464,14 +464,17 @@
     var srcKey = moveSourceKey;
     var r = RENTALS[srcKey]; var target = LOCKERS[targetKey];
     if (!r || !target) { cancelMove(); return; }
+    var src = LOCKERS[srcKey];
     busy(true);
     sb.from("rentals").update({ locker_id: target.id }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("이동 실패: " + res.error.message); return; }
       logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "" });
+      // 출발 사물함은 비밀번호 초기화(1004) 필요 → '초기화 필요' 상태로 둠
+      if (src) sb.from("lockers").update({ needs_reset: true }).eq("id", src.id).then(function () {}, function () {});
       moveSourceKey = null; $("moveBanner").hidden = true;
       var tp = targetKey.split("-"); currentId = parseInt(tp[0], 10);
-      toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료");
+      toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료 · 출발 칸은 초기화 필요");
       reload().then(function () { select(targetKey); });
     });
   }
