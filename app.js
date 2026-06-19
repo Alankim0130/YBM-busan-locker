@@ -127,10 +127,23 @@
     return d;
   }
   function classNameOf(classId) { var c = CLASSES_BY_ID[classId]; return c ? c.name : ""; }
+  // 해당 수업월의 '직접 설정한' 종강일(레거시 제외)
+  function termClosing(r) {
+    var c = CLASSES_BY_ID[r.class_id]; if (!c || !r.started_on) return null;
+    var cl = c.closings || {}; return cl[termKeyFor(r.started_on, r.extended_months || 0)] || null;
+  }
+  // 적용 수업월이 현재 달보다 과거인가
+  function termIsPast(r) {
+    if (!r || !r.started_on) return false;
+    return termKeyFor(r.started_on, r.extended_months || 0) < (NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1));
+  }
+  // 연장 안 했고 + 등록 수업월이 과거 + 그 달 종강일 미설정 → 종강일 없이도 '마감' 처리
+  function isForcedOver(r) { return !!(r && !(r.extended_months > 0) && termIsPast(r) && !termClosing(r)); }
   function statusOf(r) {
     if (!r) return "free";
+    if (isForcedOver(r)) return "over"; // 과거 등록(미연장·종강일 미설정) → 마감
     var dl = deadlineOf(r);
-    if (!dl) return "rent";          // 종강일 미입력 → 마감 전으로 간주
+    if (!dl) return "rent";          // 종강일 미입력(현재/미래 수업) → 마감 전으로 간주
     return NOW > dl ? "over" : "rent";
   }
   function ddInfo(dl) {
@@ -428,9 +441,12 @@
       return;
     }
 
-    var dl = deadlineOf(r); var dd = ddInfo(dl);
+    var forced = isForcedOver(r);
+    var dl = forced ? null : deadlineOf(r);
+    var dd = forced ? { days: -1, label: "마감됨" } : ddInfo(dl);
     var termM = r.started_on ? (+termKeyFor(r.started_on, r.extended_months || 0).slice(5, 7)) : 0; // 적용 수업 월
-    var note = s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
+    var note = forced ? (termM + "월 수업(과거) · 종강일 미설정이라 마감 처리되었습니다. 계속 쓰려면 ‘연장하기’로 다음 달로 옮기거나, 반납·환급을 처리하세요.")
+      : s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
       : !dl ? (termM ? termM + "월 수업 종강일이 아직 입력되지 않았습니다. ‘반 관리’ 상단에서 " + termM + "월을 골라 종강일을 넣으세요." : "이 반의 종강일이 아직 입력되지 않았습니다.")
       : "마감일은 등록월(" + termM + "월 수업) 종강일 + 15일입니다. 등록일을 바꾸면 적용 종강월도 바뀝니다.";
     var dmsg = contactMsg(r, fid, num);   // 마감 안내
