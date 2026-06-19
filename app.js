@@ -994,7 +994,7 @@
   }
   function logMarkRefunded(l) {
     if (!l) return; var d = l.detail || {};
-    if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n환급계좌: " + (d.refund_account || "-") + "\n\n※ 과장님이 계좌로 보증금을 입금한 뒤 체크하세요.")) return;
+    if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n환급계좌: " + (d.refund_account || "-") + "\n\n※ 계좌로 보증금을 입금한 뒤 체크하세요.")) return;
     var nd = {}; for (var k in d) nd[k] = d[k]; nd.refunded = true; nd.refunded_at = new Date().toISOString();
     sb.from("rental_logs").update({ detail: nd }).eq("id", l.id).then(function (res) {
       if (res.error) { toast("처리 실패: " + res.error.message); return; }
