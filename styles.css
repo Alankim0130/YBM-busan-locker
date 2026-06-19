@@ -30,7 +30,7 @@
 }
 *{box-sizing:border-box;}
 [hidden]{display:none!important;}
-html,body{margin:0;height:100%;}
+html,body{margin:0;height:100%;overflow-x:hidden;}
 body{background:var(--bg);color:var(--ink);
   font-family:"Inter",system-ui,-apple-system,sans-serif;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
@@ -95,7 +95,7 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .hint{font-size:11.5px;color:var(--ink-3);line-height:1.65;border-top:1px solid var(--line);padding-top:15px;margin-top:auto;}
 
 /* ===== 중앙 스테이지 ===== */
-main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;}
+main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;overflow:hidden;}
 .stage-top{display:flex;align-items:center;justify-content:space-between;padding:20px 28px 8px;gap:12px;}
 .stage-top h2{margin:0;font-family:"Space Grotesk";font-weight:600;font-size:20px;letter-spacing:.01em;}
 .stage-top .sub{font-size:12.5px;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums;}
