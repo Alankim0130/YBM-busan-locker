@@ -168,16 +168,33 @@
   var moveSourceKey = null; // 이동 모드일 때 출발 칸
   var grid = $("grid"), drawer = $("drawer");
 
+  // 건물(관) 접기/펼치기 상태 — localStorage 유지
+  var collapsedBuildings = {};
+  try { collapsedBuildings = JSON.parse(localStorage.getItem("ybm_collapsed_v1") || "{}") || {}; } catch (e) {}
+  function toggleBuilding(b) {
+    collapsedBuildings[b] = !collapsedBuildings[b];
+    try { localStorage.setItem("ybm_collapsed_v1", JSON.stringify(collapsedBuildings)); } catch (e) {}
+    renderFloorList();
+  }
+
   function renderFloorList() {
     var list = $("floorList"); list.innerHTML = "";
+    // 건물별 빈칸 합계
+    var bstats = {};
+    FLOORS.forEach(function (f) { var c = counts(f); if (!bstats[f.building]) bstats[f.building] = { free: 0, total: 0 }; bstats[f.building].free += c.free; bstats[f.building].total += f.total; });
     var lastBuilding = null;
     FLOORS.forEach(function (f) {
       if (f.building && f.building !== lastBuilding) {
         lastBuilding = f.building;
-        var h = document.createElement("div");
-        h.className = "floor-group"; h.textContent = f.building;
+        var collapsed = !!collapsedBuildings[f.building];
+        var h = document.createElement("button");
+        h.className = "floor-group" + (collapsed ? " collapsed" : "");
+        h.innerHTML = '<span class="fg-caret">▾</span><span class="fg-name">' + esc(f.building) + "</span>" +
+          '<span class="fg-meta"><b>' + bstats[f.building].free + "</b> / " + bstats[f.building].total + " 빈칸</span>";
+        (function (b) { h.onclick = function () { toggleBuilding(b); }; })(f.building);
         list.appendChild(h);
       }
+      if (collapsedBuildings[f.building]) return; // 접힌 건물의 층 버튼은 숨김
       var c = counts(f);
       var btn = document.createElement("button");
       btn.className = "floor-btn" + (f.id === currentId ? " active" : "");
