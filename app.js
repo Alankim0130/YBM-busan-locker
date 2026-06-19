@@ -923,12 +923,9 @@
     function build(res) {
       if (res.error) throw res.error;
       CLASSES = res.data || []; CLASSES_BY_ID = {};
-      CLASSES.forEach(function (c) {
-        if (!c.closings) c.closings = {};
-        // 레거시 단일 종강일을 월별 맵에 병합(그 달에 값이 없을 때만)
-        if (c.closing_date) { var m = String(c.closing_date).slice(0, 7); if (!c.closings[m]) c.closings[m] = String(c.closing_date).slice(0, 10); }
-        CLASSES_BY_ID[c.id] = c;
-      });
+      // 레거시 closing_date 는 closings 가 비었을 때만 폴백(effectiveClosing). 자동 병합하지 않음 →
+      // 달력에서 설정한 달이 항상 우선(예: 5월만 설정하면 5월 종강 기준으로 마감됨 처리).
+      CLASSES.forEach(function (c) { if (!c.closings) c.closings = {}; CLASSES_BY_ID[c.id] = c; });
     }
     return sb.from("classes").select(cols).order("sort", { ascending: true }).then(function (res) {
       // closings 컬럼이 아직 없으면(스키마 미적용) 빼고 재시도
