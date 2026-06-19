@@ -747,13 +747,19 @@
 
   /* ---------- 학생 신청 대기 ---------- */
   function loadRequests() {
-    return sb.from("requests").select("id, floor, number, student_name, birth, phone, bank, refund_account, created_at")
-      .order("created_at", { ascending: true }).then(function (res) {
-        if (res.error) return;
-        REQUESTS = res.data || [];
-        renderReqCount();
-        if ($("reqView").classList.contains("open")) renderReq();
-      });
+    var cols = "id, floor, number, student_name, birth, phone, bank, refund_account, created_at";
+    function done(res) {
+      if (res.error) return;
+      REQUESTS = res.data || [];
+      renderReqCount();
+      if ($("reqView").classList.contains("open")) renderReq();
+    }
+    return sb.from("requests").select(cols).order("created_at", { ascending: true }).then(function (res) {
+      if (res.error && /bank/i.test(res.error.message || "")) {
+        return sb.from("requests").select(cols.replace(", bank", "")).order("created_at", { ascending: true }).then(done);
+      }
+      done(res);
+    });
   }
   function renderReqCount() {
     var el = $("reqCount"); el.textContent = REQUESTS.length; el.classList.toggle("alert", REQUESTS.length > 0);
@@ -861,21 +867,26 @@
     });
   }
   function loadRentals() {
-    return sb.from("rentals")
-      .select("id, student_name, phone, birth, class_id, extended_months, bank, refund_account, started_on, deposit_held, lockers(floor, number)")
-      .eq("active", true)
-      .then(function (res) {
-        if (res.error) throw res.error;
-        RENTALS = {};
-        (res.data || []).forEach(function (row) {
-          if (!row.lockers) return;
-          RENTALS[row.lockers.floor + "-" + row.lockers.number] = {
-            id: row.id, name: row.student_name, phone: row.phone, birth: row.birth, class_id: row.class_id,
-            extended_months: row.extended_months || 0, bank: row.bank, refund_account: row.refund_account,
-            started_on: row.started_on, deposit_held: row.deposit_held
-          };
-        });
+    var cols = "id, student_name, phone, birth, class_id, extended_months, bank, refund_account, started_on, deposit_held, lockers(floor, number)";
+    function build(res) {
+      if (res.error) throw res.error;
+      RENTALS = {};
+      (res.data || []).forEach(function (row) {
+        if (!row.lockers) return;
+        RENTALS[row.lockers.floor + "-" + row.lockers.number] = {
+          id: row.id, name: row.student_name, phone: row.phone, birth: row.birth, class_id: row.class_id,
+          extended_months: row.extended_months || 0, bank: row.bank, refund_account: row.refund_account,
+          started_on: row.started_on, deposit_held: row.deposit_held
+        };
       });
+    }
+    return sb.from("rentals").select(cols).eq("active", true).then(function (res) {
+      // bank 컬럼이 아직 없으면(스키마 미적용) bank 빼고 재시도해 앱이 죽지 않게 함
+      if (res.error && /bank/i.test(res.error.message || "")) {
+        return sb.from("rentals").select(cols.replace(", bank", "")).eq("active", true).then(build);
+      }
+      return build(res);
+    });
   }
   function reload() {
     return Promise.all([loadClasses(), loadRentals()]).then(function () {
