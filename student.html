@@ -340,25 +340,33 @@
       if (!bank) { err.textContent = "은행을 입력하세요. (예: 카카오뱅크)"; return; }
       if (!account) { err.textContent = "보증금 환급받을 계좌번호를 입력하세요."; return; }
       var btn = $("apSubmit"); btn.disabled = true; btn.textContent = "신청 중…";
-      sb.from("requests").insert({ floor: applyFid, number: applyNum, student_name: name, birth: birth, phone: phone, bank: bank, refund_account: account })
-        .then(function (res) {
-          btn.disabled = false; btn.textContent = "신청하기";
-          if (res.error) {
-            // 23505 = unique 위반(같은 전화번호로 이미 신청한 경우)
-            if (res.error.code === "23505" || /duplicate|unique/i.test(res.error.message || "")) {
-              setApplied(applyFid, applyNum, name); refreshAppliedBar();
-              closeApply(); showAlready(getApplied()); load(); return;
-            }
-            err.textContent = "신청 실패: " + res.error.message; return;
+      var payload = { floor: applyFid, number: applyNum, student_name: name, birth: birth, phone: phone, bank: bank, refund_account: account };
+      function handle(res) {
+        btn.disabled = false; btn.textContent = "신청하기";
+        if (res.error) {
+          // 23505 = unique 위반(같은 전화번호로 이미 신청한 경우)
+          if (res.error.code === "23505" || /duplicate|unique/i.test(res.error.message || "")) {
+            setApplied(applyFid, applyNum, name); refreshAppliedBar();
+            closeApply(); showAlready(getApplied()); load(); return;
           }
-          setApplied(applyFid, applyNum, name); refreshAppliedBar();
-          closeApply();
-          $("doneIco").textContent = "✓";
-          $("doneTitle").textContent = "신청 완료";
-          $("doneText").textContent = floorById(applyFid).name + " " + pad(applyNum) + "번 사물함을 신청했습니다.";
-          $("doneView").classList.add("open");
-          load();
-        });
+          err.textContent = "신청 실패: " + res.error.message; return;
+        }
+        setApplied(applyFid, applyNum, name); refreshAppliedBar();
+        closeApply();
+        $("doneIco").textContent = "✓";
+        $("doneTitle").textContent = "신청 완료";
+        $("doneText").textContent = floorById(applyFid).name + " " + pad(applyNum) + "번 사물함을 신청했습니다.";
+        $("doneView").classList.add("open");
+        load();
+      }
+      sb.from("requests").insert(payload).then(function (res) {
+        // bank 컬럼이 아직 없으면(스키마 미적용) 은행 빼고 재시도해 신청은 접수되게 함
+        if (res.error && /bank/i.test(res.error.message || "")) {
+          var p2 = { floor: applyFid, number: applyNum, student_name: name, birth: birth, phone: phone, refund_account: account };
+          return sb.from("requests").insert(p2).then(handle);
+        }
+        handle(res);
+      });
     }
     $("apCancel").onclick = closeApply;
     $("apSubmit").onclick = submitApply;
