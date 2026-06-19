@@ -47,9 +47,9 @@ select 7, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, (gs / 6) = 0
 from generate_series(0, 35) gs
 on conflict (floor, number) do nothing;
 
--- ---------- 1관 4층: 6x3, 92~109 (18칸, 키 큰 칸 없음) ----------
+-- ---------- 1관 4층: 가로 3 x 세로 6, 92~109 (18칸, 키 큰 칸 없음) ----------
 insert into lockers (floor, number, col, "row", is_tall)
-select 4, 92 + gs, (gs % 6) + 1, (gs / 6) + 1, false
+select 4, 92 + gs, (gs % 3) + 1, (gs / 3) + 1, false
 from generate_series(0, 17) gs
 on conflict (floor, number) do nothing;
 
