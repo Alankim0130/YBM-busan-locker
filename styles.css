@@ -395,8 +395,8 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .cal-card{width:452px;max-width:100%;}
 .cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px;}
 .cal-title{font-family:"Space Grotesk";font-weight:600;font-size:19px;letter-spacing:.01em;}
-.cal-nav{width:40px;height:40px;border:1px solid var(--line-strong);background:var(--surface);border-radius:10px;
-  cursor:pointer;font-size:20px;line-height:1;color:var(--ink-2);transition:border-color .15s,background .15s;}
+.cal-nav{min-width:62px;height:40px;padding:0 12px;border:1px solid var(--line-strong);background:var(--surface);border-radius:10px;
+  cursor:pointer;font-size:15px;font-weight:600;line-height:1;color:var(--ink-2);white-space:nowrap;transition:border-color .15s,background .15s;}
 .cal-nav:hover{border-color:var(--ink-3);background:var(--surface-2);color:var(--ink);}
 .cal-sub{font-size:13px;color:var(--ink-2);margin-bottom:15px;}
 .cal-grid-head{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:7px;}

@@ -2,14 +2,14 @@
    서면 YBM 사물함 관리 — Supabase 연동 로직
    - 인증: Supabase Auth (이메일/비밀번호)
    - 데이터: classes / lockers / rentals / rental_logs (RLS 보호)
-   - 마감일 = (학생이 듣는 반의 종강일) + 10일  → 조회 시 계산
+   - 마감일 = (학생이 듣는 반의 종강일) + 15일  → 조회 시 계산
    - 색상 3가지: 빈 공간(free) / 마감 전(rent) / 마감됨(over)
    - 멀티 PC 동기화: rentals · classes Realtime 구독
    ============================================================ */
 (function () {
   "use strict";
 
-  var GRACE = 10; // 종강일 + 10일 = 마감일
+  var GRACE = 15; // 종강일 + 15일 = 마감일
   var SOON = 7;   // 마감 7일 이내 = 임박(대시보드 강조)
 
   /* ---------- 설정 확인 ---------- */
@@ -333,7 +333,7 @@
         '<div class="field"><label>전화번호</label><input class="namefield" id="newPhone" placeholder="010-0000-0000" inputmode="tel" /></div>' +
         '<div class="field"><label>은행 (선택)</label><input class="namefield" id="newBank" placeholder="예: 카카오뱅크" /></div>' +
         '<div class="field"><label>환급 계좌번호 (선택)</label><input class="namefield" id="newAccount" placeholder="보증금 환급받을 계좌번호" /></div>' +
-        '<div class="field"><label>반 (마감일 = 종강일 + 10일)</label><select class="selfield" id="newClass">' + classOptionsHTML("") + "</select></div>" +
+        '<div class="field"><label>반 (마감일 = 종강일 + 15일)</label><select class="selfield" id="newClass">' + classOptionsHTML("") + "</select></div>" +
         '<div class="field"><label>등록일 (기본: 오늘 · 과거 기록은 날짜 변경)</label><input class="namefield" type="date" id="newDate" value="' + todayISO() + '" /></div>' +
         '<div class="field"><label>안내</label><div class="v">대여를 시작하면 보증금 1만원 수령으로 기록됩니다.</div></div>';
       actions.innerHTML = '<div class="line"><button class="btn primary" id="rentBtn">대여 시작 · 보증금 1만원 수령</button></div>' +
@@ -357,7 +357,7 @@
     var dl = deadlineOf(r); var dd = ddInfo(dl);
     var note = s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
       : !dl ? "이 반의 종강일이 아직 입력되지 않았습니다. ‘반 관리’에서 종강일을 입력하면 마감일이 자동 계산됩니다."
-      : "마감일은 반 종강일 + 10일입니다. 종강일이 갱신되면 마감일도 자동으로 미뤄집니다.";
+      : "마감일은 반 종강일 + 15일입니다. 종강일이 갱신되면 마감일도 자동으로 미뤄집니다.";
     var dmsg = contactMsg(r, fid, num);   // 마감 안내
     var gmsg = guideMsg(r, fid, num);     // 비밀번호 이용 안내
     var deadlineContact = '<button class="btn small" id="copyDeadlineBtn">마감 안내 문구 복사</button>';
@@ -377,7 +377,7 @@
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + "</div></div>" +
       '<div class="field"><label>이용 안내 (비밀번호)</label><div class="contact-row">' + guideContact + '</div><div class="guide-prev">' + esc(GUIDE) + "</div></div>" +
       '<div class="field"><label>마감 안내</label><div class="contact-row">' + deadlineContact + "</div></div>" +
-      '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 10일' + (ext ? " + 연장 " + ext + "개월" : "") + ')</span>' +
+      '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 15일' + (ext ? " + 연장 " + ext + "개월" : "") + ')</span>' +
       '<span class="dd" style="color:' + st.color + '">' + dd.label + "</span></div>" +
       '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div>" +
       '<div class="ext-row"><span>연장 <b>' + ext + '</b>개월</span><span class="ext-btns">' +
@@ -579,7 +579,7 @@
     $("classAddRow").hidden = !classEditMode;
     $("classLead").innerHTML = classEditMode
       ? "<b>편집 모드</b> · 반 추가 · 이름 수정 · 순서 이동(↑↓) · 삭제를 할 수 있습니다."
-      : "각 반의 <b>날짜 선택</b>을 눌러 달력에서 종강일을 고르세요. 마감일 = 종강일 + 10일.";
+      : "각 반의 <b>날짜 선택</b>을 눌러 달력에서 종강일을 고르세요. 마감일 = 종강일 + 15일.";
   }
   function toggleClassEdit() { classEditMode = !classEditMode; applyClassMode(); renderClasses(); }
 
@@ -672,6 +672,11 @@
   }
   function renderCalendar() {
     $("calTitle").textContent = calY + "년 " + calM + "월";
+    // 좌우 버튼에 이동할 달 이름 표시 (예: ‹ 5월 / 7월 ›)
+    var pm = calM - 1 < 1 ? 12 : calM - 1;
+    var nm = calM + 1 > 12 ? 1 : calM + 1;
+    $("calPrev").innerHTML = "‹ " + pm + "월";
+    $("calNext").innerHTML = nm + "월 ›";
     var first = new Date(calY, calM - 1, 1).getDay(); // 0=일
     var days = lastDayOf(calY, calM);
     var c = CLASSES_BY_ID[calClassId];
