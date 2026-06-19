@@ -121,7 +121,6 @@
   <div class="wrap" id="app" hidden>
     <div class="deposit">
       <div class="dep-txt">💳 보증금 입금 · 카카오뱅크 <b>조*름 3333-32-7024720</b> <span class="dep-tag">(사물함)</span></div>
-      <button class="dep-copy" id="depCopy">계좌 복사</button>
     </div>
     <div class="applied-bar" id="appliedBar" hidden>✓ 신청이 접수되었습니다 · 데스크에서 확인 중입니다</div>
     <header>
@@ -384,13 +383,6 @@
       if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(num).then(done, fb); } else { fb(); }
     };
 
-    $("depCopy").onclick = function () {
-      var num = "3333327024720"; // 계좌번호(숫자만) — 은행앱 붙여넣기 편하도록
-      var btn = $("depCopy");
-      function done() { var t = btn.textContent; btn.textContent = "복사됨!"; setTimeout(function () { btn.textContent = t; }, 1500); }
-      function fb() { var ta = document.createElement("textarea"); ta.value = num; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (e) {} document.body.removeChild(ta); }
-      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(num).then(done, fb); } else { fb(); }
-    };
     $("refreshBtn").onclick = function () { load(); };
     document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });
     setInterval(function () { if (!document.hidden) load(); }, 30000);

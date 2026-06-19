@@ -25,6 +25,7 @@ create table if not exists lockers (
   "row"     int  not null,            -- 격자 위치(세로)
   is_tall   boolean default false,    -- 키 큰 칸 여부(맨 윗줄)
   broken    boolean default false,    -- 고장 표시
+  needs_reset boolean default false,  -- 반납 후 비밀번호 초기화(1004) 필요
   unique (floor, number)
 );
 
@@ -50,6 +51,7 @@ alter table rentals add column if not exists refund_account text;     -- 보증�
 alter table rentals add column if not exists bank text;               -- 환급 은행 이름
 alter table lockers add column if not exists broken boolean default false;   -- 고장 표시(기존 설치 업그레이드용)
 alter table classes add column if not exists closings jsonb default '{}'::jsonb;  -- 월별 종강일(기존 설치 업그레이드용)
+alter table lockers add column if not exists needs_reset boolean default false;   -- 초기화 필요(기존 설치 업그레이드용)
 
 -- 칸당 활성 대여 1건만 허용
 create unique index if not exists rentals_one_active_per_locker
@@ -148,7 +150,8 @@ select
   l."row",
   l.is_tall,
   l.broken,
-  exists (select 1 from rentals r where r.locker_id = l.id and r.active) as occupied,
+  -- 초기화 필요 상태는 학생에게 '사용중'으로 보이게 occupied 에 포함(관리자 화면만 별도 표시)
+  (exists (select 1 from rentals r where r.locker_id = l.id and r.active) or l.needs_reset) as occupied,
   exists (select 1 from requests q where q.floor = l.floor and q.number = l.number) as pending
 from lockers l;
 

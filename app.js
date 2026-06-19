@@ -78,9 +78,11 @@
     free:   { c: "var(--free)",   label: "빈 공간", color: "#3ba776" },
     rent:   { c: "var(--rent)",   label: "마감 전", color: "#3b6fd4" },
     over:   { c: "var(--over)",   label: "마감됨",  color: "#d7503a" },
-    broken: { c: "var(--broken)", label: "고장",    color: "#8a94a6" }
+    broken: { c: "var(--broken)", label: "고장",    color: "#8a94a6" },
+    reset:  { c: "var(--reset)",  label: "초기화 필요", color: "#d98324" }
   };
   function brokenAt(key) { var lk = LOCKERS[key]; return !!(lk && lk.broken); }
+  function resetAt(key) { var lk = LOCKERS[key]; return !!(lk && lk.needs_reset); }
 
   /* ---------- 메모리 캐시 ---------- */
   var LOCKERS = {};        // "floor-number" -> { id, floor, number }
@@ -173,15 +175,16 @@
 
   /* ---------- 카운트 ---------- */
   function counts(f) {
-    var used = 0, over = 0, broken = 0;
+    var used = 0, over = 0, broken = 0, reset = 0;
     for (var n = f.start; n <= f.end; n++) {
       var key = keyOf(f, n);
       if (brokenAt(key)) { broken++; continue; }
-      var s = statusOf(RENTALS[key]);
-      if (s !== "free") used++;
-      if (s === "over") over++;
+      var r = RENTALS[key];
+      if (!r) { if (resetAt(key)) reset++; continue; }
+      used++;
+      if (statusOf(r) === "over") over++;
     }
-    return { used: used, over: over, broken: broken, free: f.total - used - broken };
+    return { used: used, over: over, broken: broken, reset: reset, free: f.total - used - broken - reset };
   }
 
   /* ---------- 렌더링 ---------- */
@@ -232,6 +235,7 @@
           '<span class="seg" style="flex:' + c.free + ';background:var(--free)"></span>' +
           '<span class="seg" style="flex:' + Math.max(c.used - c.over, 0) + ';background:var(--rent)"></span>' +
           '<span class="seg" style="flex:' + c.over + ';background:var(--over)"></span>' +
+          '<span class="seg" style="flex:' + c.reset + ';background:var(--reset)"></span>' +
           '<span class="seg" style="flex:' + c.broken + ';background:var(--broken)"></span>' +
         "</div>";
       btn.onclick = function () { currentId = f.id; collapsedBuildings[f.building] = true; saveCollapsed(); showView("lockers"); closeDrawer(); renderAll(); };
@@ -242,12 +246,14 @@
   function makeLockerCell(f, n) {
     var key = keyOf(f, n);
     var broken = brokenAt(key);
-    var r = RENTALS[key]; var s = broken ? "broken" : statusOf(r); var st = STATE[s];
+    var r = RENTALS[key];
+    var s = broken ? "broken" : r ? statusOf(r) : (resetAt(key) ? "reset" : "free");
+    var st = STATE[s];
     var el = document.createElement("button");
     var moveTarget = moveSourceKey && s === "free" && key !== moveSourceKey;
-    el.className = "locker" + (broken ? " broken" : "") + (key === selectedKey ? " sel" : "") + (moveTarget ? " movable" : "");
+    el.className = "locker" + (broken ? " broken" : "") + (s === "reset" ? " reset" : "") + (key === selectedKey ? " sel" : "") + (moveTarget ? " movable" : "");
     el.style.setProperty("--c", st.c);
-    el.innerHTML = '<span class="id">' + pad(n) + '</span><span class="who">' + (broken ? "고장" : r ? esc(r.name) : "비어 있음") + '</span><span class="handle"></span>';
+    el.innerHTML = '<span class="id">' + pad(n) + '</span><span class="who">' + (broken ? "고장" : s === "reset" ? "초기화 필요" : r ? esc(r.name) : "비어 있음") + '</span><span class="handle"></span>';
     (function (k, free) {
       el.onclick = function () {
         if (moveSourceKey) { if (free && k !== moveSourceKey) performMove(k); return; }
@@ -286,7 +292,7 @@
     var f = floorById(currentId); var c = counts(f);
     $("floorTitle").textContent = locLabel(f) + " 사물함";
     $("floorSub").textContent = "전체 " + f.total + "칸 (" + f.cols + " × " + f.rows + ") · 사용 중 " +
-      c.used + " · 빈칸 " + c.free + (c.over ? " · 마감됨 " + c.over : "") + (c.broken ? " · 고장 " + c.broken : "");
+      c.used + " · 빈칸 " + c.free + (c.over ? " · 마감됨 " + c.over : "") + (c.reset ? " · 초기화 필요 " + c.reset : "") + (c.broken ? " · 고장 " + c.broken : "");
   }
 
   function renderDashCount() {
@@ -330,7 +336,8 @@
     var parts = key.split("-"); var fid = parseInt(parts[0], 10); var num = parseInt(parts[1], 10);
     var f = floorById(fid); var r = RENTALS[key];
     var broken = !r && brokenAt(key);
-    var s = broken ? "broken" : statusOf(r); var st = STATE[s];
+    var needsReset = !r && !broken && resetAt(key);
+    var s = broken ? "broken" : needsReset ? "reset" : statusOf(r); var st = STATE[s];
     $("dId").textContent = "No. " + pad(num);
     $("dFloor").textContent = locLabel(f);
     var body = $("dBody"); var actions = $("dActions");
@@ -340,6 +347,14 @@
         '<div class="field"><label>상태</label><div class="v">이 사물함은 <b>고장</b>으로 표시되어 있어 대여할 수 없습니다. 수리가 끝나면 고장을 해제하세요.</div></div>';
       actions.innerHTML = '<div class="line"><button class="btn primary" id="fixBtn">🔧 고장 해제</button></div>';
       $("fixBtn").onclick = function () { setBroken(key, false); };
+      return;
+    }
+
+    if (needsReset) {
+      body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
+        '<div class="field"><label>상태</label><div class="v">반납 처리된 사물함입니다. 비밀번호를 <b>1004</b>(초기 비밀번호)로 바꾼 뒤 <b>초기화 완료</b>를 누르면 새 학생이 사용할 수 있습니다. <br>(학생 화면에는 ‘사용중’으로 표시됩니다.)</div></div>';
+      actions.innerHTML = '<div class="line"><button class="btn primary" id="resetDoneBtn">✅ 초기화 완료 (1004로 변경함)</button></div>';
+      $("resetDoneBtn").onclick = function () { setNeedsReset(key, false); };
       return;
     }
 
@@ -497,6 +512,20 @@
     });
   }
 
+  function setNeedsReset(key, val) {
+    var lk = LOCKERS[key];
+    if (!lk) { toast("사물함 정보를 찾을 수 없습니다."); return; }
+    busy(true);
+    sb.from("lockers").update({ needs_reset: val }).eq("id", lk.id).then(function (res) {
+      busy(false);
+      if (res.error) { toast(/needs_reset/i.test(res.error.message || "") ? "스키마 적용 필요: schema.sql 을 실행해 주세요." : "처리 실패: " + res.error.message); return; }
+      lk.needs_reset = val;
+      toast(val ? "초기화 필요로 표시했습니다." : "초기화 완료 · 이제 대여할 수 있습니다.");
+      renderAll();
+      if (selectedKey === key) renderDrawer();
+    });
+  }
+
   function editRental(key, name, phone, classId, birth, account, bank, date) {
     var r = RENTALS[key]; if (!r) return;
     busy(true);
@@ -552,11 +581,14 @@
     if (!window.confirm(r.name + " 님의 반납 신청을 접수합니다.\n사물함은 즉시 비워지고, 보증금 환급은 ‘신청 기록’에서 완료 처리하세요.")) return;
     busy(true);
     // 사물함은 비우되(active=false) 보증금은 아직 보유(환급 대기) → 로그에 refunded:false 로 기록
+    // 비밀번호 초기화(1004) 전까지 '초기화 필요' 상태로 둠
+    var lk = LOCKERS[key];
     sb.from("rentals").update({ active: false }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("반납 신청 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", refunded: false });
-      toast("반납 신청 접수 · 신청 기록에서 보증금 반납을 완료 처리하세요");
+      logAction(lk && lk.id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", refunded: false });
+      if (lk) sb.from("lockers").update({ needs_reset: true }).eq("id", lk.id).then(function () {}, function () {});
+      toast("반납 신청 접수 · 비밀번호를 1004로 초기화한 뒤 ‘초기화 완료’를 누르세요");
       reload();
     });
   }
@@ -957,10 +989,17 @@
     });
   }
   function loadLockers() {
-    return sb.from("lockers").select("id, floor, number, broken").then(function (res) {
+    function build(res) {
       if (res.error) throw res.error;
       LOCKERS = {};
       (res.data || []).forEach(function (l) { LOCKERS[l.floor + "-" + l.number] = l; });
+    }
+    return sb.from("lockers").select("id, floor, number, broken, needs_reset").then(function (res) {
+      // needs_reset 컬럼이 아직 없으면(스키마 미적용) 빼고 재시도
+      if (res.error && /needs_reset/i.test(res.error.message || "")) {
+        return sb.from("lockers").select("id, floor, number, broken").then(build);
+      }
+      return build(res);
     });
   }
   function loadRentals() {
