@@ -52,16 +52,16 @@
     border-radius:13px;padding:10px;display:flex;}
   .grid{flex:1;display:grid;gap:5px;min-height:0;
     grid-template-columns:repeat(var(--cols),1fr);}
-  .cell{border-radius:6px;display:flex;align-items:center;justify-content:center;
-    border:1px solid transparent;min-height:0;min-width:0;overflow:hidden;}
+  .cell{border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    border:1.5px solid transparent;min-height:0;min-width:0;overflow:hidden;}
   .cell .num{font-family:"Space Grotesk";font-weight:700;font-size:clamp(10px,4.3vmin,21px);line-height:1;}
-  .cell.free{background:#e3f3ec;border-color:#bfe3d2;color:#1d7a54;cursor:pointer;}
+  .cell.free{background:#b7e7cf;border-color:#3fae7c;color:#0d5b38;cursor:pointer;}
   .cell.free:active{transform:scale(.96);}
-  .cell.used{background:#eef1f4;border-color:#dde3ea;color:#aeb8c4;}
-  .cell.pending{background:#fff3d6;border-color:#ecd28a;color:#9a6a00;}
+  .cell.used{background:#e7eaf0;border-color:#d2d9e2;color:#a9b3c0;}
+  .cell.pending{background:#ffe6a8;border-color:#e3b94e;color:#8a5e00;}
   .cell.broken{background:#e7eaef;border-color:#cfd5de;color:#8a94a6;
     background-image:repeating-linear-gradient(45deg,rgba(138,148,166,.18) 0 6px,transparent 6px 12px);}
-  .cell .cell-cta{font-size:clamp(8px,2.1vmin,10px);font-weight:700;opacity:.85;margin-top:1px;}
+  .cell .cell-cta{font-size:clamp(8px,2.3vmin,11px);font-weight:800;line-height:1;}
   .cell .cell-cta.pend{color:#9a6a00;}
   .cell .cell-cta.brk{color:#8a94a6;}
   .cell.block{background:repeating-linear-gradient(45deg,#eef1f5 0 8px,#e4e8ee 8px 16px);
@@ -133,9 +133,9 @@
     <div class="bar">
       <div class="cnt" id="cnt">—</div>
       <div class="lg">
-        <span class="it"><span class="sw" style="background:#e3f3ec;border:1px solid #bfe3d2"></span>빈자리</span>
-        <span class="it"><span class="sw" style="background:#fff3d6;border:1px solid #ecd28a"></span>신청중</span>
-        <span class="it"><span class="sw" style="background:#eef1f4;border:1px solid #dde3ea"></span>사용중</span>
+        <span class="it"><span class="sw" style="background:#b7e7cf;border:1.5px solid #3fae7c"></span>빈자리</span>
+        <span class="it"><span class="sw" style="background:#ffe6a8;border:1.5px solid #e3b94e"></span>신청중</span>
+        <span class="it"><span class="sw" style="background:#e7eaf0;border:1.5px solid #d2d9e2"></span>사용중</span>
         <span class="it"><span class="sw" style="background:#e7eaef;border:1px solid #cfd5de"></span>고장</span>
       </div>
     </div>
