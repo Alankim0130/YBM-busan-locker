@@ -42,6 +42,8 @@
   function todayISO() {
     return NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1) + "-" + pad(NOW.getDate());
   }
+  // 과거 등록일이면 그 날짜(정오 KST)로 로그 시각 지정, 오늘이면 실제 시각(null) 사용
+  function rentLogTs(date) { return (date && date !== todayISO()) ? date + "T12:00:00+09:00" : null; }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (m) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m];
@@ -458,7 +460,7 @@
     }).then(function (res) {
       busy(false);
       if (res.error) { toast("대여 실패: " + res.error.message); return; }
-      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null), bank: bank || "", refund_account: account || "" });
+      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null), bank: bank || "", refund_account: account || "" }, rentLogTs(date));
       toast(name + " 님 대여 시작 · 보증금 1만원 수령 · 학생에게 비밀번호 안내를 보내세요");
       reload();
     });
@@ -480,14 +482,26 @@
 
   function editRental(key, name, phone, classId, birth, account, bank, date) {
     var r = RENTALS[key]; if (!r) return;
+    var dateChanged = date && date !== r.started_on;
     busy(true);
     sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null, started_on: date || r.started_on })
       .eq("id", r.id).then(function (res) {
         busy(false);
         if (res.error) { toast("수정 실패: " + res.error.message); return; }
         logAction(LOCKERS[key] && LOCKERS[key].id, "edit", { student_name: name });
+        // 등록일을 바꾸면 신청 기록의 '입금' 로그 날짜도 같이 맞춰줌
+        if (dateChanged) syncRentLogDate(LOCKERS[key] && LOCKERS[key].id, date);
         toast("정보 수정 완료");
         reload();
+      });
+  }
+  // 해당 사물함의 가장 최근 '입금' 로그 created_at 을 등록일로 맞춤
+  function syncRentLogDate(lockerId, date) {
+    if (!lockerId || !date) return;
+    sb.from("rental_logs").select("id").eq("locker_id", lockerId).eq("action", "rent")
+      .order("created_at", { ascending: false }).limit(1).then(function (res) {
+        if (res.error || !res.data || !res.data[0]) return;
+        sb.from("rental_logs").update({ created_at: date + "T12:00:00+09:00" }).eq("id", res.data[0].id).then(function () {}, function () {});
       });
   }
 
@@ -518,9 +532,11 @@
     });
   }
 
-  function logAction(lockerId, action, detail) {
+  function logAction(lockerId, action, detail, at) {
     if (!lockerId && action !== "class_closing") return;
-    sb.from("rental_logs").insert({ locker_id: lockerId || null, action: action, detail: detail || {} })
+    var row = { locker_id: lockerId || null, action: action, detail: detail || {} };
+    if (at) row.created_at = at;   // 과거 등록일 등으로 기록 시각을 지정
+    sb.from("rental_logs").insert(row)
       .then(function () {}, function () {});
   }
 
