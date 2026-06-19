@@ -53,9 +53,12 @@ select 4, 92 + gs, (gs % 6) + 1, (gs / 6) + 1, false
 from generate_series(0, 17) gs
 on conflict (floor, number) do nothing;
 
--- ---------- 2관(floor=8): 5x2, 110~114 윗줄 / 115~119 아랫줄 ----------
+-- ---------- 2관(floor=8): 110~114 세로 한 줄(1열) / 115~119 세로 한 줄(3열), 가운데는 엘리베이터 ----------
 insert into lockers (floor, number, col, "row", is_tall)
-select 8, 110 + gs, (gs % 5) + 1, (gs / 5) + 1, false
+select 8, 110 + gs,
+       case when gs < 5 then 1 else 3 end,
+       case when gs < 5 then gs + 1 else gs - 4 end,
+       false
 from generate_series(0, 9) gs
 on conflict (floor, number) do nothing;
 

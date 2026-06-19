@@ -56,9 +56,21 @@
     { id: 3, name: "3층", building: "1관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
     { id: 4, name: "4층", building: "1관", cols: 6, rows: 3, start: 92,  tallCount: 0 },
     { id: 7, name: "7층", building: "1관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
-    { id: 8, name: "2관", building: "2관", cols: 5, rows: 2, start: 110, tallCount: 0 }
+    // 2관: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
+    { id: 8, name: "2관", building: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
+      custom: {
+        lockers: [[110,1,1],[111,1,2],[112,1,3],[113,1,4],[114,1,5],[115,3,1],[116,3,2],[117,3,3],[118,3,4],[119,3,5]],
+        blocks: [{ label: "🛗", sub: "엘리베이터", col: 2, row: 1, rowSpan: 5 }]
+      } }
   ];
-  FLOORS.forEach(function (f) { f.total = f.cols * f.rows; f.end = f.start + f.total - 1; });
+  FLOORS.forEach(function (f) {
+    if (f.custom) {
+      var nums = f.custom.lockers.map(function (it) { return it[0]; });
+      f.total = nums.length; f.start = Math.min.apply(null, nums); f.end = Math.max.apply(null, nums);
+    } else {
+      f.total = f.cols * f.rows; f.end = f.start + f.total - 1;
+    }
+  });
 
   var STATE = {
     free:   { c: "var(--free)",   label: "빈 공간", color: "#3ba776" },
@@ -180,28 +192,47 @@
     });
   }
 
+  function makeLockerCell(f, n) {
+    var key = keyOf(f, n);
+    var broken = brokenAt(key);
+    var r = RENTALS[key]; var s = broken ? "broken" : statusOf(r); var st = STATE[s];
+    var el = document.createElement("button");
+    var moveTarget = moveSourceKey && s === "free" && key !== moveSourceKey;
+    el.className = "locker" + (broken ? " broken" : "") + (key === selectedKey ? " sel" : "") + (moveTarget ? " movable" : "");
+    el.style.setProperty("--c", st.c);
+    el.innerHTML = '<span class="id">' + pad(n) + '</span><span class="who">' + (broken ? "고장" : r ? esc(r.name) : "비어 있음") + '</span><span class="handle"></span>';
+    (function (k, free) {
+      el.onclick = function () {
+        if (moveSourceKey) { if (free && k !== moveSourceKey) performMove(k); return; }
+        select(k);
+      };
+    })(key, s === "free");
+    return el;
+  }
+
   function renderGrid() {
     var f = floorById(currentId);
     grid.style.setProperty("--cols", f.cols); // 칸 크기는 CSS가 결정(전 칸 동일 크기·반응형)
+    grid.style.gridAutoRows = "";
     grid.innerHTML = "";
-    for (var i = 0; i < f.total; i++) {
-      var n = f.start + i;
-      var key = keyOf(f, n);
-      var broken = brokenAt(key);
-      var r = RENTALS[key]; var s = broken ? "broken" : statusOf(r); var st = STATE[s];
-      var el = document.createElement("button");
-      var moveTarget = moveSourceKey && s === "free" && key !== moveSourceKey;
-      el.className = "locker" + (broken ? " broken" : "") + (key === selectedKey ? " sel" : "") + (moveTarget ? " movable" : "");
-      el.style.setProperty("--c", st.c);
-      el.innerHTML = '<span class="id">' + pad(n) + '</span><span class="who">' + (broken ? "고장" : r ? esc(r.name) : "비어 있음") + '</span><span class="handle"></span>';
-      (function (k, free) {
-        el.onclick = function () {
-          if (moveSourceKey) { if (free && k !== moveSourceKey) performMove(k); return; }
-          select(k);
-        };
-      })(key, s === "free");
-      grid.appendChild(el);
+    if (f.custom) {
+      grid.style.gridAutoRows = "var(--cell-h)";
+      f.custom.blocks.forEach(function (b) {
+        var d = document.createElement("div");
+        d.className = "locker-block";
+        d.style.gridColumn = String(b.col);
+        d.style.gridRow = b.row + " / span " + (b.rowSpan || 1);
+        d.innerHTML = '<span class="lb-ico">' + esc(b.label || "") + "</span>" + (b.sub ? '<span class="lb-sub">' + esc(b.sub) + "</span>" : "");
+        grid.appendChild(d);
+      });
+      f.custom.lockers.forEach(function (it) {
+        var el = makeLockerCell(f, it[0]);
+        el.style.gridColumn = String(it[1]); el.style.gridRow = String(it[2]);
+        grid.appendChild(el);
+      });
+      return;
     }
+    for (var i = 0; i < f.total; i++) grid.appendChild(makeLockerCell(f, f.start + i));
   }
 
   function renderHeader() {

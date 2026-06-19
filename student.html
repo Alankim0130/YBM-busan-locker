@@ -64,6 +64,10 @@
   .cell .cell-cta{font-size:clamp(8px,2.1vmin,10px);font-weight:700;opacity:.85;margin-top:1px;}
   .cell .cell-cta.pend{color:#9a6a00;}
   .cell .cell-cta.brk{color:#8a94a6;}
+  .cell.block{background:repeating-linear-gradient(45deg,#eef1f5 0 8px,#e4e8ee 8px 16px);
+    border:1px dashed #c0c8d2;color:#7c8694;cursor:default;flex-direction:column;gap:3px;}
+  .cell.block .blk-ico{font-size:clamp(15px,5vmin,26px);line-height:1;}
+  .cell.block .blk-sub{font-size:clamp(8px,2vmin,11px);font-weight:700;}
   /* 신청 시트(모달) */
   .ovl{position:fixed;inset:0;background:rgba(20,27,38,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;}
   .ovl.open{display:flex;}
@@ -178,7 +182,8 @@
       <div class="done-acct">카카오뱅크 <b>조여름 3333-32-7024720</b> (사물함)
         <button class="dep-copy" id="depCopy2" style="margin-left:8px;">복사</button>
       </div>
-      <div class="sheet-btns"><button class="sbtn primary" id="doneClose">확인</button></div>
+      <div class="sheet-btns"><button class="sbtn primary" id="doneClose">확인 · 창 닫기</button></div>
+      <p class="sub" style="text-align:center;margin:10px 0 0;font-size:11.5px;">닫히지 않으면 직접 탭을 닫아 주세요.</p>
     </div>
   </div>
 
@@ -201,9 +206,21 @@
       { id: 3, name: "1관 3층", cols: 6, rows: 6, start: 56,  tallCount: 6 },
       { id: 4, name: "1관 4층", cols: 6, rows: 3, start: 92,  tallCount: 0 },
       { id: 7, name: "1관 7층", cols: 6, rows: 6, start: 1,   tallCount: 6 },
-      { id: 8, name: "2관",     cols: 5, rows: 2, start: 110, tallCount: 0 }
+      // 2관: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
+      { id: 8, name: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
+        custom: {
+          lockers: [[110,1,1],[111,1,2],[112,1,3],[113,1,4],[114,1,5],[115,3,1],[116,3,2],[117,3,3],[118,3,4],[119,3,5]],
+          blocks: [{ label: "🛗", sub: "엘리베이터", col: 2, row: 1, rowSpan: 5 }]
+        } }
     ];
-    FLOORS.forEach(function (f) { f.total = f.cols * f.rows; f.end = f.start + f.total - 1; });
+    FLOORS.forEach(function (f) {
+      if (f.custom) {
+        var nums = f.custom.lockers.map(function (it) { return it[0]; });
+        f.total = nums.length; f.start = Math.min.apply(null, nums); f.end = Math.max.apply(null, nums);
+      } else {
+        f.total = f.cols * f.rows; f.end = f.start + f.total - 1;
+      }
+    });
 
     var currentId = 1, STATUS = {}, loaded = false;
     function pad(n) { return String(n).padStart(2, "0"); }
@@ -222,21 +239,38 @@
       });
     }
 
+    function makeCell(f, n) {
+      var s = STATUS[keyOf(f.id, n)] || "free";
+      var c = document.createElement("div");
+      c.className = "cell " + s;
+      c.innerHTML = '<span class="num">' + pad(n) + "</span>" +
+        (s === "free" ? '<span class="cell-cta">신청</span>' : s === "pending" ? '<span class="cell-cta pend">신청중</span>' : s === "broken" ? '<span class="cell-cta brk">고장</span>' : "");
+      if (s === "free") (function (num) { c.onclick = function () { openApply(f.id, num); }; })(n);
+      return c;
+    }
+
     function renderGrid() {
       var f = floorById(currentId), g = $("grid");
       g.style.setProperty("--cols", f.cols);
       g.style.gridTemplateRows = "repeat(" + f.rows + ",1fr)";
       g.innerHTML = "";
-      for (var i = 0; i < f.total; i++) {
-        var n = f.start + i;
-        var s = STATUS[keyOf(f.id, n)] || "free";
-        var c = document.createElement("div");
-        c.className = "cell " + s;
-        c.innerHTML = '<span class="num">' + pad(n) + "</span>" +
-          (s === "free" ? '<span class="cell-cta">신청</span>' : s === "pending" ? '<span class="cell-cta pend">신청중</span>' : s === "broken" ? '<span class="cell-cta brk">고장</span>' : "");
-        if (s === "free") (function (num) { c.onclick = function () { openApply(f.id, num); }; })(n);
-        g.appendChild(c);
+      if (f.custom) {
+        f.custom.blocks.forEach(function (b) {
+          var d = document.createElement("div");
+          d.className = "cell block";
+          d.style.gridColumn = String(b.col);
+          d.style.gridRow = b.row + " / span " + (b.rowSpan || 1);
+          d.innerHTML = '<span class="blk-ico">' + b.label + "</span><span class=\"blk-sub\">" + (b.sub || "") + "</span>";
+          g.appendChild(d);
+        });
+        f.custom.lockers.forEach(function (it) {
+          var c = makeCell(f, it[0]);
+          c.style.gridColumn = String(it[1]); c.style.gridRow = String(it[2]);
+          g.appendChild(c);
+        });
+        return;
       }
+      for (var i = 0; i < f.total; i++) g.appendChild(makeCell(f, f.start + i));
     }
 
     function renderBar() {
@@ -324,7 +358,12 @@
     }
     $("apCancel").onclick = closeApply;
     $("apSubmit").onclick = submitApply;
-    $("doneClose").onclick = function () { $("doneView").classList.remove("open"); window.scrollTo(0, 0); };
+    $("doneClose").onclick = function () {
+      // 탭 닫기 시도 (브라우저 보안상 스크립트로 연 창만 닫힘 — 모바일은 대부분 막힘)
+      try { window.open("", "_self"); window.close(); } catch (e) {}
+      // 닫히지 않으면 모달만 닫고 페이지로 복귀
+      $("doneView").classList.remove("open"); window.scrollTo(0, 0);
+    };
     $("depCopy2").onclick = function () {
       var num = "3333327024720", b = $("depCopy2");
       function done() { var t = b.textContent; b.textContent = "복사됨!"; setTimeout(function () { b.textContent = t; }, 1500); }
