@@ -34,7 +34,7 @@ html,body{margin:0;height:100%;}
 body{background:var(--bg);color:var(--ink);
   font-family:"Inter",system-ui,-apple-system,sans-serif;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-  display:flex;flex-direction:column;min-height:100vh;}
+  display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden;}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
 ::selection{background:#d4e0f5;}
 
@@ -295,18 +295,18 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .brand p{display:none;}
   .deadline{display:none;}
   .app{flex-direction:column;}
-  aside{width:100%;flex-direction:row;align-items:center;gap:12px;overflow-x:auto;overflow-y:hidden;
-    padding:10px 14px;border-right:none;border-bottom:1px solid var(--line);scrollbar-width:none;}
-  aside::-webkit-scrollbar{display:none;}
-  aside>div{flex:0 0 auto;display:flex;align-items:center;gap:8px;}
+  /* 상단 바: 3줄 (① 층 / ② 마감임박·반관리·이용안내 / ③ 색상안내) */
+  aside{width:100%;flex-direction:column;align-items:stretch;gap:9px;
+    padding:11px 14px;border-right:none;border-bottom:1px solid var(--line);overflow:visible;}
+  aside>div{width:100%;}
   .rail-label{display:none;}
-  .floors{flex-direction:row;gap:8px;}
-  .floor-btn{min-width:max-content;padding:8px 12px;gap:5px;}
+  .floors{flex-direction:row;flex-wrap:wrap;gap:8px;}
+  .floor-btn{flex:0 0 auto;min-width:max-content;padding:8px 13px;gap:6px;}
   .floor-btn .fbar{display:none;}
-  .rail-group{flex-direction:row;gap:8px;}
-  .rail-btn{width:auto;padding:9px 12px;white-space:nowrap;}
-  .legend{flex-direction:row;gap:12px;flex-wrap:nowrap;}
-  .legend .row{white-space:nowrap;font-size:11.5px;}
+  .rail-group{flex-direction:row;flex-wrap:wrap;gap:8px;}
+  .rail-btn{width:auto;flex:0 0 auto;padding:9px 13px;white-space:nowrap;}
+  .legend{flex-direction:row;flex-wrap:wrap;gap:14px;}
+  .legend .row{white-space:nowrap;font-size:12px;}
   .hint{display:none;}
 
   .stage{padding:14px;align-items:start;}
