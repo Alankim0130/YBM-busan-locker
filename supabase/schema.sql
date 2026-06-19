@@ -133,7 +133,9 @@ exception when unique_violation then raise notice 'requests.phone 중복 데이�
 -- 학생용 공개 조회 뷰 (student.html)
 -- 개인정보(이름·전화)는 노출하지 않고 '빈/사용중/신청중'만 공개.
 -- ============================================================
-create or replace view public.locker_status as
+-- 컬럼 순서가 바뀌므로 create or replace 가 아니라 drop 후 재생성 (안전).
+drop view if exists public.locker_status;
+create view public.locker_status as
 select
   l.floor,
   l.number,
