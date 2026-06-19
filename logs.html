@@ -108,11 +108,17 @@
       if (!count) { area.innerHTML = '<div class="log-empty">' + curY + "년 " + curM + "월 기록이 없습니다.</div>"; return; }
       var rows = ROWS.filter(function (l) { var p = ymd(l.created_at).split("-"); return +p[0] === curY && +p[1] === curM; });
       var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
-        "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>사물함</th><th>날짜</th><th>시간</th>" +
+        "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
         (editMode ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
       rows.forEach(function (l) {
         var d = l.detail || {};
-        var meta = META[l.action] || { t: l.action, c: "mv" };
+        var meta = badgeOf(l);
+        var proc = "";
+        if (l.action === "return") {
+          proc = d.refunded
+            ? '<span class="proc-done">✓ 환급완료</span>'
+            : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
+        }
         html += "<tr>" +
           '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
           '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
@@ -121,15 +127,31 @@
           '<td class="c-locker">' + esc(lockerOf(l)) + "</td>" +
           '<td class="c-mono">' + ymd(l.created_at).replace(/-/g, ".") + "</td>" +
           '<td class="c-mono">' + hm(l.created_at) + "</td>" +
+          "<td>" + proc + "</td>" +
           (editMode ? '<td><button class="log-del" data-id="' + l.id + '">삭제</button></td>' : "") +
           "</tr>";
       });
       html += "</tbody></table></div>";
       area.innerHTML = html;
-      if (editMode) {
-        var btns = area.querySelectorAll(".log-del");
-        rows.forEach(function (l, i) { btns[i].onclick = function () { removeLog(l); }; });
-      }
+      var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
+      area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { markRefunded(byId[b.getAttribute("data-id")]); }; });
+      if (editMode) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { removeLog(byId[b.getAttribute("data-id")]); }; });
+    }
+
+    function badgeOf(l) {
+      if (l.action === "return") return (l.detail && l.detail.refunded) ? { t: "반납완료", c: "out" } : { t: "반납신청", c: "pending" };
+      return META[l.action] || { t: l.action, c: "mv" };
+    }
+
+    function markRefunded(l) {
+      if (!l) return;
+      var d = l.detail || {};
+      if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + lockerOf(l) + "\n※ 과장님이 계좌로 보증금을 입금한 뒤 체크하세요.")) return;
+      var nd = {}; for (var k in d) nd[k] = d[k]; nd.refunded = true; nd.refunded_at = new Date().toISOString();
+      sb.from("rental_logs").update({ detail: nd }).eq("id", l.id).then(function (res) {
+        if (res.error) { alert("처리 실패: " + res.error.message); return; }
+        l.detail = nd; render();
+      });
     }
 
     function removeLog(l) {

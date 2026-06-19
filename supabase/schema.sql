@@ -73,6 +73,7 @@ drop policy if exists "rentals_insert" on rentals;
 drop policy if exists "rentals_update" on rentals;
 drop policy if exists "logs_read"      on rental_logs;
 drop policy if exists "logs_insert"    on rental_logs;
+drop policy if exists "logs_update"    on rental_logs;
 drop policy if exists "logs_delete"    on rental_logs;
 
 -- 반은 직원이 추가/수정/삭제까지 가능
@@ -83,6 +84,7 @@ create policy "rentals_insert" on rentals     for insert to authenticated with c
 create policy "rentals_update" on rentals     for update to authenticated using (true) with check (true);
 create policy "logs_read"      on rental_logs for select to authenticated using (true);
 create policy "logs_insert"    on rental_logs for insert to authenticated with check (true);
+create policy "logs_update"    on rental_logs for update to authenticated using (true) with check (true);
 create policy "logs_delete"    on rental_logs for delete to authenticated using (true);
 
 -- ============================================================

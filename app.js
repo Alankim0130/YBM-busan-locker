@@ -289,7 +289,7 @@
       "</span></div></div>";
     actions.innerHTML =
       '<div class="line"><button class="btn" id="editBtn">정보 수정</button><button class="btn" id="moveBtn">이동하기</button></div>' +
-      '<div class="line"><button class="btn" id="returnBtn">반납 · 보증금 환급</button></div>';
+      '<div class="line"><button class="btn" id="returnBtn">반납 신청 (보증금 환급 대기)</button></div>';
     $("editBtn").onclick = function () { renderEdit(key); };
     $("moveBtn").onclick = function () { beginMove(key); };
     $("returnBtn").onclick = function () { returnRental(key); };
@@ -395,13 +395,14 @@
 
   function returnRental(key) {
     var r = RENTALS[key]; if (!r) return;
-    if (!window.confirm(r.name + " 님의 대여를 반납 처리하고 보증금 1만원을 환급합니까?")) return;
+    if (!window.confirm(r.name + " 님의 반납 신청을 접수합니다.\n사물함은 즉시 비워지고, 보증금 환급은 ‘신청 기록’에서 완료 처리하세요.")) return;
     busy(true);
-    sb.from("rentals").update({ active: false, deposit_held: false }).eq("id", r.id).then(function (res) {
+    // 사물함은 비우되(active=false) 보증금은 아직 보유(환급 대기) → 로그에 refunded:false 로 기록
+    sb.from("rentals").update({ active: false }).eq("id", r.id).then(function (res) {
       busy(false);
-      if (res.error) { toast("반납 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id) });
-      toast("반납 완료 · 보증금 1만원 환급");
+      if (res.error) { toast("반납 신청 실패: " + res.error.message); return; }
+      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), refunded: false });
+      toast("반납 신청 접수 · 신청 기록에서 보증금 반납을 완료 처리하세요");
       reload();
     });
   }
