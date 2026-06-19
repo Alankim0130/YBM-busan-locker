@@ -680,13 +680,40 @@
         NOTICES = res.data || []; renderNotices();
       });
   }
-  function renderNotices() {
-    var list = $("noticeList"); list.innerHTML = "";
-    if (!NOTICES.length) {
-      list.innerHTML = '<div class="notice-empty">등록된 공지사항이 없습니다. ‘＋ 공지 작성’으로 남겨주세요.</div>';
-      return;
+  /* 한 줄 회전 표시 */
+  var noticeIdx = 0, noticeRotTimer = null;
+  function renderCurNotice() {
+    var cur = $("noticeCur");
+    if (!NOTICES.length) { cur.innerHTML = '<span class="nc-empty">등록된 공지사항이 없습니다.</span>'; return; }
+    if (noticeIdx >= NOTICES.length) noticeIdx = 0;
+    var n = NOTICES[noticeIdx];
+    cur.innerHTML = '<div class="nc"><span class="nc-text">' + esc(n.body) + '</span>' +
+      '<span class="nc-by">' + esc(n.author || "직원") + " · " + fmtNoticeTime(n.created_at) + "</span></div>";
+  }
+  function stopNoticeRot() { if (noticeRotTimer) { clearInterval(noticeRotTimer); noticeRotTimer = null; } }
+  function startNoticeRot() {
+    stopNoticeRot();
+    if (NOTICES.length > 1) {
+      noticeRotTimer = setInterval(function () {
+        noticeIdx = (noticeIdx + 1) % NOTICES.length; renderCurNotice();
+      }, 5000);
     }
-    NOTICES.slice(0, 2).forEach(function (n) { // 최신 2개만 노출
+  }
+  function renderNotices() {
+    if (noticeIdx >= NOTICES.length) noticeIdx = 0;
+    renderCurNotice();
+    var more = $("noticeMoreBtn");
+    if (NOTICES.length) { more.hidden = false; more.textContent = "자세히 보기 (" + NOTICES.length + ")"; }
+    else more.hidden = true;
+    startNoticeRot();
+    if ($("noticeAllView").classList.contains("open")) renderNoticeAll();
+  }
+  function renderNoticeAll() {
+    $("noticeAllLead").textContent = "전체 " + NOTICES.length + "건";
+    var list = $("noticeAllList");
+    if (!NOTICES.length) { list.innerHTML = '<div class="notice-empty">등록된 공지사항이 없습니다.</div>'; return; }
+    list.innerHTML = "";
+    NOTICES.forEach(function (n) {
       var el = document.createElement("div"); el.className = "notice";
       el.innerHTML = '<div class="ntxt">' + esc(n.body) + "</div>" +
         '<div class="nmeta"><span class="nwho">' + esc(n.author || "직원") + '</span><span class="ntime">' + fmtNoticeTime(n.created_at) + "</span></div>" +
@@ -694,13 +721,9 @@
       el.querySelector(".ndel").onclick = function () { deleteNotice(n); };
       list.appendChild(el);
     });
-    if (NOTICES.length > 2) {
-      var more = document.createElement("div");
-      more.className = "notice-empty";
-      more.textContent = "외 " + (NOTICES.length - 2) + "건 더 있습니다 (오래된 공지는 ✕로 정리하세요)";
-      list.appendChild(more);
-    }
   }
+  function openNoticeAll() { renderNoticeAll(); $("noticeAllView").classList.add("open"); }
+  function closeNoticeAll() { $("noticeAllView").classList.remove("open"); }
   function openNotice() {
     $("noticeAuthor").textContent = ME.name; $("noticeBody").value = ""; $("noticeErr").textContent = "";
     $("noticeView").classList.add("open");
@@ -845,6 +868,9 @@
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;
   $("noticeAddBtn").onclick = openNotice;
+  $("noticeMoreBtn").onclick = openNoticeAll;
+  $("noticeAllClose").onclick = closeNoticeAll;
+  $("noticeAllAdd").onclick = function () { closeNoticeAll(); openNotice(); };
   $("noticePost").onclick = postNotice;
   $("noticeCancel").onclick = closeNotice;
   $("noticeBody").addEventListener("keydown", function (e) {
@@ -856,6 +882,7 @@
     else if ($("logView").classList.contains("open")) closeLog();
     else if ($("guideView").classList.contains("open")) closeGuide();
     else if ($("noticeView").classList.contains("open")) closeNotice();
+    else if ($("noticeAllView").classList.contains("open")) closeNoticeAll();
     else if ($("classView").classList.contains("open")) closeClasses();
     else if ($("dashView").classList.contains("open")) closeDash();
     else if (moveSourceKey) cancelMove();
@@ -883,6 +910,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeLog(); closeNotice(); closeGuide(); cancelMove(); NOTICES = []; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeLog(); closeNotice(); closeNoticeAll(); closeGuide(); cancelMove(); NOTICES = []; noticeIdx = 0; showLogin(); }
   });
 })();

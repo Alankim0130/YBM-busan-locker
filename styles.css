@@ -189,22 +189,33 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .guide-prev{margin-top:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);
   padding:10px 12px;font-size:12.5px;line-height:1.6;color:var(--ink-2);white-space:pre-wrap;word-break:break-word;}
 
-/* ===== 공지사항 바 ===== */
-.notice-bar{display:flex;flex-direction:column;gap:10px;
+/* ===== 공지사항 바 (한 줄, 회전) ===== */
+.notice-bar{display:flex;align-items:center;gap:12px;
   background:linear-gradient(180deg,#fff4cf,#ffe9ad);
-  border-bottom:2px solid #efb02a;padding:13px 24px;box-shadow:0 4px 12px rgba(214,158,0,.12);}
-.notice-top{display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.notice-head{display:inline-flex;align-items:center;gap:7px;background:#f5a623;color:#3d2c00;
-  font-family:"Space Grotesk";font-weight:700;font-size:14px;letter-spacing:.02em;
-  padding:6px 14px;border-radius:99px;box-shadow:0 1px 2px rgba(160,110,0,.28),inset 0 1px 0 rgba(255,255,255,.3);}
+  border-bottom:2px solid #efb02a;padding:9px 24px;box-shadow:0 3px 10px rgba(214,158,0,.12);}
+.notice-head{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;background:#f5a623;color:#3d2c00;
+  font-family:"Space Grotesk";font-weight:700;font-size:13.5px;letter-spacing:.02em;
+  padding:6px 13px;border-radius:99px;box-shadow:0 1px 2px rgba(160,110,0,.28),inset 0 1px 0 rgba(255,255,255,.3);}
 .notice-head .nh-ico{font-size:15px;}
+.notice-cur{flex:1;min-width:0;overflow:hidden;}
+.notice-cur .nc{display:flex;align-items:baseline;gap:10px;min-width:0;animation:ncFade .45s ease;}
+@keyframes ncFade{from{opacity:0;transform:translateY(-3px);}to{opacity:1;transform:none;}}
+.notice-cur .nc-text{flex:1;min-width:0;font-size:13.5px;color:#3a2f12;font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.notice-cur .nc-by{flex-shrink:0;font-family:"Space Grotesk";font-weight:700;font-size:12px;color:#9a5e00;white-space:nowrap;}
+.notice-cur .nc-empty{font-size:13px;color:#9a7320;}
+.notice-actions{flex-shrink:0;display:flex;align-items:center;gap:8px;}
+.notice-link{border:none;background:none;cursor:pointer;color:#8a5a00;font:inherit;font-size:12.5px;font-weight:700;
+  text-decoration:underline;text-underline-offset:2px;padding:6px 4px;white-space:nowrap;}
+.notice-link:hover{color:#5e3d00;}
 .notice-add{flex-shrink:0;border:1.5px solid #e0a012;background:#fff;color:#9a6200;
-  border-radius:var(--r-sm);padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  border-radius:var(--r-sm);padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
   white-space:nowrap;transition:background .15s,border-color .15s,transform .04s;box-shadow:var(--sh-sm);}
 .notice-add:hover{background:#fff8e6;border-color:#c98a00;}
 .notice-add:active{transform:translateY(1px);}
-.notice-list{display:flex;flex-direction:column;gap:8px;max-height:172px;overflow:auto;}
-.notice-empty{font-size:13px;color:#9a7320;padding:3px 2px;}
+
+/* 공지 전체보기 모달 카드 안의 공지 항목 */
+.notice-empty{font-size:13px;color:var(--ink-2);padding:14px 2px;text-align:center;}
 .notice{display:flex;align-items:flex-start;gap:12px;background:#fff;border:1px solid #f0d488;
   border-left:5px solid #f0a200;border-radius:10px;padding:11px 14px;box-shadow:0 1px 3px rgba(150,110,0,.10);}
 .notice .ntxt{flex:1;min-width:0;font-size:14px;line-height:1.5;color:#3a3320;white-space:pre-wrap;word-break:break-word;}
@@ -213,6 +224,10 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .notice .ntime{font-size:11px;color:#bb9038;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .notice .ndel{flex-shrink:0;border:none;background:none;cursor:pointer;color:#c4a253;font-size:15px;line-height:1;padding:2px 6px;border-radius:6px;align-self:center;}
 .notice .ndel:hover{background:#f3e3b0;color:#8a5a00;}
+
+/* 모달 하단 버튼(등록/취소 등) 동일 비율 */
+.modal-actions{display:flex;gap:9px;}
+.modal-actions .btn{flex:1;}
 .ta{width:100%;min-height:100px;resize:vertical;border:1px solid var(--line-strong);border-radius:var(--r-sm);
   padding:11px 13px;font:inherit;font-size:14px;line-height:1.5;margin-bottom:12px;transition:border-color .15s,box-shadow .15s;}
 .ta:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px rgba(59,111,212,.15);}
@@ -345,9 +360,11 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   /* 상세 패널: 전체폭 슬라이드 */
   .drawer{width:100%;max-width:100%;}
 
-  /* 공지사항 바 */
-  .notice-bar{padding:11px 15px;gap:9px;}
-  .notice-list{max-height:140px;}
+  /* 공지사항 바 (한 줄 유지, 컴팩트) */
+  .notice-bar{padding:9px 14px;gap:9px;}
+  .notice-cur .nc-by{display:none;}        /* 좁으면 본문만, 작성자/시간은 자세히보기에서 */
+  .notice-link{padding:6px 2px;}
+  .notice-add{padding:7px 10px;}
   .notice{flex-wrap:wrap;gap:6px 12px;}
   .notice .nmeta{flex-direction:row;align-items:center;gap:8px;width:100%;justify-content:flex-start;
     border-top:1px dashed #f0d488;padding-top:5px;text-align:left;}

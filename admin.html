@@ -11,11 +11,12 @@
 </head>
 <body>
   <div class="notice-bar" id="noticeBar" hidden>
-    <div class="notice-top">
-      <span class="notice-head"><span class="nh-ico">📢</span> 공지사항</span>
-      <button class="notice-add" id="noticeAddBtn">＋ 공지 작성</button>
+    <span class="notice-head"><span class="nh-ico">📢</span> 공지사항</span>
+    <div class="notice-cur" id="noticeCur"></div>
+    <div class="notice-actions">
+      <button class="notice-link" id="noticeMoreBtn" hidden>자세히 보기</button>
+      <button class="notice-add" id="noticeAddBtn">＋ 작성</button>
     </div>
-    <div class="notice-list" id="noticeList"></div>
   </div>
   <header>
     <div class="brand"><div class="mark">L</div><div><h1>LOCKER</h1><p>서면 YBM · 사물함 관리</p></div></div>
@@ -168,8 +169,8 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
       <p class="lead">새 학생에게 보낼 <b>초기 비밀번호·변경 방법</b> 안내입니다. 신규 대여 시 상세 패널에 표시되고, 문자/복사로 전달할 수 있습니다.</p>
       <textarea class="ta" id="guideBody" placeholder="초기 비밀번호는 0000입니다.&#10;비밀번호 변경 방법: ..."></textarea>
       <p class="err" id="guideErr"></p>
-      <div style="display:flex;gap:9px;">
-        <button class="btn primary full" id="guideSave">저장</button>
+      <div class="modal-actions">
+        <button class="btn primary" id="guideSave">저장</button>
         <button class="btn" id="guideCancel">취소</button>
       </div>
     </div>
@@ -182,10 +183,22 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
       <p class="lead">등록하면 모든 직원 화면 <b>최상단</b>에 표시됩니다. 작성자: <b id="noticeAuthor">—</b></p>
       <textarea class="ta" id="noticeBody" placeholder="특이사항을 입력하세요. (예: 3층 7번 사물함 문 고장 — 수리 요청함)"></textarea>
       <p class="err" id="noticeErr"></p>
-      <div style="display:flex;gap:9px;">
-        <button class="btn primary full" id="noticePost">등록</button>
+      <div class="modal-actions">
+        <button class="btn primary" id="noticePost">등록</button>
         <button class="btn" id="noticeCancel">취소</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 공지사항 전체 보기 -->
+  <div class="overlay" id="noticeAllView">
+    <div class="card">
+      <div class="dash-head">
+        <div><h2>공지사항</h2><p class="lead" id="noticeAllLead" style="margin:4px 0 0;">전체 공지</p></div>
+        <button class="close" id="noticeAllClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="dash-list" id="noticeAllList"></div>
+      <div style="margin-top:14px;"><button class="btn primary full" id="noticeAllAdd">＋ 새 공지 작성</button></div>
     </div>
   </div>
 
