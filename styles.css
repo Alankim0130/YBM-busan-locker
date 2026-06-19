@@ -395,10 +395,12 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 
 /* 달력 팝업 */
 .cal-card{width:452px;max-width:100%;}
-.cal-cls{font-size:13px;font-weight:600;color:var(--ink-2);text-align:center;margin-bottom:8px;}
-.cal-term{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;
-  background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:6px;}
-.cal-term-label{font-family:"Space Grotesk";font-weight:700;font-size:17px;color:var(--brand);}
+.cal-cls{font-size:14px;font-weight:700;color:var(--ink);text-align:center;margin-bottom:10px;}
+.cal-step{font-size:12px;font-weight:600;color:var(--ink-3);margin:6px 2px 5px;}
+.cal-step b{color:var(--brand);}
+.cal-term{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;
+  background:#eef3ff;border:1.5px solid var(--brand);border-radius:12px;padding:7px;}
+.cal-term-label{font-family:"Space Grotesk";font-weight:700;font-size:18px;color:var(--brand);}
 .cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px;}
 .cal-title{font-family:"Space Grotesk";font-weight:600;font-size:19px;letter-spacing:.01em;}
 .cal-nav{min-width:62px;height:40px;padding:0 12px;border:1px solid var(--line-strong);background:var(--surface);border-radius:10px;
