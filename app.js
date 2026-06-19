@@ -1178,6 +1178,16 @@
   $("searchClose").onclick = closeSearch;
   $("reqBtn").onclick = openReq;
   $("reqClose").onclick = closeReq;
+
+  // 빈 공간(사물함 영역의 칸·패널 밖)을 클릭하면 상세 패널 닫기
+  var mainEl = document.querySelector("main");
+  if (mainEl) mainEl.addEventListener("click", function (e) {
+    if (!drawer.classList.contains("open")) return;   // 열려 있을 때만
+    if (drawer.contains(e.target)) return;            // 패널 내부 클릭은 유지
+    if (e.target.closest(".locker")) return;          // 칸 클릭은 선택/전환 유지
+    if (moveSourceKey) return;                         // 이동 모드 중엔 간섭 안 함
+    closeDrawer();
+  });
   $("searchInput").addEventListener("input", function (e) { renderSearch(e.target.value); });
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
