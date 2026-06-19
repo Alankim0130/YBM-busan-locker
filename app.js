@@ -168,11 +168,12 @@
   var moveSourceKey = null; // 이동 모드일 때 출발 칸
   var grid = $("grid"), drawer = $("drawer");
 
-  // 건물(관) 접기/펼치기 상태 — localStorage 유지
+  // 건물(관) 접기/펼치기 상태 — 기본은 접힘, 펼치면 explicit false 저장. localStorage 유지.
   var collapsedBuildings = {};
   try { collapsedBuildings = JSON.parse(localStorage.getItem("ybm_collapsed_v1") || "{}") || {}; } catch (e) {}
+  function isCollapsed(b) { return collapsedBuildings[b] !== false; } // 미설정이면 접힘
   function toggleBuilding(b) {
-    collapsedBuildings[b] = !collapsedBuildings[b];
+    collapsedBuildings[b] = !isCollapsed(b); // 접힘이면 펼치고(false), 펼침이면 접음(true)
     try { localStorage.setItem("ybm_collapsed_v1", JSON.stringify(collapsedBuildings)); } catch (e) {}
     renderFloorList();
   }
@@ -182,19 +183,23 @@
     // 건물별 빈칸 합계
     var bstats = {};
     FLOORS.forEach(function (f) { var c = counts(f); if (!bstats[f.building]) bstats[f.building] = { free: 0, total: 0 }; bstats[f.building].free += c.free; bstats[f.building].total += f.total; });
+    var activeFloor = floorById(currentId);
     var lastBuilding = null;
     FLOORS.forEach(function (f) {
       if (f.building && f.building !== lastBuilding) {
         lastBuilding = f.building;
-        var collapsed = !!collapsedBuildings[f.building];
+        var collapsed = isCollapsed(f.building);
+        // 접혀 있고 현재 보고 있는 층이 이 건물이면 헤더에 "1관 - 2층" 처럼 현재 층 표시
+        var showActive = collapsed && activeFloor && activeFloor.building === f.building && activeFloor.name !== f.building;
         var h = document.createElement("button");
         h.className = "floor-group" + (collapsed ? " collapsed" : "");
         h.innerHTML = '<span class="fg-caret">▾</span><span class="fg-name">' + esc(f.building) + "</span>" +
+          (showActive ? '<span class="fg-active">- ' + esc(activeFloor.name) + "</span>" : "") +
           '<span class="fg-meta"><b>' + bstats[f.building].free + "</b> / " + bstats[f.building].total + " 빈칸</span>";
         (function (b) { h.onclick = function () { toggleBuilding(b); }; })(f.building);
         list.appendChild(h);
       }
-      if (collapsedBuildings[f.building]) return; // 접힌 건물의 층 버튼은 숨김
+      if (isCollapsed(f.building)) return; // 접힌 건물의 층 버튼은 숨김
       var c = counts(f);
       var btn = document.createElement("button");
       btn.className = "floor-btn" + (f.id === currentId ? " active" : "");
@@ -422,7 +427,7 @@
     sb.from("rentals").update({ locker_id: target.id }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("이동 실패: " + res.error.message); return; }
-      logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id) });
+      logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), refund_account: r.refund_account || "" });
       moveSourceKey = null; $("moveBanner").hidden = true;
       var tp = targetKey.split("-"); currentId = parseInt(tp[0], 10);
       toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료");
@@ -444,7 +449,7 @@
     }).then(function (res) {
       busy(false);
       if (res.error) { toast("대여 실패: " + res.error.message); return; }
-      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null) });
+      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null), refund_account: account || "" });
       toast(name + " 님 대여 시작 · 보증금 1만원 수령 · 학생에게 비밀번호 안내를 보내세요");
       reload();
     });
@@ -484,7 +489,7 @@
     sb.from("rentals").update({ extended_months: n }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("연장 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), months: n });
+      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), refund_account: r.refund_account || "", months: n });
       toast(delta > 0 ? "1개월 연장했습니다. (총 " + n + "개월)" : "연장을 초기화했습니다.");
       reload();
     });
@@ -775,7 +780,7 @@
       started_on: todayISO(), deposit_held: true, active: true
     }).then(function (res) {
       if (res.error) { busy(false); toast(/duplicate|unique/i.test(res.error.message) ? "이미 사용 중인 사물함입니다." : "수락 실패: " + res.error.message); return; }
-      logAction(lk.id, "rent", { student_name: q.student_name, birth: q.birth || "", phone: q.phone || "", class_label: classNameOf(Number(classId)), via: "학생신청" });
+      logAction(lk.id, "rent", { student_name: q.student_name, birth: q.birth || "", phone: q.phone || "", class_label: classNameOf(Number(classId)), refund_account: q.refund_account || "", via: "학생신청" });
       sb.from("requests").delete().eq("id", q.id).then(function () {
         busy(false); toast(q.student_name + " 님 신청 수락 · 대여 시작"); loadRequests(); reload();
       });
@@ -1029,17 +1034,21 @@
     if (!count) { area.innerHTML = '<div class="log-empty">' + logY + "년 " + logM + "월 기록이 없습니다.</div>"; return; }
     var rows = LOGROWS.filter(function (l) { var p = logYmd(l.created_at).split("-"); return +p[0] === logY && +p[1] === logM; });
     var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
-      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
+      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>계좌번호</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
       (logEdit ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
     rows.forEach(function (l) {
       var d = l.detail || {}; var meta = logBadge(l);
       var proc = "";
       if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>' : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
+      var acct = d.refund_account
+        ? '<span class="la-txt">' + esc(d.refund_account) + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
+        : '<span class="la-none">—</span>';
       html += "<tr>" +
         '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
         '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
         '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
         "<td>" + esc(d.class_label || "") + "</td>" +
+        '<td class="c-acct">' + acct + "</td>" +
         '<td class="c-locker">' + esc(logLocker(l)) + "</td>" +
         '<td class="c-mono">' + logYmd(l.created_at).replace(/-/g, ".") + "</td>" +
         '<td class="c-mono">' + logHm(l.created_at) + "</td>" +
@@ -1051,6 +1060,7 @@
     area.innerHTML = html;
     var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
     area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
+    area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText((d.student_name || "") + " " + (d.refund_account || "")); }; });
     if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
   }
   function logMarkRefunded(l) {
