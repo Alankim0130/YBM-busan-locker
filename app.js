@@ -85,7 +85,7 @@
   /* ---------- 메모리 캐시 ---------- */
   var LOCKERS = {};        // "floor-number" -> { id, floor, number }
   var RENTALS = {};        // "floor-number" -> { id, name, phone, class_id, started_on, deposit_held }
-  var CLASSES = [];        // [{ id, category, name, closing_date, sort }]
+  var CLASSES = [];        // [{ id, category, name, closing_date, closings:{"YYYY-MM":"YYYY-MM-DD"}, sort }]
   var CLASSES_BY_ID = {};  // id -> class
   var NOTICES = [];        // 특별공지 [{ id, body, author, author_email, created_at }]
   var REQUESTS = [];       // 학생 신청 대기
@@ -99,11 +99,28 @@
   function locName(floorId) { return locLabel(floorById(floorId)); }
 
   /* ---------- 마감일 / 상태 ---------- */
+  // 월별 종강일 맵에서 '오늘' 기준 적용할 종강일을 고름(현재 달 ≤ 의 가장 최근 설정)
+  function effectiveFromMap(cl) {
+    if (!cl) return null;
+    var ym = NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1);
+    var keys = Object.keys(cl).filter(function (k) { return cl[k] && k <= ym; }).sort();
+    return keys.length ? cl[keys[keys.length - 1]] : null;
+  }
+  function effectiveClosing(c) { if (!c) return null; return effectiveFromMap(c.closings) || c.closing_date || null; }
+  // 설정된 월별 종강일 요약 (예: "5/25 · 6/28 · 7/26")
+  function closingsSummary(c) {
+    var cl = (c && c.closings) || {};
+    var keys = Object.keys(cl).filter(function (k) { return cl[k]; }).sort();
+    if (!keys.length) return "";
+    return keys.map(function (k) { var v = cl[k]; return (+v.slice(5, 7)) + "/" + (+v.slice(8, 10)); }).join(" · ");
+  }
+
   function deadlineOf(r) {
     if (!r || !r.class_id) return null;
     var c = CLASSES_BY_ID[r.class_id];
-    if (!c || !c.closing_date) return null;
-    var d = parseDate(c.closing_date);
+    var cd = effectiveClosing(c);
+    if (!cd) return null;
+    var d = parseDate(cd);
     if (r.extended_months) d.setMonth(d.getMonth() + r.extended_months); // 연장(개월)
     d.setDate(d.getDate() + GRACE);
     d.setHours(23, 59, 0, 0);
@@ -614,12 +631,19 @@
           mv[1].onclick = function () { moveClass(c, 1); };
           card.querySelector(".cc-del2").onclick = function () { deleteClass(c); };
         } else {
-          var p = c.closing_date ? String(c.closing_date).slice(0, 10).split("-") : null;
-          var dateLabel = p ? (+p[1]) + "월 " + (+p[2]) + "일" : "날짜 선택";
-          var due = c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "";
+          var cl = c.closings || {};
+          var hasCl = Object.keys(cl).filter(function (k) { return cl[k]; }).length > 0;
+          var ymNow = NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1);
+          var cur = cl[ymNow];
+          var dateLabel, unset;
+          if (cur) { dateLabel = (NOW.getMonth() + 1) + "월 " + (+cur.slice(8, 10)) + "일"; unset = false; }
+          else if (!hasCl && c.closing_date) { var lp = String(c.closing_date).slice(0, 10).split("-"); dateLabel = (+lp[1]) + "월 " + (+lp[2]) + "일"; unset = false; }
+          else { dateLabel = (NOW.getMonth() + 1) + "월 날짜 선택"; unset = true; }
+          var summary = closingsSummary(c);
+          var due = summary || (c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "");
           card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
-            '<button class="cc-date' + (p ? "" : " unset") + '">' + dateLabel + "</button>" +
-            '<span class="cc-due">' + due + "</span>";
+            '<button class="cc-date' + (unset ? " unset" : "") + '">' + dateLabel + "</button>" +
+            '<span class="cc-due">' + esc(due) + "</span>";
           card.querySelector(".cc-date").onclick = function () { openCalendar(c); };
         }
         wrap.appendChild(card);
@@ -657,9 +681,7 @@
   var calClassId = null, calY = 0, calM = 0; // calM: 1-12
   function openCalendar(c) {
     calClassId = c.id;
-    if (c.closing_date) { var p = String(c.closing_date).slice(0, 10).split("-"); calY = +p[0]; calM = +p[1]; }
-    else { calY = NOW.getFullYear(); calM = NOW.getMonth() + 1; }
-    $("calSub").textContent = c.category + " · " + c.name + " 종강일을 선택하세요";
+    calY = NOW.getFullYear(); calM = NOW.getMonth() + 1; // 항상 현재 달부터 (좌우로 다른 달 설정)
     renderCalendar();
     $("calView").classList.add("open");
   }
@@ -680,8 +702,12 @@
     var first = new Date(calY, calM - 1, 1).getDay(); // 0=일
     var days = lastDayOf(calY, calM);
     var c = CLASSES_BY_ID[calClassId];
+    var ym = calY + "-" + pad(calM);
+    var cl = (c && c.closings) || {};
     var sel = 0;
-    if (c && c.closing_date) { var p = String(c.closing_date).slice(0, 10).split("-"); if (+p[0] === calY && +p[1] === calM) sel = +p[2]; }
+    if (cl[ym]) sel = +cl[ym].slice(8, 10);
+    else if (c && c.closing_date && String(c.closing_date).slice(0, 7) === ym && !Object.keys(cl).filter(function (k) { return cl[k]; }).length) sel = +String(c.closing_date).slice(8, 10);
+    if (c) $("calSub").textContent = c.category + " · " + c.name + " · " + calY + "년 " + calM + "월 종강일 선택" + (sel ? " (현재 " + calM + "/" + sel + ")" : "");
     var tY = NOW.getFullYear(), tM = NOW.getMonth() + 1, tD = NOW.getDate();
     var g = $("calGrid"); g.innerHTML = "";
     for (var i = 0; i < first; i++) { var e = document.createElement("div"); e.className = "cal-cell empty"; g.appendChild(e); }
@@ -692,17 +718,22 @@
         (calY === tY && calM === tM && d === tD ? " today" : "") +
         (dow === 0 ? " sun" : dow === 6 ? " sat" : "");
       cell.textContent = d;
-      (function (dd) { cell.onclick = function () { updateClosing(calClassId, calY + "-" + pad(calM) + "-" + pad(dd)); closeCalendar(); }; })(d);
+      (function (dd) { cell.onclick = function () { saveClosing(calClassId, calY + "-" + pad(calM), calY + "-" + pad(calM) + "-" + pad(dd)); closeCalendar(); }; })(d);
       g.appendChild(cell);
     }
   }
 
-  function setClosing(classId, date) { return sb.from("classes").update({ closing_date: date }).eq("id", classId); }
-  function updateClosing(classId, date) {
-    setClosing(classId, date).then(function (res) {
-      if (res.error) { toast("종강일 저장 실패: " + res.error.message); return; }
-      logAction(null, "class_closing", { class_id: classId, closing_date: date });
-      toast(date ? "종강일 저장됨" : "종강일 지움");
+  // 특정 달(ym = "YYYY-MM")의 종강일을 저장/삭제. date=null 이면 그 달만 지움.
+  function saveClosing(classId, ym, date) {
+    var c = CLASSES_BY_ID[classId]; if (!c) return;
+    var cl = {}; var old = c.closings || {};
+    for (var k in old) if (old[k]) cl[k] = old[k];
+    if (date) cl[ym] = date; else delete cl[ym];
+    var mLabel = (+ym.slice(5, 7)) + "월";
+    sb.from("classes").update({ closings: cl }).eq("id", classId).then(function (res) {
+      if (res.error) { toast(/closings/i.test(res.error.message || "") ? "스키마 적용 필요: schema.sql 을 실행해 주세요." : "종강일 저장 실패: " + res.error.message); return; }
+      logAction(null, "class_closing", { class_id: classId, month: ym, closing_date: date || "" });
+      toast(date ? mLabel + " 종강일 저장됨" : mLabel + " 종강일 지움");
       reload();
     });
   }
@@ -888,10 +919,23 @@
 
   /* ---------- 데이터 로드 ---------- */
   function loadClasses() {
-    return sb.from("classes").select("id, category, name, closing_date, sort").then(function (res) {
+    var cols = "id, category, name, closing_date, closings, sort";
+    function build(res) {
       if (res.error) throw res.error;
       CLASSES = res.data || []; CLASSES_BY_ID = {};
-      CLASSES.forEach(function (c) { CLASSES_BY_ID[c.id] = c; });
+      CLASSES.forEach(function (c) {
+        if (!c.closings) c.closings = {};
+        // 레거시 단일 종강일을 월별 맵에 병합(그 달에 값이 없을 때만)
+        if (c.closing_date) { var m = String(c.closing_date).slice(0, 7); if (!c.closings[m]) c.closings[m] = String(c.closing_date).slice(0, 10); }
+        CLASSES_BY_ID[c.id] = c;
+      });
+    }
+    return sb.from("classes").select(cols).order("sort", { ascending: true }).then(function (res) {
+      // closings 컬럼이 아직 없으면(스키마 미적용) 빼고 재시도
+      if (res.error && /closings/i.test(res.error.message || "")) {
+        return sb.from("classes").select("id, category, name, closing_date, sort").order("sort", { ascending: true }).then(build);
+      }
+      return build(res);
     });
   }
   function loadLockers() {
@@ -1228,7 +1272,7 @@
   $("calPrev").onclick = function () { calShift(-1); };
   $("calNext").onclick = function () { calShift(1); };
   $("calClose").onclick = closeCalendar;
-  $("calClear").onclick = function () { if (calClassId) { updateClosing(calClassId, null); closeCalendar(); } };
+  $("calClear").onclick = function () { if (calClassId) { saveClosing(calClassId, calY + "-" + pad(calM), null); closeCalendar(); } };
   $("guideBtn").onclick = openGuide;
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;

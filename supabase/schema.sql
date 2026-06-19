@@ -9,7 +9,8 @@ create table if not exists classes (
   id            bigint generated always as identity primary key,
   category      text not null,          -- 토익, 토익스피킹, 회화, 오픽, 토플, 아이엘츠, 일본어 ...
   name          text not null,          -- 역전토익, 첫토익 ...
-  closing_date  date,                   -- 이번 텀 종강일 (관리자가 매달 갱신, 비어 있을 수 있음)
+  closing_date  date,                   -- (레거시) 종강일 — closings 가 우선, 없을 때 폴백
+  closings      jsonb default '{}'::jsonb,  -- 월별 종강일 { "YYYY-MM": "YYYY-MM-DD", ... }
   sort          int default 0,
   created_at    timestamptz default now(),
   unique (category, name)
@@ -48,6 +49,7 @@ alter table rentals add column if not exists extended_months int default 0;  -- 
 alter table rentals add column if not exists refund_account text;     -- 보증금 환급받을 계좌
 alter table rentals add column if not exists bank text;               -- 환급 은행 이름
 alter table lockers add column if not exists broken boolean default false;   -- 고장 표시(기존 설치 업그레이드용)
+alter table classes add column if not exists closings jsonb default '{}'::jsonb;  -- 월별 종강일(기존 설치 업그레이드용)
 
 -- 칸당 활성 대여 1건만 허용
 create unique index if not exists rentals_one_active_per_locker
