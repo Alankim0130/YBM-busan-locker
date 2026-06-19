@@ -164,7 +164,31 @@ vercel.json     정적 배포 설정
 
 ---
 
-## 7. 학생용 빈자리 보기 (`student.html`)
+## 8. 데이터 백업 — Google Sheets 자동 연동
+
+혹시 모를 상황(실수 삭제·DB 장애 등) 대비로, Supabase 데이터를 구글 시트에 **주기적으로 스냅샷**합니다.
+서버 없이 **Google Apps Script**(시트 내장)로 동작하며 무료입니다. 스크립트: `integrations/google-sheets-backup.gs`
+
+### 설치 (약 5분)
+1. 구글 시트 새로 만들기 → **확장 프로그램 → Apps Script**
+2. `integrations/google-sheets-backup.gs` 내용을 붙여넣고 저장
+3. **프로젝트 설정(톱니) → 스크립트 속성**에 추가:
+   - `SUPABASE_URL` = `https://....supabase.co`
+   - `SUPABASE_SERVICE_KEY` = Supabase → Settings → API → **service_role** 'secret' 키
+   - ⚠️ service_role 키는 **Apps Script 안에만** 두세요. 웹사이트/깃/`config.js`에 절대 넣지 마세요.
+4. 함수 `backupToSheet` 실행 ▶ → 권한 승인(처음 1회)
+5. **트리거(시계 아이콘) → 트리거 추가** → `backupToSheet`, 시간 기반 → **1시간마다**(또는 매일)
+
+### 결과
+- **현황** 탭: 사람이 보기 좋은 현재 대여 현황(층·번호·학생·전화·반·종강일·마감일·상태) + 마지막 백업 시각
+- **rentals / classes / logs** 탭: 복구용 원자료
+
+> 실시간 미러링(변경 즉시 기록)이 필요하면, Supabase Database Webhooks → Apps Script Web App 방식으로
+> 확장할 수 있습니다. 백업 목적이면 위 주기 스냅샷으로 충분합니다.
+
+---
+
+## 9. 학생용 빈자리 보기 (`student.html`)
 
 학생이 휴대폰으로 빈 사물함을 확인하는 **공개 페이지**입니다.
 
