@@ -339,7 +339,7 @@
     sb.from("rentals").update({ locker_id: target.id }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("이동 실패: " + res.error.message); return; }
-      logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name });
+      logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id) });
       moveSourceKey = null; $("moveBanner").hidden = true;
       var tp = targetKey.split("-"); currentId = parseInt(tp[0], 10);
       toast(r.name + " 님 → " + floorById(currentId).name + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료");
@@ -387,7 +387,7 @@
     sb.from("rentals").update({ extended_months: n }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("연장 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, months: n });
+      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), months: n });
       toast(delta > 0 ? "1개월 연장했습니다. (총 " + n + "개월)" : "연장을 초기화했습니다.");
       reload();
     });

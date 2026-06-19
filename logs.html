@@ -20,8 +20,16 @@
         <button class="btn" id="editBtn">편집</button>
       </div>
     </div>
-    <p class="lead" id="lead">대여(입금)·반납(환급) 기록 · 한국시간 · 월별 정리</p>
-    <div id="body"></div>
+
+    <div class="ym-bar">
+      <button class="ym-nav" id="prevY" aria-label="이전 해">‹</button>
+      <span class="ym-year" id="ymYear">—</span>
+      <button class="ym-nav" id="nextY" aria-label="다음 해">›</button>
+      <span class="ym-info" id="lead"></span>
+    </div>
+    <div class="month-bar" id="monthBar"></div>
+
+    <div id="tableArea"></div>
   </div>
 
   <div class="log-empty" id="msg">불러오는 중…</div>
@@ -38,13 +46,22 @@
     }
     var sb = window.supabase.createClient(URL, KEY);
 
-    var editMode = false, ROWS = [];
+    var META = {
+      rent:   { t: "입금", c: "in" },
+      return: { t: "환급", c: "out" },
+      extend: { t: "연장", c: "ext" },
+      move:   { t: "이동", c: "mv" }
+    };
+    var ACTIONS = ["rent", "return", "extend", "move"];
+
+    var editMode = false, ROWS = [], curY, curM; // curM: 1-12
 
     function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
     var fmtD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
     var fmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
-    function ymd(ts){ return fmtD.format(new Date(ts)); }            // 'YYYY-MM-DD'
-    function hm(ts){ return fmtT.format(new Date(ts)); }             // 'HH:MM'
+    function ymd(ts){ return fmtD.format(new Date(ts)); }   // 'YYYY-MM-DD'
+    function hm(ts){ return fmtT.format(new Date(ts)); }    // 'HH:MM'
+    function lockerOf(l){ return l.lockers ? (l.lockers.floor + "층 " + l.lockers.number + "번") : "—"; }
 
     /* 1년 지난 기록 자동 정리(무료 용량 절약) */
     function cleanupOld() {
@@ -53,63 +70,72 @@
     }
 
     function load() {
-      sb.from("rental_logs").select("id, action, detail, created_at")
-        .in("action", ["rent", "return"]).order("created_at", { ascending: false }).limit(5000)
+      sb.from("rental_logs").select("id, action, detail, created_at, lockers(floor, number)")
+        .in("action", ACTIONS).order("created_at", { ascending: false }).limit(8000)
         .then(function (res) {
-          if (res.error) { $("msg").hidden = false; $("page").hidden = true; $("msg").textContent = "기록을 불러오지 못했습니다: " + res.error.message; return; }
+          if (res.error) { $("page").hidden = true; $("msg").hidden = false; $("msg").textContent = "기록을 불러오지 못했습니다: " + res.error.message; return; }
           ROWS = res.data || [];
           $("msg").hidden = true; $("page").hidden = false;
           render();
         });
     }
 
-    function render() {
-      $("lead").textContent = "대여(입금)·반납(환급) 기록 · 한국시간 · 월별 정리 · 총 " + ROWS.length + "건";
-      var body = $("body");
-      if (!ROWS.length) { body.innerHTML = '<div class="log-empty">아직 신청 기록이 없습니다.</div>'; return; }
-      // 월별 그룹(최신월 → 과거월)
-      var groups = [], map = {};
-      ROWS.forEach(function (l) {
-        var key = ymd(l.created_at).slice(0, 7); // 'YYYY-MM'
-        if (!map[key]) { map[key] = []; groups.push(key); }
-        map[key].push(l);
-      });
-      body.innerHTML = "";
-      groups.forEach(function (key) {
-        var parts = key.split("-");
-        var head = document.createElement("div");
-        head.className = "log-month";
-        head.innerHTML = '<span class="lm-title">' + parts[0] + "년 " + (+parts[1]) + "월</span>" +
-          '<span class="lm-cnt">' + map[key].length + "건</span>";
-        body.appendChild(head);
+    function monthCounts(year) {
+      var c = {};
+      ROWS.forEach(function (l) { var p = ymd(l.created_at).split("-"); if (+p[0] === year) { var m = +p[1]; c[m] = (c[m] || 0) + 1; } });
+      return c;
+    }
 
-        var scroll = document.createElement("div"); scroll.className = "log-scroll";
-        var t = document.createElement("table"); t.className = "log-table";
-        t.innerHTML = "<thead><tr><th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>날짜</th><th>시간</th>" +
-          (editMode ? "<th>삭제</th>" : "") + "</tr></thead>";
-        var tb = document.createElement("tbody");
-        map[key].forEach(function (l) {
-          var d = l.detail || {};
-          var isRent = l.action === "rent";
-          var tr = document.createElement("tr");
-          tr.innerHTML =
-            '<td><span class="log-badge ' + (isRent ? "in" : "out") + '">' + (isRent ? "입금" : "환급") + "</span></td>" +
-            '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
-            '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
-            "<td>" + esc(d.class_label || "") + "</td>" +
-            '<td class="c-mono">' + ymd(l.created_at).replace(/-/g, ".") + "</td>" +
-            '<td class="c-mono">' + hm(l.created_at) + "</td>" +
-            (editMode ? '<td><button class="log-del">삭제</button></td>' : "");
-          if (editMode) tr.querySelector(".log-del").onclick = function () { removeLog(l); };
-          tb.appendChild(tr);
-        });
-        t.appendChild(tb); scroll.appendChild(t); body.appendChild(scroll);
+    function render() {
+      $("ymYear").textContent = curY + "년";
+      var counts = monthCounts(curY);
+      var totalY = Object.keys(counts).reduce(function (s, k) { return s + counts[k]; }, 0);
+      $("lead").textContent = "한국시간 · " + curY + "년 " + totalY + "건";
+      var mb = $("monthBar"); mb.innerHTML = "";
+      for (var m = 1; m <= 12; m++) {
+        var has = counts[m] || 0;
+        var b = document.createElement("button");
+        b.className = "mbtn" + (m === curM ? " active" : "") + (has ? " has" : "");
+        b.innerHTML = m + "월" + (has ? '<span class="mb-cnt">' + has + "</span>" : "");
+        (function (mm) { b.onclick = function () { curM = mm; render(); }; })(m);
+        mb.appendChild(b);
+      }
+      renderTable(counts[curM] || 0);
+    }
+
+    function renderTable(count) {
+      var area = $("tableArea");
+      if (!count) { area.innerHTML = '<div class="log-empty">' + curY + "년 " + curM + "월 기록이 없습니다.</div>"; return; }
+      var rows = ROWS.filter(function (l) { var p = ymd(l.created_at).split("-"); return +p[0] === curY && +p[1] === curM; });
+      var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
+        "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>사물함</th><th>날짜</th><th>시간</th>" +
+        (editMode ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
+      rows.forEach(function (l) {
+        var d = l.detail || {};
+        var meta = META[l.action] || { t: l.action, c: "mv" };
+        html += "<tr>" +
+          '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
+          '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
+          '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
+          "<td>" + esc(d.class_label || "") + "</td>" +
+          '<td class="c-locker">' + esc(lockerOf(l)) + "</td>" +
+          '<td class="c-mono">' + ymd(l.created_at).replace(/-/g, ".") + "</td>" +
+          '<td class="c-mono">' + hm(l.created_at) + "</td>" +
+          (editMode ? '<td><button class="log-del" data-id="' + l.id + '">삭제</button></td>' : "") +
+          "</tr>";
       });
+      html += "</tbody></table></div>";
+      area.innerHTML = html;
+      if (editMode) {
+        var btns = area.querySelectorAll(".log-del");
+        rows.forEach(function (l, i) { btns[i].onclick = function () { removeLog(l); }; });
+      }
     }
 
     function removeLog(l) {
       var d = l.detail || {};
-      if (!window.confirm("이 기록을 삭제할까요?\n\n" + (l.action === "rent" ? "입금" : "환급") + " / " + (d.student_name || "") + " / " + ymd(l.created_at))) return;
+      var meta = META[l.action] || { t: l.action };
+      if (!window.confirm("이 기록을 삭제할까요?\n\n" + meta.t + " / " + (d.student_name || "") + " / " + lockerOf(l) + " / " + ymd(l.created_at))) return;
       sb.from("rental_logs").delete().eq("id", l.id).then(function (res) {
         if (res.error) { alert("삭제 실패: " + res.error.message); return; }
         ROWS = ROWS.filter(function (x) { return x.id !== l.id; });
@@ -123,8 +149,12 @@
       $("editBtn").classList.toggle("primary", editMode);
       render();
     };
+    $("prevY").onclick = function () { curY--; render(); };
+    $("nextY").onclick = function () { curY++; render(); };
 
-    /* 인증 확인 후 시작 */
+    /* 인증 확인 후 시작 — 기본 연/월 = 오늘(한국시간) */
+    var todayParts = ymd(Date.now()).split("-");
+    curY = +todayParts[0]; curM = +todayParts[1];
     sb.auth.getSession().then(function (res) {
       if (!res.data || !res.data.session) { location.replace("admin.html"); return; }
       cleanupOld().then(load);
