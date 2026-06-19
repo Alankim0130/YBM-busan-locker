@@ -651,13 +651,13 @@
   function renderNotices() {
     var list = $("noticeList"); list.innerHTML = "";
     if (!NOTICES.length) {
-      list.innerHTML = '<div class="notice-empty">특별공지 없음 · 특이사항이 있으면 오른쪽 ‘＋ 특별공지’로 남겨주세요.</div>';
+      list.innerHTML = '<div class="notice-empty">등록된 공지사항이 없습니다. ‘＋ 공지 작성’으로 남겨주세요.</div>';
       return;
     }
     NOTICES.forEach(function (n) {
       var el = document.createElement("div"); el.className = "notice";
       el.innerHTML = '<div class="ntxt">' + esc(n.body) + "</div>" +
-        '<div class="nmeta"><span class="nwho">' + esc(n.author || "직원") + "</span><span>" + fmtNoticeTime(n.created_at) + "</span></div>" +
+        '<div class="nmeta"><span class="nwho">' + esc(n.author || "직원") + '</span><span class="ntime">' + fmtNoticeTime(n.created_at) + "</span></div>" +
         '<button class="ndel" title="삭제">✕</button>';
       el.querySelector(".ndel").onclick = function () { deleteNotice(n); };
       list.appendChild(el);
@@ -676,7 +676,7 @@
     sb.from("notices").insert({ body: body, author: ME.name, author_email: ME.email }).then(function (res) {
       btn.disabled = false; btn.textContent = "등록";
       if (res.error) { $("noticeErr").textContent = "등록 실패: " + res.error.message; return; }
-      closeNotice(); toast("특별공지를 등록했습니다."); loadNotices();
+      closeNotice(); toast("공지사항을 등록했습니다."); loadNotices();
     });
   }
   function deleteNotice(n) {
