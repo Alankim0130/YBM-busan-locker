@@ -108,8 +108,14 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
   <div class="overlay" id="classView">
     <div class="card dash-card">
       <div class="dash-head">
-        <div><h2>반 관리 · 종강일</h2><p class="lead" style="margin:4px 0 0;">각 반의 종강일을 입력하세요. 마감일은 자동으로 <b>종강일 + 10일</b>로 계산됩니다.</p></div>
+        <div><h2>반 관리 · 종강일</h2><p class="lead" style="margin:4px 0 0;">기준 년·월을 정한 뒤, 각 반의 <b>종강일(일)</b>만 선택하세요. 마감일 = 종강일 + 10일.</p></div>
         <button class="close" id="classClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="base-ym">
+        <span class="base-label">기준 년·월</span>
+        <select id="baseYear"></select>
+        <select id="baseMonth"></select>
+        <span class="base-hint">모든 반이 이 년·월을 사용합니다. 아래에서는 일자만 고르세요.</span>
       </div>
       <div class="class-add">
         <input id="newClassCat" placeholder="카테고리 (예: 토익)" list="catList" />

@@ -104,8 +104,7 @@
     return c ? c.category + " · " + c.name : "반 미지정";
   }
 
-  /* ---------- 연락 (무료·수동: 직원 폰 문자앱 열기 / 문구 복사) ---------- */
-  function digits(s) { return String(s || "").replace(/[^0-9]/g, ""); }
+  /* ---------- 연락 문구 (복사용) ---------- */
   function contactMsg(r, fid, num) {
     var f = floorById(fid); var dl = deadlineOf(r);
     var when = dl ? fmtShort(dl) : "곧 마감 예정";
@@ -116,7 +115,6 @@
     var f = floorById(fid);
     return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함 이용 안내입니다.\n" + GUIDE;
   }
-  function smsHref(phone, msg) { return "sms:" + digits(phone) + "?body=" + encodeURIComponent(msg); }
   function copyText(t) {
     function ok() { toast("문구가 복사되었습니다."); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -266,12 +264,8 @@
       : "마감일은 반 종강일 + 10일입니다. 종강일이 갱신되면 마감일도 자동으로 미뤄집니다.";
     var dmsg = contactMsg(r, fid, num);   // 마감 안내
     var gmsg = guideMsg(r, fid, num);     // 비밀번호 이용 안내
-    var deadlineContact = r.phone
-      ? '<a class="btn small" href="' + smsHref(r.phone, dmsg) + '">문자</a><button class="btn small" id="copyDeadlineBtn">복사</button>'
-      : '<button class="btn small" id="copyDeadlineBtn">문구 복사</button>';
-    var guideContact = r.phone
-      ? '<a class="btn small" href="' + smsHref(r.phone, gmsg) + '">안내 문자</a><button class="btn small" id="copyGuideBtn">복사</button>'
-      : '<button class="btn small" id="copyGuideBtn">문구 복사</button>';
+    var deadlineContact = '<button class="btn small" id="copyDeadlineBtn">마감 안내 문구 복사</button>';
+    var guideContact = '<button class="btn small" id="copyGuideBtn">안내 문구 복사</button>';
     body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
       '<div class="field"><label>대여자</label><div class="v">' + esc(r.name) + "</div></div>" +
       '<div class="field"><label>전화번호</label><div class="v mono">' + (r.phone ? esc(r.phone) : "—") + "</div></div>" +
@@ -398,30 +392,68 @@
     return cats;
   }
 
-  function openClasses() { renderClasses(); refreshCatList(); $("classView").classList.add("open"); }
+  var BASE = { y: NOW.getFullYear(), m: NOW.getMonth() + 1 }; // 기준 년·월
+
+  function lastDayOf(y, m) { return new Date(y, m, 0).getDate(); }
+  function addDaysFmt(iso, days) { // 'YYYY-MM-DD' + days → 'M/D'
+    var d = parseDate(iso); d.setDate(d.getDate() + days);
+    return (d.getMonth() + 1) + "/" + d.getDate();
+  }
+  function mostCommonBase() {
+    var tally = {}, best = null, bestN = 0;
+    CLASSES.forEach(function (c) {
+      if (!c.closing_date) return;
+      var p = String(c.closing_date).slice(0, 10).split("-");
+      var k = p[0] + "-" + p[1];
+      tally[k] = (tally[k] || 0) + 1;
+      if (tally[k] > bestN) { bestN = tally[k]; best = { y: +p[0], m: +p[1] }; }
+    });
+    return best;
+  }
+
+  function openClasses() {
+    var mc = mostCommonBase();
+    BASE = mc || { y: NOW.getFullYear(), m: NOW.getMonth() + 1 };
+    renderBaseYM(); renderClasses(); refreshCatList();
+    $("classView").classList.add("open");
+  }
   function closeClasses() { $("classView").classList.remove("open"); }
   function refreshCatList() {
     $("catList").innerHTML = orderedCategories().map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
   }
 
-  function ymdSelectsHTML(c) {
-    var parts = c.closing_date ? String(c.closing_date).slice(0, 10).split("-") : ["", "", ""];
-    var y = parts[0], m = parts[1] ? String(+parts[1]) : "", d = parts[2] ? String(+parts[2]) : "";
-    var yNow = new Date().getFullYear();
-    var ys = '<select class="cc-y"><option value="">년</option>';
-    for (var yy = yNow - 1; yy <= yNow + 1; yy++) ys += "<option" + (String(yy) === y ? " selected" : "") + ">" + yy + "</option>";
-    ys += "</select>";
-    var ms = '<select class="cc-m"><option value="">월</option>';
-    for (var mm = 1; mm <= 12; mm++) ms += "<option" + (String(mm) === m ? " selected" : "") + ">" + mm + "</option>";
-    ms += "</select>";
-    var ds = '<select class="cc-d"><option value="">일</option>';
-    for (var dd = 1; dd <= 31; dd++) ds += "<option" + (String(dd) === d ? " selected" : "") + ">" + dd + "</option>";
-    ds += "</select>";
-    return ys + ms + ds;
+  function renderBaseYM() {
+    var yNow = NOW.getFullYear();
+    var ySel = $("baseYear"), mSel = $("baseMonth");
+    var ys = "";
+    for (var yy = yNow - 1; yy <= yNow + 2; yy++) ys += "<option" + (yy === BASE.y ? " selected" : "") + ">" + yy + "</option>";
+    ySel.innerHTML = ys;
+    var ms = "";
+    for (var mm = 1; mm <= 12; mm++) ms += "<option value='" + mm + "'" + (mm === BASE.m ? " selected" : "") + ">" + mm + "월</option>";
+    mSel.innerHTML = ms;
+    ySel.onchange = function () { BASE.y = +ySel.value; applyBase(); };
+    mSel.onchange = function () { BASE.m = +mSel.value; applyBase(); };
   }
+
+  // 기준 년·월이 바뀌면, 이미 일자가 설정된 모든 반을 같은 일자로 새 년·월에 맞춰 갱신
+  function applyBase() {
+    var ups = [];
+    CLASSES.forEach(function (c) {
+      if (!c.closing_date) return;
+      var day = +String(c.closing_date).slice(8, 10);
+      day = Math.min(day, lastDayOf(BASE.y, BASE.m));
+      var nd = BASE.y + "-" + pad(BASE.m) + "-" + pad(day);
+      if (nd !== String(c.closing_date).slice(0, 10)) ups.push(setClosing(c.id, nd));
+    });
+    renderClasses();
+    if (!ups.length) return;
+    Promise.all(ups).then(function () { toast("기준 년·월(" + BASE.y + "년 " + BASE.m + "월)을 적용했습니다."); reload(); });
+  }
+
   function renderClasses() {
     var list = $("classList"); list.innerHTML = "";
     if (!CLASSES.length) { list.innerHTML = '<div class="dash-empty">등록된 반이 없습니다. 위에서 추가하세요.</div>'; return; }
+    var lastDay = lastDayOf(BASE.y, BASE.m);
     orderedCategories().forEach(function (cat) {
       var lbl = document.createElement("div");
       lbl.className = "class-cat-label"; lbl.textContent = cat;
@@ -431,18 +463,20 @@
       CLASSES.filter(function (c) { return c.category === cat; })
         .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); })
         .forEach(function (c) {
+          var day = c.closing_date ? String(+String(c.closing_date).slice(8, 10)) : "";
+          var opts = '<option value="">미정</option>';
+          for (var dd = 1; dd <= lastDay; dd++) opts += "<option" + (String(dd) === day ? " selected" : "") + ">" + dd + "</option>";
+          var due = c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "";
           var card = document.createElement("div");
           card.className = "class-card";
           card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
-            '<div class="cc-dates">' + ymdSelectsHTML(c) + "</div>" +
+            '<span class="cc-day"><select>' + opts + "</select>일</span>" +
+            '<span class="cc-due">' + due + "</span>" +
             '<button class="cc-del" title="삭제">&times;</button>';
-          function onChange() {
-            var y = card.querySelector(".cc-y").value, m = card.querySelector(".cc-m").value, d = card.querySelector(".cc-d").value;
-            updateClosing(c.id, (y && m && d) ? (y + "-" + pad(+m) + "-" + pad(+d)) : null);
-          }
-          card.querySelector(".cc-y").onchange = onChange;
-          card.querySelector(".cc-m").onchange = onChange;
-          card.querySelector(".cc-d").onchange = onChange;
+          card.querySelector("select").onchange = function (e) {
+            var v = e.target.value;
+            updateClosing(c.id, v ? (BASE.y + "-" + pad(BASE.m) + "-" + pad(+v)) : null);
+          };
           card.querySelector(".cc-del").onclick = function () { deleteClass(c); };
           wrap.appendChild(card);
         });
@@ -450,11 +484,12 @@
     });
   }
 
+  function setClosing(classId, date) { return sb.from("classes").update({ closing_date: date }).eq("id", classId); }
   function updateClosing(classId, date) {
-    sb.from("classes").update({ closing_date: date }).eq("id", classId).then(function (res) {
+    setClosing(classId, date).then(function (res) {
       if (res.error) { toast("종강일 저장 실패: " + res.error.message); return; }
       logAction(null, "class_closing", { class_id: classId, closing_date: date });
-      toast("종강일 저장됨");
+      toast(date ? "종강일 저장됨" : "종강일 지움");
       reload();
     });
   }
@@ -509,17 +544,15 @@
       var st = STATE[it.s];
       var row = document.createElement("div");
       row.className = "dash-row";
-      var smsBtn = it.r.phone
-        ? '<a class="btn small ds-sms" href="' + smsHref(it.r.phone, contactMsg(it.r, it.f.id, it.n)) + '">문자</a>'
-        : "";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
         '<span class="ds-loc">' + it.f.name + " No." + pad(it.n) + "</span>" +
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
         '<span class="ds-phone">' + (it.r.phone ? esc(it.r.phone) : "전화 미입력") + "</span>" +
-        '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>" + smsBtn;
+        '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>" +
+        '<button class="btn small ds-sms">복사</button>';
       row.onclick = function () { currentId = it.f.id; closeDash(); renderAll(); select(it.key); };
-      var a = row.querySelector(".ds-sms");
-      if (a) a.addEventListener("click", function (ev) { ev.stopPropagation(); });
+      var cbtn = row.querySelector(".ds-sms");
+      cbtn.addEventListener("click", function (ev) { ev.stopPropagation(); copyText(contactMsg(it.r, it.f.id, it.n)); });
       list.appendChild(row);
     });
   }
