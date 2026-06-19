@@ -187,16 +187,22 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
   <!-- 종강일 달력 선택 -->
   <div class="overlay" id="calView">
     <div class="card cal-card">
+      <div class="cal-cls" id="calCls">—</div>
+      <div class="cal-term">
+        <button class="cal-nav" id="calTermPrev" aria-label="이전 수업월">‹</button>
+        <div class="cal-term-label" id="calTermLabel">— 수업</div>
+        <button class="cal-nav" id="calTermNext" aria-label="다음 수업월">›</button>
+      </div>
+      <div class="cal-sub" id="calSub">종강 날짜를 고르세요. (다음 달 날짜도 가능)</div>
       <div class="cal-head">
         <button class="cal-nav" id="calPrev" aria-label="이전 달">‹</button>
         <div class="cal-title" id="calTitle">—</div>
         <button class="cal-nav" id="calNext" aria-label="다음 달">›</button>
       </div>
-      <div class="cal-sub" id="calSub">—</div>
       <div class="cal-grid-head"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
       <div class="cal-grid" id="calGrid"></div>
       <div class="cal-foot">
-        <button class="btn" id="calClear">이 달 종강일 지움</button>
+        <button class="btn" id="calClear">이 수업 종강일 지움</button>
         <button class="btn" id="calClose">닫기</button>
       </div>
     </div>

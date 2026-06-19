@@ -107,12 +107,12 @@
     return keys.length ? cl[keys[keys.length - 1]] : null;
   }
   function effectiveClosing(c) { if (!c) return null; return effectiveFromMap(c.closings) || c.closing_date || null; }
-  // 설정된 월별 종강일 요약 (예: "5/25 · 6/28 · 7/26")
+  // 설정된 '수업월 → 종강날짜' 요약 (예: "6월→7/5 · 7월→7/26")
   function closingsSummary(c) {
     var cl = (c && c.closings) || {};
     var keys = Object.keys(cl).filter(function (k) { return cl[k]; }).sort();
     if (!keys.length) return "";
-    return keys.map(function (k) { var v = cl[k]; return (+v.slice(5, 7)) + "/" + (+v.slice(8, 10)); }).join(" · ");
+    return keys.map(function (k) { var v = cl[k]; return (+k.slice(5, 7)) + "월→" + (+v.slice(5, 7)) + "/" + (+v.slice(8, 10)); }).join(" · ");
   }
 
   function deadlineOf(r) {
@@ -634,11 +634,11 @@
           var cl = c.closings || {};
           var hasCl = Object.keys(cl).filter(function (k) { return cl[k]; }).length > 0;
           var ymNow = NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1);
-          var cur = cl[ymNow];
+          var cur = cl[ymNow]; // 이번 달 수업의 종강 날짜
           var dateLabel, unset;
-          if (cur) { dateLabel = (NOW.getMonth() + 1) + "월 " + (+cur.slice(8, 10)) + "일"; unset = false; }
+          if (cur) { dateLabel = (+cur.slice(5, 7)) + "월 " + (+cur.slice(8, 10)) + "일"; unset = false; }
           else if (!hasCl && c.closing_date) { var lp = String(c.closing_date).slice(0, 10).split("-"); dateLabel = (+lp[1]) + "월 " + (+lp[2]) + "일"; unset = false; }
-          else { dateLabel = (NOW.getMonth() + 1) + "월 날짜 선택"; unset = true; }
+          else { dateLabel = (NOW.getMonth() + 1) + "월 수업 날짜 선택"; unset = true; }
           var summary = closingsSummary(c);
           var due = summary || (c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "");
           card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
@@ -678,10 +678,19 @@
   }
 
   /* ---------- 종강일 달력 ---------- */
-  var calClassId = null, calY = 0, calM = 0; // calM: 1-12
+  // calTermY/M = 설정 대상 '수업 월', calY/M = 종강 날짜를 고르는 달력의 표시 월(다른 달 가능)
+  var calClassId = null, calY = 0, calM = 0, calTermY = 0, calTermM = 0;
+  function termKey() { return calTermY + "-" + pad(calTermM); }
+  function syncCalToTerm() {
+    var c = CLASSES_BY_ID[calClassId]; var cl = (c && c.closings) || {};
+    var v = cl[termKey()];
+    if (v) { calY = +v.slice(0, 4); calM = +v.slice(5, 7); }   // 저장된 종강 날짜의 달로
+    else { calY = calTermY; calM = calTermM; }                 // 없으면 수업 월부터
+  }
   function openCalendar(c) {
     calClassId = c.id;
-    calY = NOW.getFullYear(); calM = NOW.getMonth() + 1; // 항상 현재 달부터 (좌우로 다른 달 설정)
+    calTermY = NOW.getFullYear(); calTermM = NOW.getMonth() + 1; // 기본: 이번 달 수업
+    syncCalToTerm();
     renderCalendar();
     $("calView").classList.add("open");
   }
@@ -692,22 +701,34 @@
     if (calM > 12) { calM = 1; calY++; }
     renderCalendar();
   }
+  function calTermShift(delta) {
+    calTermM += delta;
+    if (calTermM < 1) { calTermM = 12; calTermY--; }
+    if (calTermM > 12) { calTermM = 1; calTermY++; }
+    syncCalToTerm();
+    renderCalendar();
+  }
   function renderCalendar() {
+    var c = CLASSES_BY_ID[calClassId];
+    var cl = (c && c.closings) || {};
+    $("calCls").textContent = c ? (c.category + " · " + c.name) : "";
+    $("calTermLabel").textContent = calTermM + "월 수업 종강일";
     $("calTitle").textContent = calY + "년 " + calM + "월";
-    // 좌우 버튼에 이동할 달 이름 표시 (예: ‹ 5월 / 7월 ›)
+    // 종강 날짜 달력 좌우 버튼에 이동할 달 표시
     var pm = calM - 1 < 1 ? 12 : calM - 1;
     var nm = calM + 1 > 12 ? 1 : calM + 1;
     $("calPrev").innerHTML = "‹ " + pm + "월";
     $("calNext").innerHTML = nm + "월 ›";
+    var key = termKey();
+    var cur = cl[key];
+    $("calSub").textContent = cur
+      ? (calTermM + "월 수업 종강일: " + (+cur.slice(5, 7)) + "월 " + (+cur.slice(8, 10)) + "일 (다른 날짜로 변경 가능)")
+      : (calTermM + "월 수업의 종강 날짜를 고르세요. (다음 달 날짜도 가능)");
     var first = new Date(calY, calM - 1, 1).getDay(); // 0=일
     var days = lastDayOf(calY, calM);
-    var c = CLASSES_BY_ID[calClassId];
     var ym = calY + "-" + pad(calM);
-    var cl = (c && c.closings) || {};
     var sel = 0;
-    if (cl[ym]) sel = +cl[ym].slice(8, 10);
-    else if (c && c.closing_date && String(c.closing_date).slice(0, 7) === ym && !Object.keys(cl).filter(function (k) { return cl[k]; }).length) sel = +String(c.closing_date).slice(8, 10);
-    if (c) $("calSub").textContent = c.category + " · " + c.name + " · " + calY + "년 " + calM + "월 종강일 선택" + (sel ? " (현재 " + calM + "/" + sel + ")" : "");
+    if (cur && cur.slice(0, 7) === ym) sel = +cur.slice(8, 10);
     var tY = NOW.getFullYear(), tM = NOW.getMonth() + 1, tD = NOW.getDate();
     var g = $("calGrid"); g.innerHTML = "";
     for (var i = 0; i < first; i++) { var e = document.createElement("div"); e.className = "cal-cell empty"; g.appendChild(e); }
@@ -718,7 +739,7 @@
         (calY === tY && calM === tM && d === tD ? " today" : "") +
         (dow === 0 ? " sun" : dow === 6 ? " sat" : "");
       cell.textContent = d;
-      (function (dd) { cell.onclick = function () { saveClosing(calClassId, calY + "-" + pad(calM), calY + "-" + pad(calM) + "-" + pad(dd)); closeCalendar(); }; })(d);
+      (function (dd) { cell.onclick = function () { saveClosing(calClassId, termKey(), calY + "-" + pad(calM) + "-" + pad(dd)); closeCalendar(); }; })(d);
       g.appendChild(cell);
     }
   }
@@ -729,7 +750,7 @@
     var cl = {}; var old = c.closings || {};
     for (var k in old) if (old[k]) cl[k] = old[k];
     if (date) cl[ym] = date; else delete cl[ym];
-    var mLabel = (+ym.slice(5, 7)) + "월";
+    var mLabel = (+ym.slice(5, 7)) + "월 수업";
     sb.from("classes").update({ closings: cl }).eq("id", classId).then(function (res) {
       if (res.error) { toast(/closings/i.test(res.error.message || "") ? "스키마 적용 필요: schema.sql 을 실행해 주세요." : "종강일 저장 실패: " + res.error.message); return; }
       logAction(null, "class_closing", { class_id: classId, month: ym, closing_date: date || "" });
@@ -1269,7 +1290,9 @@
   $("calPrev").onclick = function () { calShift(-1); };
   $("calNext").onclick = function () { calShift(1); };
   $("calClose").onclick = closeCalendar;
-  $("calClear").onclick = function () { if (calClassId) { saveClosing(calClassId, calY + "-" + pad(calM), null); closeCalendar(); } };
+  $("calClear").onclick = function () { if (calClassId) { saveClosing(calClassId, termKey(), null); closeCalendar(); } };
+  $("calTermPrev").onclick = function () { calTermShift(-1); };
+  $("calTermNext").onclick = function () { calTermShift(1); };
   $("guideBtn").onclick = openGuide;
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;
