@@ -42,6 +42,8 @@ create table if not exists rentals (
 -- 기존 설치 업그레이드용(이미 rentals 가 있던 경우 컬럼 추가)
 alter table rentals add column if not exists phone    text;
 alter table rentals add column if not exists class_id bigint references classes(id);
+alter table rentals add column if not exists birth    text;            -- 생년월일 6자리(YYMMDD)
+alter table rentals add column if not exists extended_months int default 0;  -- 연장(개월)
 
 -- 칸당 활성 대여 1건만 허용
 create unique index if not exists rentals_one_active_per_locker
@@ -135,7 +137,7 @@ create table if not exists app_settings (
 );
 
 insert into app_settings (key, value) values
-  ('password_guide', E'초기 비밀번호는 0000입니다.\n비밀번호 변경 방법: (관리자 화면 ‘이용안내 설정’에서 실제 변경 방법으로 수정하세요)')
+  ('password_guide', E'비밀번호는 1004입니다.\n비밀번호 변경은 사물함 안쪽에 안내되어 있으니 참고 부탁드립니다.')
 on conflict (key) do nothing;
 
 alter table app_settings enable row level security;

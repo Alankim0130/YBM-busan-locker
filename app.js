@@ -71,7 +71,7 @@
   var CLASSES_BY_ID = {};  // id -> class
   var NOTICES = [];        // 특별공지 [{ id, body, author, author_email, created_at }]
   var ME = { name: "직원", email: "" }; // 로그인한 직원
-  var GUIDE = "초기 비밀번호는 0000입니다.\n비밀번호 변경 방법은 데스크에 문의하세요."; // 이용 안내(편집 가능)
+  var GUIDE = "비밀번호는 1004입니다.\n비밀번호 변경은 사물함 안쪽에 안내되어 있으니 참고 부탁드립니다."; // 이용 안내(편집 가능)
 
   function floorById(id) { return FLOORS.find(function (f) { return f.id === id; }); }
   function keyOf(f, n) { return f.id + "-" + n; }
@@ -82,10 +82,12 @@
     var c = CLASSES_BY_ID[r.class_id];
     if (!c || !c.closing_date) return null;
     var d = parseDate(c.closing_date);
+    if (r.extended_months) d.setMonth(d.getMonth() + r.extended_months); // 연장(개월)
     d.setDate(d.getDate() + GRACE);
     d.setHours(23, 59, 0, 0);
     return d;
   }
+  function classNameOf(classId) { var c = CLASSES_BY_ID[classId]; return c ? c.name : ""; }
   function statusOf(r) {
     if (!r) return "free";
     var dl = deadlineOf(r);
@@ -113,7 +115,7 @@
   }
   function guideMsg(r, fid, num) {
     var f = floorById(fid);
-    return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함 이용 안내입니다.\n" + GUIDE;
+    return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함을 신청하셨습니다.\n" + GUIDE;
   }
   function copyText(t) {
     function ok() { toast("문구가 복사되었습니다."); }
@@ -240,6 +242,7 @@
     if (!r) {
       body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
         '<div class="field"><label>학생 이름</label><input class="namefield" id="newName" placeholder="이름 입력" /></div>' +
+        '<div class="field"><label>생년월일 (6자리)</label><input class="namefield" id="newBirth" placeholder="예: 880130" inputmode="numeric" maxlength="6" /></div>' +
         '<div class="field"><label>전화번호</label><input class="namefield" id="newPhone" placeholder="010-0000-0000" inputmode="tel" /></div>' +
         '<div class="field"><label>반 (마감일 = 종강일 + 10일)</label><select class="selfield" id="newClass">' + classOptionsHTML("") + "</select></div>" +
         '<div class="field"><label>안내</label><div class="v">대여를 시작하면 보증금 1만원 수령으로 기록됩니다.</div></div>';
@@ -247,10 +250,12 @@
       $("rentBtn").onclick = function () {
         var nm = $("newName").value.trim();
         var ph = $("newPhone").value.trim();
+        var bd = $("newBirth").value.trim();
         var cid = $("newClass").value;
         if (!nm) { $("newName").focus(); return; }
+        if (bd && !/^\d{6}$/.test(bd)) { toast("생년월일은 6자리 숫자로 입력하세요. (예: 880130)"); $("newBirth").focus(); return; }
         if (!cid) { toast("반을 선택하세요. (마감일 계산에 필요)"); $("newClass").focus(); return; }
-        startRental(key, nm, ph, cid);
+        startRental(key, nm, ph, cid, bd);
       };
       return;
     }
@@ -263,17 +268,25 @@
     var gmsg = guideMsg(r, fid, num);     // 비밀번호 이용 안내
     var deadlineContact = '<button class="btn small" id="copyDeadlineBtn">마감 안내 문구 복사</button>';
     var guideContact = '<button class="btn small" id="copyGuideBtn">안내 문구 복사</button>';
+    var phoneVal = r.phone
+      ? esc(r.phone) + ' <button class="btn small" id="copyPhoneBtn" style="padding:4px 9px;font-size:11px;margin-left:6px;">복사</button>'
+      : "—";
+    var ext = r.extended_months || 0;
     body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
       '<div class="field"><label>대여자</label><div class="v">' + esc(r.name) + "</div></div>" +
-      '<div class="field"><label>전화번호</label><div class="v mono">' + (r.phone ? esc(r.phone) : "—") + "</div></div>" +
+      '<div class="field"><label>생년월일</label><div class="v mono">' + (r.birth ? esc(r.birth) : "—") + "</div></div>" +
+      '<div class="field"><label>전화번호</label><div class="v mono" style="display:flex;align-items:center;">' + phoneVal + "</div></div>" +
       '<div class="field"><label>반</label><div class="v">' + esc(classLabel(r)) + "</div></div>" +
       '<div class="field"><label>등록일</label><div class="v mono">' + fmtDate(r.started_on) + "</div></div>" +
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + "</div></div>" +
       '<div class="field"><label>이용 안내 (비밀번호)</label><div class="contact-row">' + guideContact + '</div><div class="guide-prev">' + esc(GUIDE) + "</div></div>" +
       '<div class="field"><label>마감 안내</label><div class="contact-row">' + deadlineContact + "</div></div>" +
-      '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 10일)</span>' +
+      '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 10일' + (ext ? " + 연장 " + ext + "개월" : "") + ')</span>' +
       '<span class="dd" style="color:' + st.color + '">' + dd.label + "</span></div>" +
-      '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div></div>";
+      '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div>" +
+      '<div class="ext-row"><span>연장 <b>' + ext + '</b>개월</span><span class="ext-btns">' +
+      '<button class="btn small" id="extBtn">+1개월 연장</button>' + (ext ? '<button class="btn small" id="extReset">초기화</button>' : "") +
+      "</span></div></div>";
     actions.innerHTML =
       '<div class="line"><button class="btn" id="editBtn">정보 수정</button><button class="btn" id="moveBtn">이동하기</button></div>' +
       '<div class="line"><button class="btn" id="returnBtn">반납 · 보증금 환급</button></div>';
@@ -282,6 +295,9 @@
     $("returnBtn").onclick = function () { returnRental(key); };
     var cd = $("copyDeadlineBtn"); if (cd) cd.onclick = function () { copyText(dmsg); };
     var cg = $("copyGuideBtn"); if (cg) cg.onclick = function () { copyText(gmsg); };
+    var cp = $("copyPhoneBtn"); if (cp) cp.onclick = function () { copyText(r.phone || ""); };
+    var eb = $("extBtn"); if (eb) eb.onclick = function () { extendRental(key, 1); };
+    var er = $("extReset"); if (er) er.onclick = function () { extendRental(key, -(r.extended_months || 0)); };
   }
 
   function renderEdit(key) {
@@ -289,13 +305,16 @@
     var body = $("dBody"); var actions = $("dActions");
     body.innerHTML =
       '<div class="field"><label>학생 이름</label><input class="namefield" id="edName" value="' + esc(r.name) + '" /></div>' +
+      '<div class="field"><label>생년월일 (6자리)</label><input class="namefield" id="edBirth" value="' + esc(r.birth || "") + '" inputmode="numeric" maxlength="6" placeholder="예: 880130" /></div>' +
       '<div class="field"><label>전화번호</label><input class="namefield" id="edPhone" value="' + esc(r.phone || "") + '" inputmode="tel" /></div>' +
       '<div class="field"><label>반</label><select class="selfield" id="edClass">' + classOptionsHTML(r.class_id) + "</select></div>";
     actions.innerHTML = '<div class="line"><button class="btn primary" id="saveBtn">저장</button><button class="btn" id="cancelBtn">취소</button></div>';
     $("saveBtn").onclick = function () {
       var nm = $("edName").value.trim();
+      var bd = $("edBirth").value.trim();
       if (!nm) { $("edName").focus(); return; }
-      editRental(key, nm, $("edPhone").value.trim(), $("edClass").value || null);
+      if (bd && !/^\d{6}$/.test(bd)) { toast("생년월일은 6자리 숫자로 입력하세요."); $("edBirth").focus(); return; }
+      editRental(key, nm, $("edPhone").value.trim(), $("edClass").value || null, bd);
     };
     $("cancelBtn").onclick = function () { renderDrawer(); };
   }
@@ -331,27 +350,27 @@
   /* ---------- 액션 (DB 반영 + 로그) ---------- */
   function busy(on) { document.body.style.cursor = on ? "progress" : ""; }
 
-  function startRental(key, name, phone, classId) {
+  function startRental(key, name, phone, classId, birth) {
     var lk = LOCKERS[key];
     if (!lk) { toast("사물함 정보를 찾을 수 없습니다."); return; }
     busy(true);
     sb.from("rentals").insert({
-      locker_id: lk.id, student_name: name, phone: phone || null,
-      class_id: classId ? Number(classId) : null,
+      locker_id: lk.id, student_name: name, phone: phone || null, birth: birth || null,
+      class_id: classId ? Number(classId) : null, extended_months: 0,
       started_on: todayISO(), deposit_held: true, active: true
     }).then(function (res) {
       busy(false);
       if (res.error) { toast("대여 실패: " + res.error.message); return; }
-      logAction(lk.id, "rent", { student_name: name, phone: phone });
+      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null) });
       toast(name + " 님 대여 시작 · 보증금 1만원 수령 · 학생에게 비밀번호 안내를 보내세요");
       reload();
     });
   }
 
-  function editRental(key, name, phone, classId) {
+  function editRental(key, name, phone, classId, birth) {
     var r = RENTALS[key]; if (!r) return;
     busy(true);
-    sb.from("rentals").update({ student_name: name, phone: phone || null, class_id: classId ? Number(classId) : null })
+    sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, class_id: classId ? Number(classId) : null })
       .eq("id", r.id).then(function (res) {
         busy(false);
         if (res.error) { toast("수정 실패: " + res.error.message); return; }
@@ -361,6 +380,19 @@
       });
   }
 
+  function extendRental(key, delta) {
+    var r = RENTALS[key]; if (!r) return;
+    var n = Math.max(0, (r.extended_months || 0) + delta);
+    busy(true);
+    sb.from("rentals").update({ extended_months: n }).eq("id", r.id).then(function (res) {
+      busy(false);
+      if (res.error) { toast("연장 실패: " + res.error.message); return; }
+      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, months: n });
+      toast(delta > 0 ? "1개월 연장했습니다. (총 " + n + "개월)" : "연장을 초기화했습니다.");
+      reload();
+    });
+  }
+
   function returnRental(key) {
     var r = RENTALS[key]; if (!r) return;
     if (!window.confirm(r.name + " 님의 대여를 반납 처리하고 보증금 1만원을 환급합니까?")) return;
@@ -368,7 +400,7 @@
     sb.from("rentals").update({ active: false, deposit_held: false }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("반납 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name });
+      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id) });
       toast("반납 완료 · 보증금 1만원 환급");
       reload();
     });
@@ -610,7 +642,7 @@
   }
   function loadRentals() {
     return sb.from("rentals")
-      .select("id, student_name, phone, class_id, started_on, deposit_held, lockers(floor, number)")
+      .select("id, student_name, phone, birth, class_id, extended_months, started_on, deposit_held, lockers(floor, number)")
       .eq("active", true)
       .then(function (res) {
         if (res.error) throw res.error;
@@ -618,8 +650,8 @@
         (res.data || []).forEach(function (row) {
           if (!row.lockers) return;
           RENTALS[row.lockers.floor + "-" + row.lockers.number] = {
-            id: row.id, name: row.student_name, phone: row.phone, class_id: row.class_id,
-            started_on: row.started_on, deposit_held: row.deposit_held
+            id: row.id, name: row.student_name, phone: row.phone, birth: row.birth, class_id: row.class_id,
+            extended_months: row.extended_months || 0, started_on: row.started_on, deposit_held: row.deposit_held
           };
         });
       });
@@ -654,7 +686,7 @@
       list.innerHTML = '<div class="notice-empty">등록된 공지사항이 없습니다. ‘＋ 공지 작성’으로 남겨주세요.</div>';
       return;
     }
-    NOTICES.forEach(function (n) {
+    NOTICES.slice(0, 2).forEach(function (n) { // 최신 2개만 노출
       var el = document.createElement("div"); el.className = "notice";
       el.innerHTML = '<div class="ntxt">' + esc(n.body) + "</div>" +
         '<div class="nmeta"><span class="nwho">' + esc(n.author || "직원") + '</span><span class="ntime">' + fmtNoticeTime(n.created_at) + "</span></div>" +
@@ -662,6 +694,12 @@
       el.querySelector(".ndel").onclick = function () { deleteNotice(n); };
       list.appendChild(el);
     });
+    if (NOTICES.length > 2) {
+      var more = document.createElement("div");
+      more.className = "notice-empty";
+      more.textContent = "외 " + (NOTICES.length - 2) + "건 더 있습니다 (오래된 공지는 ✕로 정리하세요)";
+      list.appendChild(more);
+    }
   }
   function openNotice() {
     $("noticeAuthor").textContent = ME.name; $("noticeBody").value = ""; $("noticeErr").textContent = "";
@@ -705,6 +743,43 @@
       btn.disabled = false; btn.textContent = "저장";
       if (res.error) { $("guideErr").textContent = "저장 실패: " + res.error.message; return; }
       GUIDE = v; closeGuide(); toast("이용 안내 문구를 저장했습니다."); if (selectedKey) renderDrawer();
+    });
+  }
+
+  /* ---------- 신청 기록 로그 ---------- */
+  function fmtKSTDate(ts) { return new Date(ts).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }); }
+  function fmtKSTTime(ts) { return new Date(ts).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }); }
+  function openLog() {
+    $("logList").innerHTML = '<div class="dash-empty">불러오는 중…</div>';
+    $("logView").classList.add("open");
+    loadLogs();
+  }
+  function closeLog() { $("logView").classList.remove("open"); }
+  function loadLogs() {
+    sb.from("rental_logs").select("id, action, detail, created_at")
+      .in("action", ["rent", "return"]).order("created_at", { ascending: false }).limit(500)
+      .then(function (res) {
+        if (res.error) { $("logList").innerHTML = '<div class="dash-empty">기록을 불러오지 못했습니다: ' + esc(res.error.message) + "</div>"; return; }
+        renderLogs(res.data || []);
+      });
+  }
+  function renderLogs(rows) {
+    $("logLead").textContent = "대여(입금)·반납(환급) 기록 · " + rows.length + "건 · 한국시간";
+    var list = $("logList");
+    if (!rows.length) { list.innerHTML = '<div class="dash-empty">아직 기록이 없습니다.</div>'; return; }
+    list.innerHTML = "";
+    rows.forEach(function (l) {
+      var d = l.detail || {};
+      var isRent = l.action === "rent";
+      var row = document.createElement("div");
+      row.className = "log-row";
+      row.innerHTML = '<span class="log-act ' + (isRent ? "in" : "out") + '">' + (isRent ? "입금" : "환급") + "</span>" +
+        '<span class="log-name">' + esc(d.student_name || "") + "</span>" +
+        '<span class="log-birth">' + esc(d.birth || "") + "</span>" +
+        '<span class="log-class">' + esc(d.class_label || "") + "</span>" +
+        '<span class="log-date">' + fmtKSTDate(l.created_at) + "</span>" +
+        '<span class="log-time">' + fmtKSTTime(l.created_at) + "</span>";
+      list.appendChild(row);
     });
   }
 
@@ -757,6 +832,8 @@
   $("classBtn").onclick = openClasses;
   $("classClose").onclick = closeClasses;
   $("classEditBtn").onclick = toggleClassEdit;
+  $("logBtn").onclick = openLog;
+  $("logClose").onclick = closeLog;
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
@@ -776,6 +853,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
     if ($("calView").classList.contains("open")) closeCalendar();
+    else if ($("logView").classList.contains("open")) closeLog();
     else if ($("guideView").classList.contains("open")) closeGuide();
     else if ($("noticeView").classList.contains("open")) closeNotice();
     else if ($("classView").classList.contains("open")) closeClasses();
@@ -805,6 +883,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeGuide(); cancelMove(); NOTICES = []; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeLog(); closeNotice(); closeGuide(); cancelMove(); NOTICES = []; showLogin(); }
   });
 })();

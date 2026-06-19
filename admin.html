@@ -45,6 +45,9 @@
           <button class="rail-btn" id="guideBtn">
             <span>이용 안내</span>
           </button>
+          <button class="rail-btn" id="logBtn">
+            <span>신청 기록</span>
+          </button>
         </div>
       </div>
       <div>
@@ -126,6 +129,17 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
         <button class="btn primary" id="addClassBtn">반 추가</button>
       </div>
       <div class="dash-list" id="classList"></div>
+    </div>
+  </div>
+
+  <!-- 신청 기록 로그 -->
+  <div class="overlay" id="logView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>신청 기록</h2><p class="lead" id="logLead" style="margin:4px 0 0;">대여(입금)·반납(환급) 전체 기록</p></div>
+        <button class="close" id="logClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="dash-list" id="logList"></div>
     </div>
   </div>
 
