@@ -392,68 +392,21 @@
     return cats;
   }
 
-  var BASE = { y: NOW.getFullYear(), m: NOW.getMonth() + 1 }; // 기준 년·월
-
   function lastDayOf(y, m) { return new Date(y, m, 0).getDate(); }
   function addDaysFmt(iso, days) { // 'YYYY-MM-DD' + days → 'M/D'
     var d = parseDate(iso); d.setDate(d.getDate() + days);
     return (d.getMonth() + 1) + "/" + d.getDate();
   }
-  function mostCommonBase() {
-    var tally = {}, best = null, bestN = 0;
-    CLASSES.forEach(function (c) {
-      if (!c.closing_date) return;
-      var p = String(c.closing_date).slice(0, 10).split("-");
-      var k = p[0] + "-" + p[1];
-      tally[k] = (tally[k] || 0) + 1;
-      if (tally[k] > bestN) { bestN = tally[k]; best = { y: +p[0], m: +p[1] }; }
-    });
-    return best;
-  }
 
-  function openClasses() {
-    var mc = mostCommonBase();
-    BASE = mc || { y: NOW.getFullYear(), m: NOW.getMonth() + 1 };
-    renderBaseYM(); renderClasses(); refreshCatList();
-    $("classView").classList.add("open");
-  }
+  function openClasses() { renderClasses(); refreshCatList(); $("classView").classList.add("open"); }
   function closeClasses() { $("classView").classList.remove("open"); }
   function refreshCatList() {
     $("catList").innerHTML = orderedCategories().map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
   }
 
-  function renderBaseYM() {
-    var yNow = NOW.getFullYear();
-    var ySel = $("baseYear"), mSel = $("baseMonth");
-    var ys = "";
-    for (var yy = yNow - 1; yy <= yNow + 2; yy++) ys += "<option" + (yy === BASE.y ? " selected" : "") + ">" + yy + "</option>";
-    ySel.innerHTML = ys;
-    var ms = "";
-    for (var mm = 1; mm <= 12; mm++) ms += "<option value='" + mm + "'" + (mm === BASE.m ? " selected" : "") + ">" + mm + "월</option>";
-    mSel.innerHTML = ms;
-    ySel.onchange = function () { BASE.y = +ySel.value; applyBase(); };
-    mSel.onchange = function () { BASE.m = +mSel.value; applyBase(); };
-  }
-
-  // 기준 년·월이 바뀌면, 이미 일자가 설정된 모든 반을 같은 일자로 새 년·월에 맞춰 갱신
-  function applyBase() {
-    var ups = [];
-    CLASSES.forEach(function (c) {
-      if (!c.closing_date) return;
-      var day = +String(c.closing_date).slice(8, 10);
-      day = Math.min(day, lastDayOf(BASE.y, BASE.m));
-      var nd = BASE.y + "-" + pad(BASE.m) + "-" + pad(day);
-      if (nd !== String(c.closing_date).slice(0, 10)) ups.push(setClosing(c.id, nd));
-    });
-    renderClasses();
-    if (!ups.length) return;
-    Promise.all(ups).then(function () { toast("기준 년·월(" + BASE.y + "년 " + BASE.m + "월)을 적용했습니다."); reload(); });
-  }
-
   function renderClasses() {
     var list = $("classList"); list.innerHTML = "";
     if (!CLASSES.length) { list.innerHTML = '<div class="dash-empty">등록된 반이 없습니다. 위에서 추가하세요.</div>'; return; }
-    var lastDay = lastDayOf(BASE.y, BASE.m);
     orderedCategories().forEach(function (cat) {
       var lbl = document.createElement("div");
       lbl.className = "class-cat-label"; lbl.textContent = cat;
@@ -463,25 +416,60 @@
       CLASSES.filter(function (c) { return c.category === cat; })
         .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); })
         .forEach(function (c) {
-          var day = c.closing_date ? String(+String(c.closing_date).slice(8, 10)) : "";
-          var opts = '<option value="">미정</option>';
-          for (var dd = 1; dd <= lastDay; dd++) opts += "<option" + (String(dd) === day ? " selected" : "") + ">" + dd + "</option>";
+          var p = c.closing_date ? String(c.closing_date).slice(0, 10).split("-") : null;
+          var dateLabel = p ? (+p[1]) + "월 " + (+p[2]) + "일" : "날짜 선택";
           var due = c.closing_date ? "마감 " + addDaysFmt(c.closing_date, GRACE) : "";
           var card = document.createElement("div");
           card.className = "class-card";
           card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
-            '<span class="cc-day"><select>' + opts + "</select>일</span>" +
+            '<button class="cc-date' + (p ? "" : " unset") + '">' + dateLabel + "</button>" +
             '<span class="cc-due">' + due + "</span>" +
             '<button class="cc-del" title="삭제">&times;</button>';
-          card.querySelector("select").onchange = function (e) {
-            var v = e.target.value;
-            updateClosing(c.id, v ? (BASE.y + "-" + pad(BASE.m) + "-" + pad(+v)) : null);
-          };
+          card.querySelector(".cc-date").onclick = function () { openCalendar(c); };
           card.querySelector(".cc-del").onclick = function () { deleteClass(c); };
           wrap.appendChild(card);
         });
       list.appendChild(wrap);
     });
+  }
+
+  /* ---------- 종강일 달력 ---------- */
+  var calClassId = null, calY = 0, calM = 0; // calM: 1-12
+  function openCalendar(c) {
+    calClassId = c.id;
+    if (c.closing_date) { var p = String(c.closing_date).slice(0, 10).split("-"); calY = +p[0]; calM = +p[1]; }
+    else { calY = NOW.getFullYear(); calM = NOW.getMonth() + 1; }
+    $("calSub").textContent = c.category + " · " + c.name + " 종강일을 선택하세요";
+    renderCalendar();
+    $("calView").classList.add("open");
+  }
+  function closeCalendar() { $("calView").classList.remove("open"); }
+  function calShift(delta) {
+    calM += delta;
+    if (calM < 1) { calM = 12; calY--; }
+    if (calM > 12) { calM = 1; calY++; }
+    renderCalendar();
+  }
+  function renderCalendar() {
+    $("calTitle").textContent = calY + "년 " + calM + "월";
+    var first = new Date(calY, calM - 1, 1).getDay(); // 0=일
+    var days = lastDayOf(calY, calM);
+    var c = CLASSES_BY_ID[calClassId];
+    var sel = 0;
+    if (c && c.closing_date) { var p = String(c.closing_date).slice(0, 10).split("-"); if (+p[0] === calY && +p[1] === calM) sel = +p[2]; }
+    var tY = NOW.getFullYear(), tM = NOW.getMonth() + 1, tD = NOW.getDate();
+    var g = $("calGrid"); g.innerHTML = "";
+    for (var i = 0; i < first; i++) { var e = document.createElement("div"); e.className = "cal-cell empty"; g.appendChild(e); }
+    for (var d = 1; d <= days; d++) {
+      var dow = (first + d - 1) % 7;
+      var cell = document.createElement("button");
+      cell.className = "cal-cell" + (d === sel ? " selected" : "") +
+        (calY === tY && calM === tM && d === tD ? " today" : "") +
+        (dow === 0 ? " sun" : dow === 6 ? " sat" : "");
+      cell.textContent = d;
+      (function (dd) { cell.onclick = function () { updateClosing(calClassId, calY + "-" + pad(calM) + "-" + pad(dd)); closeCalendar(); }; })(d);
+      g.appendChild(cell);
+    }
   }
 
   function setClosing(classId, date) { return sb.from("classes").update({ closing_date: date }).eq("id", classId); }
@@ -722,6 +710,10 @@
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
+  $("calPrev").onclick = function () { calShift(-1); };
+  $("calNext").onclick = function () { calShift(1); };
+  $("calClose").onclick = closeCalendar;
+  $("calClear").onclick = function () { if (calClassId) { updateClosing(calClassId, null); closeCalendar(); } };
   $("guideBtn").onclick = openGuide;
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;
@@ -733,7 +725,8 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
-    if ($("guideView").classList.contains("open")) closeGuide();
+    if ($("calView").classList.contains("open")) closeCalendar();
+    else if ($("guideView").classList.contains("open")) closeGuide();
     else if ($("noticeView").classList.contains("open")) closeNotice();
     else if ($("classView").classList.contains("open")) closeClasses();
     else if ($("dashView").classList.contains("open")) closeDash();
@@ -762,6 +755,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeNotice(); closeGuide(); cancelMove(); NOTICES = []; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeGuide(); cancelMove(); NOTICES = []; showLogin(); }
   });
 })();

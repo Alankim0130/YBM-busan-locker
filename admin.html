@@ -108,22 +108,34 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
   <div class="overlay" id="classView">
     <div class="card dash-card">
       <div class="dash-head">
-        <div><h2>반 관리 · 종강일</h2><p class="lead" style="margin:4px 0 0;">기준 년·월을 정한 뒤, 각 반의 <b>종강일(일)</b>만 선택하세요. 마감일 = 종강일 + 10일.</p></div>
+        <div><h2>반 관리 · 종강일</h2><p class="lead" style="margin:4px 0 0;">각 반의 <b>날짜 선택</b>을 눌러 달력에서 종강일을 고르세요. 마감일 = 종강일 + 10일.</p></div>
         <button class="close" id="classClose" aria-label="닫기">&times;</button>
-      </div>
-      <div class="base-ym">
-        <span class="base-label">기준 년·월</span>
-        <select id="baseYear"></select>
-        <select id="baseMonth"></select>
-        <span class="base-hint">모든 반이 이 년·월을 사용합니다. 아래에서는 일자만 고르세요.</span>
       </div>
       <div class="class-add">
         <input id="newClassCat" placeholder="카테고리 (예: 토익)" list="catList" />
         <datalist id="catList"></datalist>
         <input id="newClassName" placeholder="반 이름 (예: 역전토익)" />
-        <button class="btn primary small" id="addClassBtn">반 추가</button>
+        <button class="btn primary" id="addClassBtn">반 추가</button>
       </div>
       <div class="dash-list" id="classList"></div>
+    </div>
+  </div>
+
+  <!-- 종강일 달력 선택 -->
+  <div class="overlay" id="calView">
+    <div class="card cal-card">
+      <div class="cal-head">
+        <button class="cal-nav" id="calPrev" aria-label="이전 달">‹</button>
+        <div class="cal-title" id="calTitle">—</div>
+        <button class="cal-nav" id="calNext" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal-sub" id="calSub">—</div>
+      <div class="cal-grid-head"><span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-foot">
+        <button class="btn" id="calClear">종강일 지움</button>
+        <button class="btn" id="calClose">닫기</button>
+      </div>
     </div>
   </div>
 
