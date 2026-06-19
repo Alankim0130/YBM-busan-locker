@@ -691,14 +691,24 @@
     box.innerHTML = "";
     items.forEach(function (it) {
       var st = STATE[statusOf(it.r)];
+      var acct = it.r.refund_account || "";
       var row = document.createElement("div");
-      row.className = "dash-row";
+      row.className = "dash-row search-row";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
-        '<span class="ds-loc">' + locName(it.fid) + " No." + pad(it.num) + "</span>" +
-        '<span class="ds-name">' + esc(it.r.name) + "</span>" +
-        '<span class="ds-phone">' + (it.r.birth ? esc(it.r.birth) : "—") + "</span>" +
-        '<span class="ds-dd" style="color:var(--ink-2)">' + esc(classLabel(it.r)) + "</span>";
+        '<div class="sr-main">' +
+          '<div class="sr-top">' +
+            '<span class="ds-loc">' + locName(it.fid) + " No." + pad(it.num) + "</span>" +
+            '<span class="ds-name">' + esc(it.r.name) + "</span>" +
+            '<span class="ds-phone">' + (it.r.birth ? esc(it.r.birth) : "—") + "</span>" +
+            '<span class="ds-dd" style="color:var(--ink-2)">' + esc(classLabel(it.r)) + "</span>" +
+          "</div>" +
+          '<div class="sr-acct"><span class="sr-acct-txt">💳 ' + (acct ? esc(acct) : "계좌 미입력") + "</span>" +
+            (acct ? '<button class="btn small sr-copy">복사</button>' : "") +
+          "</div>" +
+        "</div>";
       row.onclick = function () { currentId = it.fid; closeSearch(); showView("lockers"); renderAll(); select(it.key); };
+      var cp = row.querySelector(".sr-copy");
+      if (cp) cp.addEventListener("click", function (ev) { ev.stopPropagation(); copyText(it.r.name + " " + acct); });
       box.appendChild(row);
     });
   }

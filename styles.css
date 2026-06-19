@@ -329,6 +329,15 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .dash-row .ds-phone{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--ink-2);min-width:120px;}
 .dash-row .ds-dd{font-family:"Space Grotesk";font-weight:700;font-size:13px;}
 .dash-row .ds-sms{flex-shrink:0;padding:7px 12px;font-size:12px;}
+/* 학생 검색 결과(2줄: 정보 + 계좌·복사) */
+.search-row{align-items:stretch;}
+.search-row .sr-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;}
+.search-row .sr-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.search-row .sr-acct{display:flex;align-items:center;gap:9px;}
+.search-row .sr-acct-txt{flex:1;min-width:0;font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--ink-2);
+  background:var(--surface-3);border:1px solid var(--line);border-radius:8px;padding:7px 11px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.search-row .sr-copy{flex-shrink:0;padding:7px 13px;font-size:12px;}
 .dash-empty{text-align:center;color:var(--ink-2);font-size:13.5px;padding:34px 0;}
 
 /* ===== 반 관리 (달력으로 종강일 선택) ===== */
