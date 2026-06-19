@@ -153,6 +153,12 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .deadline-box .ext-row b{color:var(--ink);font-family:"Space Grotesk";}
 .ext-btns{display:flex;gap:6px;}
 
+/* ===== 신청 기록 (admin.html 내부 패널) ===== */
+.logs-pane{flex:1;min-height:0;overflow:auto;padding:20px 28px 40px;}
+.logs-pane-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+.logs-pane-top .lt-left{display:flex;align-items:center;gap:14px;}
+.logs-pane-top h2{font-family:"Space Grotesk";font-weight:600;font-size:20px;margin:0;}
+
 /* ===== 신청 기록 페이지 (logs.html) ===== */
 .logpage{max-width:1040px;margin:0 auto;width:100%;padding:22px 24px 70px;}
 .logpage-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}

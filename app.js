@@ -161,7 +161,7 @@
           '<span class="seg" style="flex:' + Math.max(c.used - c.over, 0) + ';background:var(--rent)"></span>' +
           '<span class="seg" style="flex:' + c.over + ';background:var(--over)"></span>' +
         "</div>";
-      btn.onclick = function () { currentId = f.id; closeDrawer(); renderAll(); };
+      btn.onclick = function () { currentId = f.id; showView("lockers"); closeDrawer(); renderAll(); };
       list.appendChild(btn);
     });
   }
@@ -623,7 +623,7 @@
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
         '<span class="ds-phone">' + (it.r.birth ? esc(it.r.birth) : "—") + "</span>" +
         '<span class="ds-dd" style="color:var(--ink-2)">' + esc(classLabel(it.r)) + "</span>";
-      row.onclick = function () { currentId = it.fid; closeSearch(); renderAll(); select(it.key); };
+      row.onclick = function () { currentId = it.fid; closeSearch(); showView("lockers"); renderAll(); select(it.key); };
       box.appendChild(row);
     });
   }
@@ -721,7 +721,7 @@
         '<span class="ds-phone">' + (it.r.phone ? esc(it.r.phone) : "전화 미입력") + "</span>" +
         '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>" +
         '<button class="btn small ds-sms">복사</button>';
-      row.onclick = function () { currentId = it.f.id; closeDash(); renderAll(); select(it.key); };
+      row.onclick = function () { currentId = it.f.id; closeDash(); showView("lockers"); renderAll(); select(it.key); };
       var cbtn = row.querySelector(".ds-sms");
       cbtn.addEventListener("click", function (ev) { ev.stopPropagation(); copyText(contactMsg(it.r, it.f.id, it.n)); });
       list.appendChild(row);
@@ -873,6 +873,102 @@
     });
   }
 
+  /* ---------- 신청 기록 (같은 화면 내 전환) ---------- */
+  function showView(v) {
+    var logs = v === "logs";
+    $("logsPane").hidden = !logs;
+    $("stageTop").hidden = logs;
+    $("stageWrap").hidden = logs;
+    if (logs) { closeDrawer(); if (moveSourceKey) cancelMove(); $("moveBanner").hidden = true; }
+  }
+  var logEdit = false, LOGROWS = [], logY = 0, logM = 0;
+  var logFmtD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
+  var logFmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
+  function logYmd(ts) { return logFmtD.format(new Date(ts)); }
+  function logHm(ts) { return logFmtT.format(new Date(ts)); }
+  function logLocker(l) { return l.lockers ? (l.lockers.floor + "층 " + l.lockers.number + "번") : "—"; }
+  var LOGMETA = { rent: { t: "입금", c: "in" }, extend: { t: "연장", c: "ext" }, move: { t: "이동", c: "mv" } };
+
+  function openLogs() {
+    showView("logs");
+    var tp = logYmd(Date.now()).split("-"); logY = +tp[0]; logM = +tp[1];
+    $("logTableArea").innerHTML = '<div class="log-empty">불러오는 중…</div>';
+    logCleanup().then(logLoad);
+  }
+  function logCleanup() { var d = new Date(); d.setFullYear(d.getFullYear() - 1); return sb.from("rental_logs").delete().lt("created_at", d.toISOString()).then(function(){}, function(){}); }
+  function logLoad() {
+    sb.from("rental_logs").select("id, action, detail, created_at, lockers(floor, number)")
+      .in("action", ["rent", "return", "extend", "move"]).order("created_at", { ascending: false }).limit(8000)
+      .then(function (res) {
+        if (res.error) { $("logTableArea").innerHTML = '<div class="log-empty">기록을 불러오지 못했습니다: ' + esc(res.error.message) + "</div>"; return; }
+        LOGROWS = res.data || []; logRender();
+      });
+  }
+  function logMonthCounts(year) { var c = {}; LOGROWS.forEach(function (l) { var p = logYmd(l.created_at).split("-"); if (+p[0] === year) { var m = +p[1]; c[m] = (c[m] || 0) + 1; } }); return c; }
+  function logBadge(l) { if (l.action === "return") return (l.detail && l.detail.refunded) ? { t: "반납완료", c: "out" } : { t: "반납신청", c: "pending" }; return LOGMETA[l.action] || { t: l.action, c: "mv" }; }
+  function logRender() {
+    $("logYmYear").textContent = logY + "년";
+    var counts = logMonthCounts(logY);
+    var totalY = Object.keys(counts).reduce(function (s, k) { return s + counts[k]; }, 0);
+    $("logLead").textContent = "한국시간 · " + logY + "년 " + totalY + "건";
+    var mb = $("logMonthBar"); mb.innerHTML = "";
+    for (var m = 1; m <= 12; m++) {
+      var has = counts[m] || 0;
+      var b = document.createElement("button");
+      b.className = "mbtn" + (m === logM ? " active" : "") + (has ? " has" : "");
+      b.innerHTML = m + "월" + (has ? '<span class="mb-cnt">' + has + "</span>" : "");
+      (function (mm) { b.onclick = function () { logM = mm; logRender(); }; })(m);
+      mb.appendChild(b);
+    }
+    logRenderTable(counts[logM] || 0);
+  }
+  function logRenderTable(count) {
+    var area = $("logTableArea");
+    if (!count) { area.innerHTML = '<div class="log-empty">' + logY + "년 " + logM + "월 기록이 없습니다.</div>"; return; }
+    var rows = LOGROWS.filter(function (l) { var p = logYmd(l.created_at).split("-"); return +p[0] === logY && +p[1] === logM; });
+    var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
+      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
+      (logEdit ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
+    rows.forEach(function (l) {
+      var d = l.detail || {}; var meta = logBadge(l);
+      var proc = "";
+      if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>' : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
+      html += "<tr>" +
+        '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
+        '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
+        '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
+        "<td>" + esc(d.class_label || "") + "</td>" +
+        '<td class="c-locker">' + esc(logLocker(l)) + "</td>" +
+        '<td class="c-mono">' + logYmd(l.created_at).replace(/-/g, ".") + "</td>" +
+        '<td class="c-mono">' + logHm(l.created_at) + "</td>" +
+        "<td>" + proc + "</td>" +
+        (logEdit ? '<td><button class="log-del" data-id="' + l.id + '">삭제</button></td>' : "") +
+        "</tr>";
+    });
+    html += "</tbody></table></div>";
+    area.innerHTML = html;
+    var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
+    area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
+    if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
+  }
+  function logMarkRefunded(l) {
+    if (!l) return; var d = l.detail || {};
+    if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n환급계좌: " + (d.refund_account || "-") + "\n\n※ 과장님이 계좌로 보증금을 입금한 뒤 체크하세요.")) return;
+    var nd = {}; for (var k in d) nd[k] = d[k]; nd.refunded = true; nd.refunded_at = new Date().toISOString();
+    sb.from("rental_logs").update({ detail: nd }).eq("id", l.id).then(function (res) {
+      if (res.error) { toast("처리 실패: " + res.error.message); return; }
+      l.detail = nd; logRender();
+    });
+  }
+  function logRemove(l) {
+    if (!l) return; var d = l.detail || {}; var meta = logBadge(l);
+    if (!window.confirm("이 기록을 삭제할까요?\n\n" + meta.t + " / " + (d.student_name || "") + " / " + logLocker(l) + " / " + logYmd(l.created_at))) return;
+    sb.from("rental_logs").delete().eq("id", l.id).then(function (res) {
+      if (res.error) { toast("삭제 실패: " + res.error.message); return; }
+      LOGROWS = LOGROWS.filter(function (x) { return x.id !== l.id; }); logRender();
+    });
+  }
+
   /* ---------- Realtime ---------- */
   var channel = null;
   function subscribeRealtime() {
@@ -923,7 +1019,11 @@
   $("classBtn").onclick = openClasses;
   $("classClose").onclick = closeClasses;
   $("classEditBtn").onclick = toggleClassEdit;
-  $("logBtn").onclick = function () { location.href = "logs.html"; };
+  $("logBtn").onclick = openLogs;
+  $("logBack").onclick = function () { showView("lockers"); };
+  $("logEditBtn").onclick = function () { logEdit = !logEdit; $("logEditBtn").textContent = logEdit ? "완료" : "편집"; $("logEditBtn").classList.toggle("primary", logEdit); logRender(); };
+  $("logPrevY").onclick = function () { logY--; logRender(); };
+  $("logNextY").onclick = function () { logY++; logRender(); };
   $("searchBtn").onclick = openSearch;
   $("searchClose").onclick = closeSearch;
   $("reqBtn").onclick = openReq;
@@ -983,6 +1083,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); closeReq(); cancelMove(); NOTICES = []; REQUESTS = []; noticeIdx = 0; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); showView("lockers"); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); closeReq(); cancelMove(); NOTICES = []; REQUESTS = []; noticeIdx = 0; showLogin(); }
   });
 })();

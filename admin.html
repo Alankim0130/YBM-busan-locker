@@ -69,12 +69,32 @@
       <p class="hint">사물함을 클릭하면 대여자·전화번호·반·종강일·마감일이 보입니다. 대여·반납·이동은 상세 패널에서 처리합니다. 마감일 = 반 종강일 + 10일.</p>
     </aside>
     <main>
-      <div class="stage-top"><div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div></div>
+      <div class="stage-top" id="stageTop"><div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div></div>
       <div class="move-banner" id="moveBanner" hidden>
         <span id="moveBannerText">이동할 빈 칸을 선택하세요.</span>
         <button class="btn small" id="moveCancel">이동 취소</button>
       </div>
-      <div class="stage"><div class="wall"><div class="grid" id="grid"></div></div></div>
+      <div class="stage" id="stageWrap"><div class="wall"><div class="grid" id="grid"></div></div></div>
+
+      <!-- 신청 기록 (같은 화면 내에서 전환) -->
+      <div class="logs-pane" id="logsPane" hidden>
+        <div class="logs-pane-top">
+          <div class="lt-left">
+            <button class="log-back" id="logBack">← 사물함</button>
+            <h2>신청 기록</h2>
+          </div>
+          <button class="btn" id="logEditBtn">편집</button>
+        </div>
+        <div class="ym-bar">
+          <button class="ym-nav" id="logPrevY" aria-label="이전 해">‹</button>
+          <span class="ym-year" id="logYmYear">—</span>
+          <button class="ym-nav" id="logNextY" aria-label="다음 해">›</button>
+          <span class="ym-info" id="logLead"></span>
+        </div>
+        <div class="month-bar" id="logMonthBar"></div>
+        <div id="logTableArea"></div>
+      </div>
+
       <div class="drawer" id="drawer">
         <div class="d-head"><div><div class="d-id" id="dId">—</div><div class="d-floor" id="dFloor">—</div></div><button class="close" id="closeBtn" aria-label="닫기">&times;</button></div>
         <div class="d-body" id="dBody"></div>
