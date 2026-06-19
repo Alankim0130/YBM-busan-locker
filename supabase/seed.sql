@@ -46,3 +46,18 @@ insert into lockers (floor, number, col, "row", is_tall)
 select 7, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, (gs / 6) = 0
 from generate_series(0, 35) gs
 on conflict (floor, number) do nothing;
+
+-- ---------- 1관 4층: 6x3, 92~109 (18칸, 키 큰 칸 없음) ----------
+insert into lockers (floor, number, col, "row", is_tall)
+select 4, 92 + gs, (gs % 6) + 1, (gs / 6) + 1, false
+from generate_series(0, 17) gs
+on conflict (floor, number) do nothing;
+
+-- ---------- 2관(floor=8): 5x2, 110~114 윗줄 / 115~119 아랫줄 ----------
+insert into lockers (floor, number, col, "row", is_tall)
+select 8, 110 + gs, (gs % 5) + 1, (gs / 5) + 1, false
+from generate_series(0, 9) gs
+on conflict (floor, number) do nothing;
+
+-- ---------- 고장난 사물함 표시: 7층 26번 ----------
+update lockers set broken = true where floor = 7 and number = 26;

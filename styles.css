@@ -21,6 +21,7 @@
   --rent:#3b6fd4;
   --due:#e0a100;
   --over:#dc4f3a;
+  --broken:#8a94a6;
   /* 라운드 / 그림자 */
   --r-sm:8px; --r:11px; --r-lg:15px;
   --cell-w:104px; --cell-h:80px;
@@ -63,6 +64,8 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .floors{display:flex;flex-direction:column;gap:9px;}
 
 /* 층 버튼 — 이름/카운트 한 줄, 막대 아래 (정렬 수정) */
+.floor-group{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase;padding:6px 2px 2px;margin-top:4px;}
+.floor-group:first-child{margin-top:0;}
 .floor-btn{appearance:none;border:1px solid var(--line);background:var(--surface);cursor:pointer;
   border-radius:var(--r);padding:12px 13px;width:100%;font:inherit;color:var(--ink);
   display:flex;flex-direction:column;gap:9px;text-align:left;
@@ -119,6 +122,9 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .locker:focus-visible{outline:none;}
 .locker.sel,.locker:focus-visible{box-shadow:inset 0 0 0 2px #fff,0 0 0 3px var(--brand),var(--sh-md);transform:translateY(-1px);}
 .locker.movable{box-shadow:inset 0 0 0 2px #fff,0 0 0 3px var(--free);animation:movePulse 1.2s ease-in-out infinite;}
+.locker.broken{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.16) 0 7px,transparent 7px 14px);}
+.locker.broken .id,.locker.broken .who{color:#fff;}
+.locker.broken .handle{display:none;}
 @keyframes movePulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.16);}}
 
 /* 이동 모드 배너 */
@@ -398,7 +404,8 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
     padding:11px 14px;border-right:none;border-bottom:1px solid var(--line);overflow:visible;}
   aside>div{width:100%;}
   .rail-label{display:none;}
-  .floors{flex-direction:row;flex-wrap:wrap;gap:8px;}
+  .floors{flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center;}
+  .floor-group{flex:0 0 100%;width:100%;padding:2px 0 0;margin:0;}
   .floor-btn{flex:0 0 auto;min-width:max-content;padding:8px 13px;gap:6px;}
   .floor-btn .fbar{display:none;}
   .rail-group{flex-direction:row;flex-wrap:wrap;gap:8px;}

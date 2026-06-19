@@ -51,18 +51,22 @@
 
   /* ---------- 실제 층 구성 ---------- */
   var FLOORS = [
-    { id: 1, name: "1층", cols: 6, rows: 5, start: 1,  tallCount: 0 },
-    { id: 2, name: "2층", cols: 5, rows: 5, start: 31, tallCount: 0 },
-    { id: 3, name: "3층", cols: 6, rows: 6, start: 56, tallCount: 6 },
-    { id: 7, name: "7층", cols: 6, rows: 6, start: 1,  tallCount: 6 }
+    { id: 1, name: "1층", building: "1관", cols: 6, rows: 5, start: 1,   tallCount: 0 },
+    { id: 2, name: "2층", building: "1관", cols: 5, rows: 5, start: 31,  tallCount: 0 },
+    { id: 3, name: "3층", building: "1관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
+    { id: 4, name: "4층", building: "1관", cols: 6, rows: 3, start: 92,  tallCount: 0 },
+    { id: 7, name: "7층", building: "1관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+    { id: 8, name: "2관", building: "2관", cols: 5, rows: 2, start: 110, tallCount: 0 }
   ];
   FLOORS.forEach(function (f) { f.total = f.cols * f.rows; f.end = f.start + f.total - 1; });
 
   var STATE = {
-    free: { c: "var(--free)", label: "빈 공간",  color: "#3ba776" },
-    rent: { c: "var(--rent)", label: "마감 전",  color: "#3b6fd4" },
-    over: { c: "var(--over)", label: "마감됨",   color: "#d7503a" }
+    free:   { c: "var(--free)",   label: "빈 공간", color: "#3ba776" },
+    rent:   { c: "var(--rent)",   label: "마감 전", color: "#3b6fd4" },
+    over:   { c: "var(--over)",   label: "마감됨",  color: "#d7503a" },
+    broken: { c: "var(--broken)", label: "고장",    color: "#8a94a6" }
   };
+  function brokenAt(key) { var lk = LOCKERS[key]; return !!(lk && lk.broken); }
 
   /* ---------- 메모리 캐시 ---------- */
   var LOCKERS = {};        // "floor-number" -> { id, floor, number }
@@ -133,13 +137,15 @@
 
   /* ---------- 카운트 ---------- */
   function counts(f) {
-    var used = 0, over = 0;
+    var used = 0, over = 0, broken = 0;
     for (var n = f.start; n <= f.end; n++) {
-      var s = statusOf(RENTALS[keyOf(f, n)]);
+      var key = keyOf(f, n);
+      if (brokenAt(key)) { broken++; continue; }
+      var s = statusOf(RENTALS[key]);
       if (s !== "free") used++;
       if (s === "over") over++;
     }
-    return { used: used, over: over, free: f.total - used };
+    return { used: used, over: over, broken: broken, free: f.total - used - broken };
   }
 
   /* ---------- 렌더링 ---------- */
@@ -149,7 +155,14 @@
 
   function renderFloorList() {
     var list = $("floorList"); list.innerHTML = "";
+    var lastBuilding = null;
     FLOORS.forEach(function (f) {
+      if (f.building && f.building !== lastBuilding) {
+        lastBuilding = f.building;
+        var h = document.createElement("div");
+        h.className = "floor-group"; h.textContent = f.building;
+        list.appendChild(h);
+      }
       var c = counts(f);
       var btn = document.createElement("button");
       btn.className = "floor-btn" + (f.id === currentId ? " active" : "");
@@ -160,6 +173,7 @@
           '<span class="seg" style="flex:' + c.free + ';background:var(--free)"></span>' +
           '<span class="seg" style="flex:' + Math.max(c.used - c.over, 0) + ';background:var(--rent)"></span>' +
           '<span class="seg" style="flex:' + c.over + ';background:var(--over)"></span>' +
+          '<span class="seg" style="flex:' + c.broken + ';background:var(--broken)"></span>' +
         "</div>";
       btn.onclick = function () { currentId = f.id; showView("lockers"); closeDrawer(); renderAll(); };
       list.appendChild(btn);
@@ -173,12 +187,13 @@
     for (var i = 0; i < f.total; i++) {
       var n = f.start + i;
       var key = keyOf(f, n);
-      var r = RENTALS[key]; var s = statusOf(r); var st = STATE[s];
+      var broken = brokenAt(key);
+      var r = RENTALS[key]; var s = broken ? "broken" : statusOf(r); var st = STATE[s];
       var el = document.createElement("button");
       var moveTarget = moveSourceKey && s === "free" && key !== moveSourceKey;
-      el.className = "locker" + (key === selectedKey ? " sel" : "") + (moveTarget ? " movable" : "");
+      el.className = "locker" + (broken ? " broken" : "") + (key === selectedKey ? " sel" : "") + (moveTarget ? " movable" : "");
       el.style.setProperty("--c", st.c);
-      el.innerHTML = '<span class="id">' + pad(n) + '</span><span class="who">' + (r ? esc(r.name) : "비어 있음") + '</span><span class="handle"></span>';
+      el.innerHTML = '<span class="id">' + pad(n) + '</span><span class="who">' + (broken ? "고장" : r ? esc(r.name) : "비어 있음") + '</span><span class="handle"></span>';
       (function (k, free) {
         el.onclick = function () {
           if (moveSourceKey) { if (free && k !== moveSourceKey) performMove(k); return; }
@@ -193,7 +208,7 @@
     var f = floorById(currentId); var c = counts(f);
     $("floorTitle").textContent = f.name + " 사물함";
     $("floorSub").textContent = "전체 " + f.total + "칸 (" + f.cols + " × " + f.rows + ") · 사용 중 " +
-      c.used + " · 빈칸 " + c.free + (c.over ? " · 마감됨 " + c.over : "");
+      c.used + " · 빈칸 " + c.free + (c.over ? " · 마감됨 " + c.over : "") + (c.broken ? " · 고장 " + c.broken : "");
   }
 
   function renderDashCount() {
@@ -235,10 +250,20 @@
   function renderDrawer() {
     var key = selectedKey; if (!key) return;
     var parts = key.split("-"); var fid = parseInt(parts[0], 10); var num = parseInt(parts[1], 10);
-    var f = floorById(fid); var r = RENTALS[key]; var s = statusOf(r); var st = STATE[s];
+    var f = floorById(fid); var r = RENTALS[key];
+    var broken = !r && brokenAt(key);
+    var s = broken ? "broken" : statusOf(r); var st = STATE[s];
     $("dId").textContent = "No. " + pad(num);
     $("dFloor").textContent = f.name;
     var body = $("dBody"); var actions = $("dActions");
+
+    if (broken) {
+      body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
+        '<div class="field"><label>상태</label><div class="v">이 사물함은 <b>고장</b>으로 표시되어 있어 대여할 수 없습니다. 수리가 끝나면 고장을 해제하세요.</div></div>';
+      actions.innerHTML = '<div class="line"><button class="btn primary" id="fixBtn">🔧 고장 해제</button></div>';
+      $("fixBtn").onclick = function () { setBroken(key, false); };
+      return;
+    }
 
     if (!r) {
       body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
@@ -248,7 +273,9 @@
         '<div class="field"><label>환급 계좌 (선택)</label><input class="namefield" id="newAccount" placeholder="보증금 환급받을 계좌" /></div>' +
         '<div class="field"><label>반 (마감일 = 종강일 + 10일)</label><select class="selfield" id="newClass">' + classOptionsHTML("") + "</select></div>" +
         '<div class="field"><label>안내</label><div class="v">대여를 시작하면 보증금 1만원 수령으로 기록됩니다.</div></div>';
-      actions.innerHTML = '<div class="line"><button class="btn primary" id="rentBtn">대여 시작 · 보증금 1만원 수령</button></div>';
+      actions.innerHTML = '<div class="line"><button class="btn primary" id="rentBtn">대여 시작 · 보증금 1만원 수령</button></div>' +
+        '<div class="line"><button class="btn" id="breakBtn">🔧 고장으로 표시</button></div>';
+      $("breakBtn").onclick = function () { setBroken(key, true); };
       $("rentBtn").onclick = function () {
         var nm = $("newName").value.trim();
         var ph = $("newPhone").value.trim();
@@ -369,6 +396,20 @@
       logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null) });
       toast(name + " 님 대여 시작 · 보증금 1만원 수령 · 학생에게 비밀번호 안내를 보내세요");
       reload();
+    });
+  }
+
+  function setBroken(key, val) {
+    var lk = LOCKERS[key];
+    if (!lk) { toast("사물함 정보를 찾을 수 없습니다."); return; }
+    busy(true);
+    sb.from("lockers").update({ broken: val }).eq("id", lk.id).then(function (res) {
+      busy(false);
+      if (res.error) { toast("처리 실패: " + res.error.message); return; }
+      lk.broken = val;
+      toast(val ? "고장으로 표시했습니다." : "고장을 해제했습니다.");
+      renderAll();
+      if (selectedKey === key) renderDrawer();
     });
   }
 
@@ -737,7 +778,7 @@
     });
   }
   function loadLockers() {
-    return sb.from("lockers").select("id, floor, number").then(function (res) {
+    return sb.from("lockers").select("id, floor, number, broken").then(function (res) {
       if (res.error) throw res.error;
       LOCKERS = {};
       (res.data || []).forEach(function (l) { LOCKERS[l.floor + "-" + l.number] = l; });
@@ -979,6 +1020,7 @@
       .on("postgres_changes", { event: "*", schema: "public", table: "notices" }, function () { loadNotices(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, function () { loadSettings().then(function () { if (selectedKey) renderDrawer(); }); })
       .on("postgres_changes", { event: "*", schema: "public", table: "requests" }, function (payload) { if (payload && payload.eventType === "INSERT") toast("📥 새 사물함 신청이 들어왔습니다."); loadRequests(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "lockers" }, function () { loadLockers().then(function () { renderAll(); if (selectedKey) renderDrawer(); }); })
       .subscribe();
   }
   function unsubscribeRealtime() { if (channel) { sb.removeChannel(channel); channel = null; } }

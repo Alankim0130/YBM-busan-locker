@@ -58,8 +58,11 @@
   .cell.free:active{transform:scale(.96);}
   .cell.used{background:#eef1f4;border-color:#dde3ea;color:#aeb8c4;}
   .cell.pending{background:#fff3d6;border-color:#ecd28a;color:#9a6a00;}
+  .cell.broken{background:#e7eaef;border-color:#cfd5de;color:#8a94a6;
+    background-image:repeating-linear-gradient(45deg,rgba(138,148,166,.18) 0 6px,transparent 6px 12px);}
   .cell .cell-cta{font-size:clamp(8px,2.1vmin,10px);font-weight:700;opacity:.85;margin-top:1px;}
   .cell .cell-cta.pend{color:#9a6a00;}
+  .cell .cell-cta.brk{color:#8a94a6;}
   /* 신청 시트(모달) */
   .ovl{position:fixed;inset:0;background:rgba(20,27,38,.5);display:none;align-items:flex-end;justify-content:center;z-index:50;}
   .ovl.open{display:flex;}
@@ -124,6 +127,7 @@
         <span class="it"><span class="sw" style="background:#e3f3ec;border:1px solid #bfe3d2"></span>빈자리</span>
         <span class="it"><span class="sw" style="background:#fff3d6;border:1px solid #ecd28a"></span>신청중</span>
         <span class="it"><span class="sw" style="background:#eef1f4;border:1px solid #dde3ea"></span>사용중</span>
+        <span class="it"><span class="sw" style="background:#e7eaef;border:1px solid #cfd5de"></span>고장</span>
       </div>
     </div>
 
@@ -187,10 +191,12 @@
     var sb = window.supabase.createClient(URL, KEY);
 
     var FLOORS = [
-      { id: 1, name: "1층", cols: 6, rows: 5, start: 1,  tallCount: 0 },
-      { id: 2, name: "2층", cols: 5, rows: 5, start: 31, tallCount: 0 },
-      { id: 3, name: "3층", cols: 6, rows: 6, start: 56, tallCount: 6 },
-      { id: 7, name: "7층", cols: 6, rows: 6, start: 1,  tallCount: 6 }
+      { id: 1, name: "1관 1층", cols: 6, rows: 5, start: 1,   tallCount: 0 },
+      { id: 2, name: "1관 2층", cols: 5, rows: 5, start: 31,  tallCount: 0 },
+      { id: 3, name: "1관 3층", cols: 6, rows: 6, start: 56,  tallCount: 6 },
+      { id: 4, name: "1관 4층", cols: 6, rows: 3, start: 92,  tallCount: 0 },
+      { id: 7, name: "1관 7층", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+      { id: 8, name: "2관",     cols: 5, rows: 2, start: 110, tallCount: 0 }
     ];
     FLOORS.forEach(function (f) { f.total = f.cols * f.rows; f.end = f.start + f.total - 1; });
 
@@ -222,7 +228,7 @@
         var c = document.createElement("div");
         c.className = "cell " + s;
         c.innerHTML = '<span class="num">' + pad(n) + "</span>" +
-          (s === "free" ? '<span class="cell-cta">신청</span>' : s === "pending" ? '<span class="cell-cta pend">신청중</span>' : "");
+          (s === "free" ? '<span class="cell-cta">신청</span>' : s === "pending" ? '<span class="cell-cta pend">신청중</span>' : s === "broken" ? '<span class="cell-cta brk">고장</span>' : "");
         if (s === "free") (function (num) { c.onclick = function () { openApply(f.id, num); }; })(n);
         g.appendChild(c);
       }
@@ -241,10 +247,10 @@
     }
 
     function load() {
-      return sb.from("locker_status").select("floor,number,occupied,pending").then(function (res) {
+      return sb.from("locker_status").select("floor,number,occupied,pending,broken").then(function (res) {
         if (res.error) { if (!loaded) $("msg").textContent = "현황을 불러오지 못했습니다. 잠시 후 새로고침해 주세요."; return; }
         STATUS = {};
-        (res.data || []).forEach(function (r) { STATUS[r.floor + "-" + r.number] = r.occupied ? "used" : (r.pending ? "pending" : "free"); });
+        (res.data || []).forEach(function (r) { STATUS[r.floor + "-" + r.number] = r.broken ? "broken" : r.occupied ? "used" : (r.pending ? "pending" : "free"); });
         if (!loaded) { loaded = true; $("msg").hidden = true; $("app").hidden = false; }
         render(); stamp();
       });

@@ -18,11 +18,12 @@ create table if not exists classes (
 -- 사물함 마스터
 create table if not exists lockers (
   id        bigint generated always as identity primary key,
-  floor     int  not null,            -- 1,2,3,7
+  floor     int  not null,            -- 1,2,3,4,7 / 2관=8
   number    int  not null,            -- 층 내 표시 번호
   col       int  not null,            -- 격자 위치(가로)
   "row"     int  not null,            -- 격자 위치(세로)
   is_tall   boolean default false,    -- 키 큰 칸 여부(맨 윗줄)
+  broken    boolean default false,    -- 고장 표시
   unique (floor, number)
 );
 
@@ -45,6 +46,7 @@ alter table rentals add column if not exists class_id bigint references classes(
 alter table rentals add column if not exists birth    text;            -- 생년월일 6자리(YYMMDD)
 alter table rentals add column if not exists extended_months int default 0;  -- 연장(개월)
 alter table rentals add column if not exists refund_account text;     -- 보증금 환급받을 계좌
+alter table lockers add column if not exists broken boolean default false;   -- 고장 표시(기존 설치 업그레이드용)
 
 -- 칸당 활성 대여 1건만 허용
 create unique index if not exists rentals_one_active_per_locker
@@ -69,6 +71,7 @@ alter table rental_logs  enable row level security;
 
 drop policy if exists "classes_all"    on classes;
 drop policy if exists "lockers_read"   on lockers;
+drop policy if exists "lockers_update" on lockers;
 drop policy if exists "rentals_read"   on rentals;
 drop policy if exists "rentals_insert" on rentals;
 drop policy if exists "rentals_update" on rentals;
@@ -80,6 +83,7 @@ drop policy if exists "logs_delete"    on rental_logs;
 -- 반은 직원이 추가/수정/삭제까지 가능
 create policy "classes_all"    on classes     for all    to authenticated using (true) with check (true);
 create policy "lockers_read"   on lockers     for select to authenticated using (true);
+create policy "lockers_update" on lockers     for update to authenticated using (true) with check (true);  -- 고장 표시 토글
 create policy "rentals_read"   on rentals     for select to authenticated using (true);
 create policy "rentals_insert" on rentals     for insert to authenticated with check (true);
 create policy "rentals_update" on rentals     for update to authenticated using (true) with check (true);
@@ -92,6 +96,7 @@ create policy "logs_delete"    on rental_logs for delete to authenticated using 
 -- Realtime: 멀티 PC 동기화 (rentals + classes 변경 브로드캐스트)
 -- ============================================================
 do $$ begin alter publication supabase_realtime add table rentals; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table lockers; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table classes; exception when duplicate_object then null; end $$;
 
 -- ============================================================
@@ -130,6 +135,7 @@ select
   l.col,
   l."row",
   l.is_tall,
+  l.broken,
   exists (select 1 from rentals r where r.locker_id = l.id and r.active) as occupied,
   exists (select 1 from requests q where q.floor = l.floor and q.number = l.number) as pending
 from lockers l;
