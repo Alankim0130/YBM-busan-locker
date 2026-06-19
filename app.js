@@ -482,15 +482,14 @@
 
   function editRental(key, name, phone, classId, birth, account, bank, date) {
     var r = RENTALS[key]; if (!r) return;
-    var dateChanged = date && date !== r.started_on;
     busy(true);
     sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null, started_on: date || r.started_on })
       .eq("id", r.id).then(function (res) {
         busy(false);
         if (res.error) { toast("수정 실패: " + res.error.message); return; }
         logAction(LOCKERS[key] && LOCKERS[key].id, "edit", { student_name: name });
-        // 등록일을 바꾸면 신청 기록의 '입금' 로그 날짜도 같이 맞춰줌
-        if (dateChanged) syncRentLogDate(LOCKERS[key] && LOCKERS[key].id, date, {
+        // 저장할 때마다 신청 기록의 '입금' 로그 날짜를 등록일로 항상 맞춤
+        syncRentLogDate(LOCKERS[key] && LOCKERS[key].id, date || r.started_on, {
           student_name: name, birth: birth || "", phone: phone || "",
           class_label: classNameOf(classId ? Number(classId) : null), bank: bank || "", refund_account: account || ""
         });
@@ -502,14 +501,18 @@
   function syncRentLogDate(lockerId, date, info) {
     if (!lockerId || !date) return;
     var ts = date + "T12:00:00+09:00";
-    function refreshLogs() { if ($("logsPane") && !$("logsPane").hidden) logLoad(); }
+    function done(res) {
+      if (res && res.error) { toast("신청 기록 날짜 동기화 실패: " + res.error.message); return; }
+      toast("신청 기록 날짜도 등록일로 맞췄습니다.");
+      if ($("logsPane") && !$("logsPane").hidden) logLoad();
+    }
     sb.from("rental_logs").select("id").eq("locker_id", lockerId).eq("action", "rent")
       .order("created_at", { ascending: false }).limit(1).then(function (res) {
         if (!res.error && res.data && res.data[0]) {
-          sb.from("rental_logs").update({ created_at: ts }).eq("id", res.data[0].id).then(refreshLogs, refreshLogs);
+          sb.from("rental_logs").update({ created_at: ts }).eq("id", res.data[0].id).select().then(done);
         } else {
           // 입금 로그가 없던 기록이면 등록일로 새로 생성
-          sb.from("rental_logs").insert({ locker_id: lockerId, action: "rent", detail: info || {}, created_at: ts }).then(refreshLogs, refreshLogs);
+          sb.from("rental_logs").insert({ locker_id: lockerId, action: "rent", detail: info || {}, created_at: ts }).then(done);
         }
       });
   }
