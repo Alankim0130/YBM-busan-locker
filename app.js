@@ -137,6 +137,8 @@
     var f = floorById(fid);
     return "[서면 YBM] " + r.name + "님, " + locLabel(f) + " " + pad(num) + "번 사물함을 신청하셨습니다.\n" + GUIDE;
   }
+  // 복사 형식: 이름 / 은행 / 계좌번호 (빈 항목은 제외)
+  function copyAcct(name, bank, acct) { return [name, bank, acct].filter(Boolean).join(" / "); }
   function copyText(t) {
     function ok() { toast("문구가 복사되었습니다."); }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -172,9 +174,10 @@
   var collapsedBuildings = {};
   try { collapsedBuildings = JSON.parse(localStorage.getItem("ybm_collapsed_v1") || "{}") || {}; } catch (e) {}
   function isCollapsed(b) { return collapsedBuildings[b] !== false; } // 미설정이면 접힘
+  function saveCollapsed() { try { localStorage.setItem("ybm_collapsed_v1", JSON.stringify(collapsedBuildings)); } catch (e) {} }
   function toggleBuilding(b) {
     collapsedBuildings[b] = !isCollapsed(b); // 접힘이면 펼치고(false), 펼침이면 접음(true)
-    try { localStorage.setItem("ybm_collapsed_v1", JSON.stringify(collapsedBuildings)); } catch (e) {}
+    saveCollapsed();
     renderFloorList();
   }
 
@@ -212,7 +215,7 @@
           '<span class="seg" style="flex:' + c.over + ';background:var(--over)"></span>' +
           '<span class="seg" style="flex:' + c.broken + ';background:var(--broken)"></span>' +
         "</div>";
-      btn.onclick = function () { currentId = f.id; showView("lockers"); closeDrawer(); renderAll(); };
+      btn.onclick = function () { currentId = f.id; collapsedBuildings[f.building] = true; saveCollapsed(); showView("lockers"); closeDrawer(); renderAll(); };
       list.appendChild(btn);
     });
   }
@@ -326,7 +329,8 @@
         '<div class="field"><label>학생 이름</label><input class="namefield" id="newName" placeholder="이름 입력" /></div>' +
         '<div class="field"><label>생년월일 (6자리)</label><input class="namefield" id="newBirth" placeholder="예: 880130" inputmode="numeric" maxlength="6" /></div>' +
         '<div class="field"><label>전화번호</label><input class="namefield" id="newPhone" placeholder="010-0000-0000" inputmode="tel" /></div>' +
-        '<div class="field"><label>환급 계좌 (선택)</label><input class="namefield" id="newAccount" placeholder="보증금 환급받을 계좌" /></div>' +
+        '<div class="field"><label>은행 (선택)</label><input class="namefield" id="newBank" placeholder="예: 카카오뱅크" /></div>' +
+        '<div class="field"><label>환급 계좌번호 (선택)</label><input class="namefield" id="newAccount" placeholder="보증금 환급받을 계좌번호" /></div>' +
         '<div class="field"><label>반 (마감일 = 종강일 + 10일)</label><select class="selfield" id="newClass">' + classOptionsHTML("") + "</select></div>" +
         '<div class="field"><label>안내</label><div class="v">대여를 시작하면 보증금 1만원 수령으로 기록됩니다.</div></div>';
       actions.innerHTML = '<div class="line"><button class="btn primary" id="rentBtn">대여 시작 · 보증금 1만원 수령</button></div>' +
@@ -336,12 +340,13 @@
         var nm = $("newName").value.trim();
         var ph = $("newPhone").value.trim();
         var bd = $("newBirth").value.trim();
+        var bk = $("newBank").value.trim();
         var ac = $("newAccount").value.trim();
         var cid = $("newClass").value;
         if (!nm) { $("newName").focus(); return; }
         if (bd && !/^\d{6}$/.test(bd)) { toast("생년월일은 6자리 숫자로 입력하세요. (예: 880130)"); $("newBirth").focus(); return; }
         if (!cid) { toast("반을 선택하세요. (마감일 계산에 필요)"); $("newClass").focus(); return; }
-        startRental(key, nm, ph, cid, bd, ac);
+        startRental(key, nm, ph, cid, bd, ac, bk);
       };
       return;
     }
@@ -362,7 +367,8 @@
       '<div class="field"><label>대여자</label><div class="v">' + esc(r.name) + "</div></div>" +
       '<div class="field"><label>생년월일</label><div class="v mono">' + (r.birth ? esc(r.birth) : "—") + "</div></div>" +
       '<div class="field"><label>전화번호</label><div class="v mono" style="display:flex;align-items:center;">' + phoneVal + "</div></div>" +
-      '<div class="field"><label>환급 계좌</label><div class="v mono">' + (r.refund_account ? esc(r.refund_account) : "—") + "</div></div>" +
+      '<div class="field"><label>은행</label><div class="v">' + (r.bank ? esc(r.bank) : "—") + "</div></div>" +
+      '<div class="field"><label>환급 계좌번호</label><div class="v mono">' + (r.refund_account ? esc(r.refund_account) : "—") + "</div></div>" +
       '<div class="field"><label>반</label><div class="v">' + esc(classLabel(r)) + "</div></div>" +
       '<div class="field"><label>등록일</label><div class="v mono">' + fmtDate(r.started_on) + "</div></div>" +
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + "</div></div>" +
@@ -394,7 +400,8 @@
       '<div class="field"><label>학생 이름</label><input class="namefield" id="edName" value="' + esc(r.name) + '" /></div>' +
       '<div class="field"><label>생년월일 (6자리)</label><input class="namefield" id="edBirth" value="' + esc(r.birth || "") + '" inputmode="numeric" maxlength="6" placeholder="예: 880130" /></div>' +
       '<div class="field"><label>전화번호</label><input class="namefield" id="edPhone" value="' + esc(r.phone || "") + '" inputmode="tel" /></div>' +
-      '<div class="field"><label>환급 계좌</label><input class="namefield" id="edAccount" value="' + esc(r.refund_account || "") + '" placeholder="보증금 환급받을 계좌" /></div>' +
+      '<div class="field"><label>은행</label><input class="namefield" id="edBank" value="' + esc(r.bank || "") + '" placeholder="예: 카카오뱅크" /></div>' +
+      '<div class="field"><label>환급 계좌번호</label><input class="namefield" id="edAccount" value="' + esc(r.refund_account || "") + '" placeholder="보증금 환급받을 계좌번호" /></div>' +
       '<div class="field"><label>반</label><select class="selfield" id="edClass">' + classOptionsHTML(r.class_id) + "</select></div>";
     actions.innerHTML = '<div class="line"><button class="btn primary" id="saveBtn">저장</button><button class="btn" id="cancelBtn">취소</button></div>';
     $("saveBtn").onclick = function () {
@@ -402,7 +409,7 @@
       var bd = $("edBirth").value.trim();
       if (!nm) { $("edName").focus(); return; }
       if (bd && !/^\d{6}$/.test(bd)) { toast("생년월일은 6자리 숫자로 입력하세요."); $("edBirth").focus(); return; }
-      editRental(key, nm, $("edPhone").value.trim(), $("edClass").value || null, bd, $("edAccount").value.trim());
+      editRental(key, nm, $("edPhone").value.trim(), $("edClass").value || null, bd, $("edAccount").value.trim(), $("edBank").value.trim());
     };
     $("cancelBtn").onclick = function () { renderDrawer(); };
   }
@@ -427,7 +434,7 @@
     sb.from("rentals").update({ locker_id: target.id }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("이동 실패: " + res.error.message); return; }
-      logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), refund_account: r.refund_account || "" });
+      logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "" });
       moveSourceKey = null; $("moveBanner").hidden = true;
       var tp = targetKey.split("-"); currentId = parseInt(tp[0], 10);
       toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료");
@@ -438,18 +445,18 @@
   /* ---------- 액션 (DB 반영 + 로그) ---------- */
   function busy(on) { document.body.style.cursor = on ? "progress" : ""; }
 
-  function startRental(key, name, phone, classId, birth, account) {
+  function startRental(key, name, phone, classId, birth, account, bank) {
     var lk = LOCKERS[key];
     if (!lk) { toast("사물함 정보를 찾을 수 없습니다."); return; }
     busy(true);
     sb.from("rentals").insert({
       locker_id: lk.id, student_name: name, phone: phone || null, birth: birth || null,
-      refund_account: account || null, class_id: classId ? Number(classId) : null, extended_months: 0,
+      bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null, extended_months: 0,
       started_on: todayISO(), deposit_held: true, active: true
     }).then(function (res) {
       busy(false);
       if (res.error) { toast("대여 실패: " + res.error.message); return; }
-      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null), refund_account: account || "" });
+      logAction(lk.id, "rent", { student_name: name, birth: birth || "", phone: phone || "", class_label: classNameOf(classId ? Number(classId) : null), bank: bank || "", refund_account: account || "" });
       toast(name + " 님 대여 시작 · 보증금 1만원 수령 · 학생에게 비밀번호 안내를 보내세요");
       reload();
     });
@@ -469,10 +476,10 @@
     });
   }
 
-  function editRental(key, name, phone, classId, birth, account) {
+  function editRental(key, name, phone, classId, birth, account, bank) {
     var r = RENTALS[key]; if (!r) return;
     busy(true);
-    sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, refund_account: account || null, class_id: classId ? Number(classId) : null })
+    sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null })
       .eq("id", r.id).then(function (res) {
         busy(false);
         if (res.error) { toast("수정 실패: " + res.error.message); return; }
@@ -489,7 +496,7 @@
     sb.from("rentals").update({ extended_months: n }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("연장 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), refund_account: r.refund_account || "", months: n });
+      logAction(LOCKERS[key] && LOCKERS[key].id, "extend", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", months: n });
       toast(delta > 0 ? "1개월 연장했습니다. (총 " + n + "개월)" : "연장을 초기화했습니다.");
       reload();
     });
@@ -503,7 +510,7 @@
     sb.from("rentals").update({ active: false }).eq("id", r.id).then(function (res) {
       busy(false);
       if (res.error) { toast("반납 신청 실패: " + res.error.message); return; }
-      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), refund_account: r.refund_account || "", refunded: false });
+      logAction(LOCKERS[key] && LOCKERS[key].id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", refunded: false });
       toast("반납 신청 접수 · 신청 기록에서 보증금 반납을 완료 처리하세요");
       reload();
     });
@@ -713,7 +720,10 @@
     box.innerHTML = "";
     items.forEach(function (it) {
       var st = STATE[statusOf(it.r)];
+      var bank = it.r.bank || "";
       var acct = it.r.refund_account || "";
+      var hasAcct = bank || acct;
+      var acctText = [bank, acct].filter(Boolean).join(" ") || "계좌 미입력";
       var row = document.createElement("div");
       row.className = "dash-row search-row";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
@@ -724,20 +734,20 @@
             '<span class="ds-phone">' + (it.r.birth ? esc(it.r.birth) : "—") + "</span>" +
             '<span class="ds-dd" style="color:var(--ink-2)">' + esc(classLabel(it.r)) + "</span>" +
           "</div>" +
-          '<div class="sr-acct"><span class="sr-acct-txt">💳 ' + (acct ? esc(acct) : "계좌 미입력") + "</span>" +
-            (acct ? '<button class="btn small sr-copy">복사</button>' : "") +
+          '<div class="sr-acct"><span class="sr-acct-txt">💳 ' + esc(acctText) + "</span>" +
+            (hasAcct ? '<button class="btn small sr-copy">복사</button>' : "") +
           "</div>" +
         "</div>";
       row.onclick = function () { currentId = it.fid; closeSearch(); showView("lockers"); renderAll(); select(it.key); };
       var cp = row.querySelector(".sr-copy");
-      if (cp) cp.addEventListener("click", function (ev) { ev.stopPropagation(); copyText(it.r.name + " " + acct); });
+      if (cp) cp.addEventListener("click", function (ev) { ev.stopPropagation(); copyText(copyAcct(it.r.name, bank, acct)); });
       box.appendChild(row);
     });
   }
 
   /* ---------- 학생 신청 대기 ---------- */
   function loadRequests() {
-    return sb.from("requests").select("id, floor, number, student_name, birth, phone, refund_account, created_at")
+    return sb.from("requests").select("id, floor, number, student_name, birth, phone, bank, refund_account, created_at")
       .order("created_at", { ascending: true }).then(function (res) {
         if (res.error) return;
         REQUESTS = res.data || [];
@@ -761,7 +771,7 @@
       var card = document.createElement("div"); card.className = "req-card";
       card.innerHTML = '<div class="req-top"><span class="rq-loc">' + (f ? locLabel(f) : q.floor + "층") + " No." + pad(q.number) + "</span>" +
         '<span class="rq-name">' + esc(q.student_name) + '</span><span class="rq-time">' + reqTime(q.created_at) + "</span></div>" +
-        '<div class="req-info"><span>생년월일 <b>' + esc(q.birth || "-") + "</b></span><span>전화 <b>" + esc(q.phone || "-") + "</b></span><span>환급계좌 <b>" + esc(q.refund_account || "-") + "</b></span></div>" +
+        '<div class="req-info"><span>생년월일 <b>' + esc(q.birth || "-") + "</b></span><span>전화 <b>" + esc(q.phone || "-") + "</b></span><span>은행 <b>" + esc(q.bank || "-") + "</b></span><span>환급계좌 <b>" + esc(q.refund_account || "-") + "</b></span></div>" +
         '<div class="req-act"><select class="selfield rq-class">' + classOptionsHTML("") + "</select>" +
         '<button class="btn primary rq-accept">수락</button><button class="btn rq-reject">거절</button></div>';
       card.querySelector(".rq-accept").onclick = function () { acceptReq(q, card.querySelector(".rq-class").value); };
@@ -776,11 +786,11 @@
     busy(true);
     sb.from("rentals").insert({
       locker_id: lk.id, student_name: q.student_name, phone: q.phone || null, birth: q.birth || null,
-      refund_account: q.refund_account || null, class_id: Number(classId), extended_months: 0,
+      bank: q.bank || null, refund_account: q.refund_account || null, class_id: Number(classId), extended_months: 0,
       started_on: todayISO(), deposit_held: true, active: true
     }).then(function (res) {
       if (res.error) { busy(false); toast(/duplicate|unique/i.test(res.error.message) ? "이미 사용 중인 사물함입니다." : "수락 실패: " + res.error.message); return; }
-      logAction(lk.id, "rent", { student_name: q.student_name, birth: q.birth || "", phone: q.phone || "", class_label: classNameOf(Number(classId)), refund_account: q.refund_account || "", via: "학생신청" });
+      logAction(lk.id, "rent", { student_name: q.student_name, birth: q.birth || "", phone: q.phone || "", class_label: classNameOf(Number(classId)), bank: q.bank || "", refund_account: q.refund_account || "", via: "학생신청" });
       sb.from("requests").delete().eq("id", q.id).then(function () {
         busy(false); toast(q.student_name + " 님 신청 수락 · 대여 시작"); loadRequests(); reload();
       });
@@ -852,7 +862,7 @@
   }
   function loadRentals() {
     return sb.from("rentals")
-      .select("id, student_name, phone, birth, class_id, extended_months, refund_account, started_on, deposit_held, lockers(floor, number)")
+      .select("id, student_name, phone, birth, class_id, extended_months, bank, refund_account, started_on, deposit_held, lockers(floor, number)")
       .eq("active", true)
       .then(function (res) {
         if (res.error) throw res.error;
@@ -861,7 +871,7 @@
           if (!row.lockers) return;
           RENTALS[row.lockers.floor + "-" + row.lockers.number] = {
             id: row.id, name: row.student_name, phone: row.phone, birth: row.birth, class_id: row.class_id,
-            extended_months: row.extended_months || 0, refund_account: row.refund_account,
+            extended_months: row.extended_months || 0, bank: row.bank, refund_account: row.refund_account,
             started_on: row.started_on, deposit_held: row.deposit_held
           };
         });
@@ -988,7 +998,8 @@
     $("stageWrap").hidden = logs;
     if (logs) { closeDrawer(); if (moveSourceKey) cancelMove(); $("moveBanner").hidden = true; }
   }
-  var logEdit = false, LOGROWS = [], logY = 0, logM = 0;
+  var logEdit = false, LOGROWS = [], logY = 0, logM = 0, logFilter = "all";
+  var LOGFILTERS = [["all", "전체"], ["rent", "입금"], ["return", "반납"], ["extend", "연장"], ["move", "이동"]];
   var logFmtD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
   var logFmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
   function logYmd(ts) { return logFmtD.format(new Date(ts)); }
@@ -1027,27 +1038,40 @@
       (function (mm) { b.onclick = function () { logM = mm; logRender(); }; })(m);
       mb.appendChild(b);
     }
-    logRenderTable(counts[logM] || 0);
+    renderLogFilter();
+    logRenderTable();
   }
-  function logRenderTable(count) {
+  function renderLogFilter() {
+    var bar = $("logFilter"); if (!bar) return; bar.innerHTML = "";
+    LOGFILTERS.forEach(function (d) {
+      var b = document.createElement("button");
+      b.className = "lf-chip" + (logFilter === d[0] ? " active" : "");
+      b.textContent = d[1];
+      (function (k) { b.onclick = function () { logFilter = k; logRender(); }; })(d[0]);
+      bar.appendChild(b);
+    });
+  }
+  function logRenderTable() {
     var area = $("logTableArea");
-    if (!count) { area.innerHTML = '<div class="log-empty">' + logY + "년 " + logM + "월 기록이 없습니다.</div>"; return; }
     var rows = LOGROWS.filter(function (l) { var p = logYmd(l.created_at).split("-"); return +p[0] === logY && +p[1] === logM; });
+    if (logFilter !== "all") rows = rows.filter(function (l) { return l.action === logFilter; });
+    if (!rows.length) { area.innerHTML = '<div class="log-empty">' + logY + "년 " + logM + "월 " + (logFilter !== "all" ? "‘" + (LOGFILTERS.filter(function (x) { return x[0] === logFilter; })[0] || ["", ""])[1] + "’ " : "") + "기록이 없습니다.</div>"; return; }
     var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
-      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>계좌번호</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
+      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>은행</th><th>계좌번호</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
       (logEdit ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
     rows.forEach(function (l) {
       var d = l.detail || {}; var meta = logBadge(l);
       var proc = "";
       if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>' : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
-      var acct = d.refund_account
-        ? '<span class="la-txt">' + esc(d.refund_account) + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
+      var acct = (d.bank || d.refund_account)
+        ? '<span class="la-txt">' + esc(d.refund_account || "—") + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
         : '<span class="la-none">—</span>';
       html += "<tr>" +
         '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
         '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
         '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
         "<td>" + esc(d.class_label || "") + "</td>" +
+        "<td>" + esc(d.bank || "—") + "</td>" +
         '<td class="c-acct">' + acct + "</td>" +
         '<td class="c-locker">' + esc(logLocker(l)) + "</td>" +
         '<td class="c-mono">' + logYmd(l.created_at).replace(/-/g, ".") + "</td>" +
@@ -1060,7 +1084,7 @@
     area.innerHTML = html;
     var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
     area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
-    area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText((d.student_name || "") + " " + (d.refund_account || "")); }; });
+    area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText(copyAcct(d.student_name || "", d.bank || "", d.refund_account || "")); }; });
     if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
   }
   function logMarkRefunded(l) {

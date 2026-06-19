@@ -206,7 +206,7 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .log-month .lm-title{font-family:"Space Grotesk";font-weight:600;font-size:16.5px;}
 .log-month .lm-cnt{font-size:12px;color:var(--ink-3);}
 .log-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-sm);}
-.log-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);min-width:560px;}
+.log-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);min-width:680px;}
 .log-table th{background:var(--surface-2);text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
 .log-table td{padding:11px 14px;font-size:13.5px;border-bottom:1px solid var(--line);white-space:nowrap;}
@@ -221,6 +221,12 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .la-copy{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-2);border-radius:6px;
   padding:3px 9px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;}
 .la-copy:hover{background:var(--surface-2);color:var(--ink);}
+/* 신청 기록 구분 필터 */
+.log-filter{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 14px;}
+.lf-chip{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:99px;
+  padding:7px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .12s;}
+.lf-chip:hover{border-color:var(--line-strong);color:var(--ink);}
+.lf-chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
 .log-badge{display:inline-block;font-weight:700;font-size:11.5px;padding:4px 11px;border-radius:99px;}
 .log-badge.in{background:#e3f3ec;color:#1d7a54;}
 .log-badge.out{background:#eef1f4;color:#586273;}

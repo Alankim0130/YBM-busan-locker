@@ -46,6 +46,7 @@ alter table rentals add column if not exists class_id bigint references classes(
 alter table rentals add column if not exists birth    text;            -- 생년월일 6자리(YYMMDD)
 alter table rentals add column if not exists extended_months int default 0;  -- 연장(개월)
 alter table rentals add column if not exists refund_account text;     -- 보증금 환급받을 계좌
+alter table rentals add column if not exists bank text;               -- 환급 은행 이름
 alter table lockers add column if not exists broken boolean default false;   -- 고장 표시(기존 설치 업그레이드용)
 
 -- 칸당 활성 대여 1건만 허용
@@ -110,9 +111,11 @@ create table if not exists requests (
   student_name   text not null,
   birth          text,
   phone          text,
+  bank           text,
   refund_account text,
   created_at     timestamptz default now()
 );
+alter table requests add column if not exists bank text;   -- 은행 이름(기존 설치 업그레이드용)
 
 alter table requests enable row level security;
 drop policy if exists "requests_insert" on requests;

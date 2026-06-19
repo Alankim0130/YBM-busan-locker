@@ -162,8 +162,10 @@
       <input id="apBirth" placeholder="예: 880130" inputmode="numeric" maxlength="6" />
       <label>전화번호</label>
       <input id="apPhone" placeholder="010-0000-0000" inputmode="tel" autocomplete="tel" />
-      <label>보증금 환급받을 계좌</label>
-      <input id="apAccount" placeholder="예: 카카오뱅크 3333-00-000000" />
+      <label>은행</label>
+      <input id="apBank" placeholder="예: 카카오뱅크" />
+      <label>보증금 환급받을 계좌번호</label>
+      <input id="apAccount" placeholder="예: 3333-00-000000" inputmode="numeric" />
       <p class="ferr" id="apErr"></p>
       <div class="sheet-btns">
         <button class="sbtn primary" id="apSubmit">신청하기</button>
@@ -319,7 +321,7 @@
       if (locked) { showAlready(locked); return; }
       applyFid = fid; applyNum = num;
       $("apTitle").textContent = floorById(fid).name + " " + pad(num) + "번 사물함 신청";
-      $("apName").value = ""; $("apBirth").value = ""; $("apPhone").value = ""; $("apAccount").value = "";
+      $("apName").value = ""; $("apBirth").value = ""; $("apPhone").value = ""; $("apBank").value = ""; $("apAccount").value = "";
       $("apErr").textContent = "";
       $("applyView").classList.add("open");
       setTimeout(function () { $("apName").focus(); }, 50);
@@ -329,14 +331,16 @@
       var name = $("apName").value.trim();
       var birth = $("apBirth").value.trim();
       var phone = $("apPhone").value.trim();
+      var bank = $("apBank").value.trim();
       var account = $("apAccount").value.trim();
       var err = $("apErr");
       if (!name) { err.textContent = "이름을 입력하세요."; return; }
       if (!/^\d{6}$/.test(birth)) { err.textContent = "생년월일은 6자리 숫자로 입력하세요. (예: 880130)"; return; }
       if (!phone) { err.textContent = "전화번호를 입력하세요."; return; }
-      if (!account) { err.textContent = "보증금 환급받을 계좌를 입력하세요."; return; }
+      if (!bank) { err.textContent = "은행을 입력하세요. (예: 카카오뱅크)"; return; }
+      if (!account) { err.textContent = "보증금 환급받을 계좌번호를 입력하세요."; return; }
       var btn = $("apSubmit"); btn.disabled = true; btn.textContent = "신청 중…";
-      sb.from("requests").insert({ floor: applyFid, number: applyNum, student_name: name, birth: birth, phone: phone, refund_account: account })
+      sb.from("requests").insert({ floor: applyFid, number: applyNum, student_name: name, birth: birth, phone: phone, bank: bank, refund_account: account })
         .then(function (res) {
           btn.disabled = false; btn.textContent = "신청하기";
           if (res.error) {
