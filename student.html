@@ -242,7 +242,9 @@
     }
 
     function makeCell(f, n) {
-      var s = STATUS[keyOf(f.id, n)] || "free";
+      var key = keyOf(f.id, n);
+      var s = STATUS[key] || "free";
+      if (s === "free" && isHeld(key)) s = "pending"; // 다른 태블릿에서 작성 중
       var c = document.createElement("div");
       c.className = "cell " + s;
       c.innerHTML = '<span class="num">' + pad(n) + "</span>" +
@@ -324,9 +326,10 @@
       $("apName").value = ""; $("apBirth").value = ""; $("apPhone").value = ""; $("apBank").value = ""; $("apAccount").value = "";
       $("apErr").textContent = "";
       $("applyView").classList.add("open");
+      startHold(fid + "-" + num); // 다른 태블릿에 '작성 중(신청중)' 실시간 전파
       setTimeout(function () { $("apName").focus(); }, 50);
     }
-    function closeApply() { $("applyView").classList.remove("open"); window.scrollTo(0, 0); }
+    function closeApply() { stopHold(); $("applyView").classList.remove("open"); window.scrollTo(0, 0); }
     function submitApply() {
       var name = $("apName").value.trim();
       var birth = $("apBirth").value.trim();
@@ -357,7 +360,7 @@
         $("doneTitle").textContent = "신청 완료";
         $("doneText").textContent = floorById(applyFid).name + " " + pad(applyNum) + "번 사물함을 신청했습니다.";
         $("doneView").classList.add("open");
-        load();
+        load(); broadcastRefresh(); // 다른 태블릿도 즉시 새로고침 → 신청중(pending) 반영
       }
       sb.from("requests").insert(payload).then(function (res) {
         // bank 컬럼이 아직 없으면(스키마 미적용) 은행 빼고 재시도해 신청은 접수되게 함
@@ -386,6 +389,29 @@
     $("refreshBtn").onclick = function () { load(); };
     document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });
     setInterval(function () { if (!document.hidden) load(); }, 30000);
+
+    /* ---------- 실시간 '작성 중(신청중)' 공유 (태블릿 간) ---------- */
+    // Supabase Realtime broadcast — DB 저장 없이 즉시 다른 태블릿에 전파.
+    var HOLDS = {};                 // "fid-num" -> 마지막 수신 시각(다른 태블릿이 작성 중)
+    var HOLD_TTL = 20000;           // 20초 동안 하트비트 없으면 해제(작성 중단/연결 끊김 대비)
+    function isHeld(k) { var t = HOLDS[k]; return !!(t && (Date.now() - t) < HOLD_TTL); }
+    var TAB_ID = Math.random().toString(36).slice(2);
+    var holdKey = null, holdTimer = null;
+    var ch = sb.channel("locker-holds", { config: { broadcast: { self: false } } });
+    ch.on("broadcast", { event: "hold" }, function (m) { var k = m.payload && m.payload.key; if (k) { HOLDS[k] = Date.now(); render(); } });
+    ch.on("broadcast", { event: "release" }, function (m) { var k = m.payload && m.payload.key; if (k) { delete HOLDS[k]; render(); } });
+    ch.on("broadcast", { event: "refresh" }, function () { load(); });
+    ch.subscribe();
+    function sendHold(k) { ch.send({ type: "broadcast", event: "hold", payload: { key: k, id: TAB_ID } }); }
+    function startHold(k) { holdKey = k; sendHold(k); clearInterval(holdTimer); holdTimer = setInterval(function () { if (holdKey) sendHold(holdKey); }, 8000); }
+    function stopHold() { if (holdKey) { ch.send({ type: "broadcast", event: "release", payload: { key: holdKey, id: TAB_ID } }); holdKey = null; } clearInterval(holdTimer); holdTimer = null; }
+    function broadcastRefresh() { ch.send({ type: "broadcast", event: "refresh" }); }
+    setInterval(function () { // 오래된 hold 정리
+      var changed = false, now = Date.now();
+      for (var k in HOLDS) { if (now - HOLDS[k] >= HOLD_TTL) { delete HOLDS[k]; changed = true; } }
+      if (changed) render();
+    }, 5000);
+
     load();
   })();
   </script>
