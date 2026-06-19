@@ -65,11 +65,27 @@
   .rbtn:active{transform:translateY(1px);}
   .msg{height:100dvh;display:flex;align-items:center;justify-content:center;text-align:center;
     padding:24px;color:var(--ink-soft);font-size:14px;line-height:1.7;}
+  /* 보증금 입금 계좌 바 */
+  .deposit{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:linear-gradient(150deg,#222c3a,#141b26);color:#fff;border-radius:12px;
+    padding:10px 12px;margin-bottom:10px;box-shadow:0 4px 14px rgba(20,27,38,.18);}
+  .deposit .dep-txt{font-size:12.5px;line-height:1.45;min-width:0;}
+  .deposit .dep-txt b{font-family:"JetBrains Mono",monospace;font-weight:700;letter-spacing:.01em;}
+  .deposit .dep-tag{color:#9fb0c4;}
+  .dep-copy{flex-shrink:0;border:none;background:#2f9e6e;color:#fff;border-radius:9px;
+    padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+    box-shadow:0 1px 2px rgba(0,0,0,.2);transition:background .15s,transform .04s;}
+  .dep-copy:hover{background:#34b07b;}
+  .dep-copy:active{transform:translateY(1px);}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
 <body>
   <div class="wrap" id="app" hidden>
+    <div class="deposit">
+      <div class="dep-txt">💳 보증금 입금 · 카카오뱅크 <b>조여름 3333-32-7024720</b> <span class="dep-tag">(사물함)</span></div>
+      <button class="dep-copy" id="depCopy">계좌 복사</button>
+    </div>
     <header>
       <div class="mark">L</div>
       <div><h1>사물함 빈자리</h1><p>서면 YBM · 초록이 빈자리예요. 번호 확인 후 데스크에 신청하세요.</p></div>
@@ -172,6 +188,13 @@
       });
     }
 
+    $("depCopy").onclick = function () {
+      var num = "3333327024720"; // 계좌번호(숫자만) — 은행앱 붙여넣기 편하도록
+      var btn = $("depCopy");
+      function done() { var t = btn.textContent; btn.textContent = "복사됨!"; setTimeout(function () { btn.textContent = t; }, 1500); }
+      function fb() { var ta = document.createElement("textarea"); ta.value = num; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (e) {} document.body.removeChild(ta); }
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(num).then(done, fb); } else { fb(); }
+    };
     $("refreshBtn").onclick = function () { load(); };
     document.addEventListener("visibilitychange", function () { if (!document.hidden) load(); });
     setInterval(function () { if (!document.hidden) load(); }, 30000);
