@@ -311,6 +311,20 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .notice .ndel{flex-shrink:0;border:none;background:none;cursor:pointer;color:#c4a253;font-size:15px;line-height:1;padding:2px 6px;border-radius:6px;align-self:center;}
 .notice .ndel:hover{background:#f3e3b0;color:#8a5a00;}
 
+/* 보증금 입금 방법(이체/현금) 토글 */
+.paytoggle{display:inline-flex;gap:0;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;}
+.paytoggle .pt-opt{border:none;background:var(--surface);color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;
+  padding:8px 16px;cursor:pointer;transition:background .12s;}
+.paytoggle .pt-opt + .pt-opt{border-left:1px solid var(--line-strong);}
+.paytoggle .pt-opt.active{background:var(--brand);color:#fff;}
+.paytoggle .pt-opt[data-m="cash"].active{background:#d98324;}
+/* 결제 방법 태그(상세/기록) */
+.pay-tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;
+  background:var(--surface-3);color:var(--ink-2);white-space:nowrap;}
+.pay-tag.cash{background:#fbecd6;color:#9a5b00;}
+.req-pay{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.req-pay .rqp-label{font-size:12.5px;color:var(--ink-2);font-weight:600;}
+
 /* 모달 하단 버튼(등록/취소 등) 동일 비율 */
 .modal-actions{display:flex;gap:9px;}
 .modal-actions .btn{flex:1;}
