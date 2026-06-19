@@ -637,7 +637,8 @@
   function displayName(session) {
     var u = session && session.user; if (!u) return "직원";
     var m = u.user_metadata || {};
-    return m.name || m.full_name || m.display_name || (u.email ? u.email.split("@")[0] : "직원");
+    var nm = m.name || m.full_name || m.display_name || (u.email ? u.email.split("@")[0] : "직원");
+    return m.title ? (nm + " " + m.title) : nm;
   }
   function fmtNoticeTime(ts) {
     var d = new Date(ts);
