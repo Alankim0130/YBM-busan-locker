@@ -30,17 +30,19 @@
       <div><p class="rail-label">층 선택</p><div class="floors" id="floorList"></div></div>
       <div>
         <p class="rail-label">마감 관리</p>
-        <button class="rail-btn" id="dashBtn">
-          <span>마감·임박 사물함</span>
-          <span class="rb-count" id="dashCount">0</span>
-        </button>
-        <button class="rail-btn" id="classBtn" style="margin-top:8px;">
-          <span>반 관리 · 종강일</span>
-          <span class="rb-count" id="classCount" style="background:var(--canvas);color:var(--ink-soft);">0</span>
-        </button>
-        <button class="rail-btn" id="guideBtn" style="margin-top:8px;">
-          <span>이용안내(비밀번호) 설정</span>
-        </button>
+        <div class="rail-group">
+          <button class="rail-btn" id="dashBtn">
+            <span>마감·임박 사물함</span>
+            <span class="rb-count" id="dashCount">0</span>
+          </button>
+          <button class="rail-btn" id="classBtn">
+            <span>반 관리 · 종강일</span>
+            <span class="rb-count" id="classCount" style="background:var(--canvas);color:var(--ink-soft);">0</span>
+          </button>
+          <button class="rail-btn" id="guideBtn">
+            <span>이용안내(비밀번호) 설정</span>
+          </button>
+        </div>
       </div>
       <div>
         <p class="rail-label">상태</p>

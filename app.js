@@ -165,10 +165,7 @@
 
   function renderGrid() {
     var f = floorById(currentId);
-    grid.style.gridTemplateColumns = "repeat(" + f.cols + ",112px)";
-    var rowsCss = [];
-    for (var rr = 0; rr < f.rows; rr++) { rowsCss.push((f.tallCount > 0 && rr === 0) ? "106px" : "80px"); }
-    grid.style.gridTemplateRows = rowsCss.join(" ");
+    grid.style.setProperty("--cols", f.cols); // 칸 크기는 CSS가 결정(전 칸 동일 크기·반응형)
     grid.innerHTML = "";
     for (var i = 0; i < f.total; i++) {
       var n = f.start + i;

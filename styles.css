@@ -23,6 +23,7 @@
   --over:#dc4f3a;
   /* 라운드 / 그림자 */
   --r-sm:8px; --r:11px; --r-lg:15px;
+  --cell-w:104px; --cell-h:80px;
   --sh-sm:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.05);
   --sh-md:0 6px 16px rgba(16,24,40,.08);
   --sh-lg:0 18px 44px rgba(16,24,40,.16);
@@ -85,6 +86,7 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .rail-btn .rb-count{font-family:"Space Grotesk";font-weight:700;font-size:12.5px;min-width:23px;height:22px;
   display:grid;place-items:center;border-radius:7px;background:var(--surface-3);color:var(--ink-2);padding:0 7px;}
 .rail-btn .rb-count.alert{background:var(--over);color:#fff;}
+.rail-group{display:flex;flex-direction:column;gap:8px;}
 
 /* 범례 */
 .legend{display:flex;flex-direction:column;gap:11px;}
@@ -103,8 +105,8 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;}
 .wall::after{content:"WALL";position:absolute;top:14px;left:22px;font-size:9.5px;letter-spacing:.22em;
   font-weight:700;color:var(--ink-3);opacity:.55;}
 
-/* 사물함 격자 */
-.grid{display:grid;gap:9px;}
+/* 사물함 격자 — 전 칸 동일 크기 */
+.grid{display:grid;gap:9px;grid-template-columns:repeat(var(--cols,6),var(--cell-w));grid-auto-rows:var(--cell-h);}
 .locker{position:relative;border-radius:9px;cursor:pointer;border:none;font:inherit;
   background:var(--c);overflow:hidden;text-align:left;padding:10px 11px;
   display:flex;flex-direction:column;justify-content:space-between;
@@ -280,5 +282,59 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   background:var(--brand);color:#fff;font-size:13px;font-weight:500;padding:11px 18px;border-radius:var(--r);
   box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:40;max-width:90vw;text-align:center;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ===== 태블릿 ===== */
+@media (max-width:1024px){
+  :root{--cell-w:92px;--cell-h:74px;}
+  aside{width:208px;}
+}
+
+/* ===== 모바일/태블릿 세로: 좌측 레일을 상단 가로 바로 ===== */
+@media (max-width:860px){
+  header{padding:11px 15px;}
+  .brand p{display:none;}
+  .deadline{display:none;}
+  .app{flex-direction:column;}
+  aside{width:100%;flex-direction:row;align-items:center;gap:12px;overflow-x:auto;overflow-y:hidden;
+    padding:10px 14px;border-right:none;border-bottom:1px solid var(--line);scrollbar-width:none;}
+  aside::-webkit-scrollbar{display:none;}
+  aside>div{flex:0 0 auto;display:flex;align-items:center;gap:8px;}
+  .rail-label{display:none;}
+  .floors{flex-direction:row;gap:8px;}
+  .floor-btn{min-width:max-content;padding:8px 12px;gap:5px;}
+  .floor-btn .fbar{display:none;}
+  .rail-group{flex-direction:row;gap:8px;}
+  .rail-btn{width:auto;padding:9px 12px;white-space:nowrap;}
+  .legend{flex-direction:row;gap:12px;flex-wrap:nowrap;}
+  .legend .row{white-space:nowrap;font-size:11.5px;}
+  .hint{display:none;}
+
+  .stage{padding:14px;align-items:start;}
+  .wall{width:100%;padding:28px 12px 12px;}
+  .grid{grid-template-columns:repeat(var(--cols),1fr);grid-auto-rows:auto;gap:7px;}
+  .locker{aspect-ratio:1 / .82;}
+  .stage-top{padding:14px 16px 4px;}
+  .stage-top h2{font-size:17px;}
+  .move-banner{margin:12px 14px 0;}
+
+  /* 상세 패널: 전체폭 슬라이드 */
+  .drawer{width:100%;max-width:100%;}
+
+  /* 특별공지 바: 세로 배치 */
+  .notice-bar{padding:10px 14px;flex-direction:column;gap:8px;}
+  .notice-add{align-self:flex-start;}
+  .notice-list{max-height:118px;}
+}
+
+/* ===== 좁은 폰 ===== */
+@media (max-width:430px){
+  .brand h1{font-size:15px;}
+  .user-box .who-email{max-width:96px;}
+  .locker .who{display:none;}        /* 아주 좁으면 번호만 */
+  .locker{padding:6px 7px;}
+  .locker .id{font-size:13px;}
+  .stage{padding:10px;}
+  .wall{padding:24px 9px 9px;}
+}
 
 @media (prefers-reduced-motion:reduce){.drawer,.locker,.toast,.overlay,.card{transition:none;animation:none;}.locker.movable{animation:none;}}

@@ -137,10 +137,8 @@
     function renderGrid() {
       var f = floorById(currentId), g = $("grid");
       g.style.setProperty("--cols", f.cols);
-      // 키 큰 칸(맨 윗줄)은 살짝 높게, 나머지는 균등하게 — 화면 높이를 꽉 채움
-      var rows = [];
-      for (var rr = 0; rr < f.rows; rr++) rows.push((f.tallCount > 0 && rr === 0) ? "1.18fr" : "1fr");
-      g.style.gridTemplateRows = rows.join(" ");
+      // 모든 칸 동일 크기로 균등 배치 (화면 높이를 꽉 채움)
+      g.style.gridTemplateRows = "repeat(" + f.rows + ",1fr)";
       g.innerHTML = "";
       for (var i = 0; i < f.total; i++) {
         var n = f.start + i;
