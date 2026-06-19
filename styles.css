@@ -312,9 +312,9 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .notice .ndel:hover{background:#f3e3b0;color:#8a5a00;}
 
 /* 보증금 입금 방법(이체/현금) 토글 */
-.paytoggle{display:inline-flex;gap:0;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;}
-.paytoggle .pt-opt{border:none;background:var(--surface);color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;
-  padding:8px 16px;cursor:pointer;transition:background .12s;}
+.paytoggle{display:flex;width:100%;border:1px solid var(--line-strong);border-radius:9px;overflow:hidden;}
+.paytoggle .pt-opt{flex:1;text-align:center;border:none;background:var(--surface);color:var(--ink-2);font:inherit;font-size:14px;font-weight:600;
+  padding:10px 8px;cursor:pointer;transition:background .12s;white-space:nowrap;}
 .paytoggle .pt-opt + .pt-opt{border-left:1px solid var(--line-strong);}
 .paytoggle .pt-opt.active{background:var(--brand);color:#fff;}
 .paytoggle .pt-opt[data-m="cash"].active{background:#d98324;}
