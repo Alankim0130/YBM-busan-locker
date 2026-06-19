@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LOCKER · 서면 YBM 사물함 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="notice-bar" id="noticeBar" hidden>
+    <div class="notice-list" id="noticeList"></div>
+    <button class="notice-add" id="noticeAddBtn">＋ 특별공지</button>
+  </div>
+  <header>
+    <div class="brand"><div class="mark">L</div><div><h1>LOCKER</h1><p>서면 YBM · 사물함 관리</p></div></div>
+    <div class="head-right">
+      <div class="deadline">오늘<b id="deadlineText">—</b></div>
+      <div class="user-box" id="userBox" hidden>
+        <span class="who-email" id="userEmail">—</span>
+        <button class="btn small" id="logoutBtn" style="margin-top:4px;">로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="app">
+    <aside>
+      <div><p class="rail-label">층 선택</p><div class="floors" id="floorList"></div></div>
+      <div>
+        <p class="rail-label">마감 관리</p>
+        <button class="rail-btn" id="dashBtn">
+          <span>마감·임박 사물함</span>
+          <span class="rb-count" id="dashCount">0</span>
+        </button>
+        <button class="rail-btn" id="classBtn" style="margin-top:8px;">
+          <span>반 관리 · 종강일</span>
+          <span class="rb-count" id="classCount" style="background:var(--canvas);color:var(--ink-soft);">0</span>
+        </button>
+        <button class="rail-btn" id="guideBtn" style="margin-top:8px;">
+          <span>이용안내(비밀번호) 설정</span>
+        </button>
+      </div>
+      <div>
+        <p class="rail-label">상태</p>
+        <div class="legend">
+          <div class="row"><span class="dot" style="background:var(--free)"></span>빈 공간</div>
+          <div class="row"><span class="dot" style="background:var(--rent)"></span>마감 전 (사용 중)</div>
+          <div class="row"><span class="dot" style="background:var(--over)"></span>마감됨 (종강+10일 경과·연락 필요)</div>
+        </div>
+      </div>
+      <p class="hint">사물함을 클릭하면 대여자·전화번호·반·종강일·마감일이 보입니다. 대여·반납·이동은 상세 패널에서 처리합니다. 마감일 = 반 종강일 + 10일.</p>
+    </aside>
+    <main>
+      <div class="stage-top"><div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div></div>
+      <div class="move-banner" id="moveBanner" hidden>
+        <span id="moveBannerText">이동할 빈 칸을 선택하세요.</span>
+        <button class="btn small" id="moveCancel">이동 취소</button>
+      </div>
+      <div class="stage"><div class="wall"><div class="grid" id="grid"></div></div></div>
+      <div class="drawer" id="drawer">
+        <div class="d-head"><div><div class="d-id" id="dId">—</div><div class="d-floor" id="dFloor">—</div></div><button class="close" id="closeBtn" aria-label="닫기">&times;</button></div>
+        <div class="d-body" id="dBody"></div>
+        <div class="d-actions" id="dActions"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 로그인 -->
+  <div class="overlay" id="loginView">
+    <form class="card" id="loginForm" autocomplete="on">
+      <h2>직원 로그인</h2>
+      <p class="lead">서면 YBM 사물함 관리 시스템입니다. 등록된 직원 계정으로 로그인하세요.</p>
+      <label class="fl" for="loginEmail">이메일</label>
+      <input id="loginEmail" type="email" autocomplete="username" required />
+      <label class="fl" for="loginPw">비밀번호</label>
+      <input id="loginPw" type="password" autocomplete="current-password" required />
+      <p class="err" id="loginErr"></p>
+      <button class="btn primary full" id="loginBtn" type="submit">로그인</button>
+      <a href="index.html" style="display:block;text-align:center;margin-top:14px;font-size:12.5px;color:var(--ink-3);text-decoration:none;">← 처음 화면으로</a>
+    </form>
+  </div>
+
+  <!-- 설정 필요 안내 -->
+  <div class="overlay" id="setupView">
+    <div class="card">
+      <h2>설정이 필요합니다</h2>
+      <p class="lead"><code>config.js</code> 파일에 Supabase 접속 정보를 입력하세요. (대시보드 → Settings → API)</p>
+      <pre>window.SUPABASE_URL = "https://...supabase.co";
+window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
+      <p class="lead" style="margin-top:14px;">스키마와 시드(SQL)는 <code>supabase/schema.sql</code> → <code>supabase/seed.sql</code> 순서로 실행하세요. 자세한 내용은 <code>README.md</code> 참고.</p>
+    </div>
+  </div>
+
+  <!-- 갱신 마감 대시보드 -->
+  <div class="overlay" id="dashView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>갱신 마감 대시보드</h2><p class="lead" id="dashLead" style="margin:4px 0 0;">—</p></div>
+        <button class="close" id="dashClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="dash-list" id="dashList"></div>
+    </div>
+  </div>
+
+  <!-- 반 관리 / 종강일 -->
+  <div class="overlay" id="classView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>반 관리 · 종강일</h2><p class="lead" style="margin:4px 0 0;">각 반의 종강일을 입력하세요. 마감일은 자동으로 <b>종강일 + 10일</b>로 계산됩니다.</p></div>
+        <button class="close" id="classClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="class-add">
+        <input id="newClassCat" placeholder="카테고리 (예: 토익)" list="catList" />
+        <datalist id="catList"></datalist>
+        <input id="newClassName" placeholder="반 이름 (예: 역전토익)" />
+        <button class="btn primary small" id="addClassBtn">반 추가</button>
+      </div>
+      <div class="dash-list" id="classList"></div>
+    </div>
+  </div>
+
+  <!-- 사물함 이용 안내(비밀번호) 설정 -->
+  <div class="overlay" id="guideView">
+    <div class="card">
+      <h2>사물함 이용 안내 문구</h2>
+      <p class="lead">새 학생에게 보낼 <b>초기 비밀번호·변경 방법</b> 안내입니다. 신규 대여 시 상세 패널에 표시되고, 문자/복사로 전달할 수 있습니다.</p>
+      <textarea class="ta" id="guideBody" placeholder="초기 비밀번호는 0000입니다.&#10;비밀번호 변경 방법: ..."></textarea>
+      <p class="err" id="guideErr"></p>
+      <div style="display:flex;gap:9px;">
+        <button class="btn primary full" id="guideSave">저장</button>
+        <button class="btn" id="guideCancel">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 특별공지 작성 -->
+  <div class="overlay" id="noticeView">
+    <div class="card">
+      <h2>특별공지 작성</h2>
+      <p class="lead">등록하면 모든 직원 화면 <b>최상단</b>에 표시됩니다. 작성자: <b id="noticeAuthor">—</b></p>
+      <textarea class="ta" id="noticeBody" placeholder="특이사항을 입력하세요. (예: 3층 7번 사물함 문 고장 — 수리 요청함)"></textarea>
+      <p class="err" id="noticeErr"></p>
+      <div style="display:flex;gap:9px;">
+        <button class="btn primary full" id="noticePost">등록</button>
+        <button class="btn" id="noticeCancel">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
