@@ -44,6 +44,7 @@ alter table rentals add column if not exists phone    text;
 alter table rentals add column if not exists class_id bigint references classes(id);
 alter table rentals add column if not exists birth    text;            -- 생년월일 6자리(YYMMDD)
 alter table rentals add column if not exists extended_months int default 0;  -- 연장(개월)
+alter table rentals add column if not exists refund_account text;     -- 보증금 환급받을 계좌
 
 -- 칸당 활성 대여 1건만 허용
 create unique index if not exists rentals_one_active_per_locker
@@ -94,9 +95,33 @@ do $$ begin alter publication supabase_realtime add table rentals; exception whe
 do $$ begin alter publication supabase_realtime add table classes; exception when duplicate_object then null; end $$;
 
 -- ============================================================
+-- 학생 신청 대기 (학생이 직접 신청 → 직원이 수락)
+-- 학생(anon)은 INSERT만 가능(개인정보는 못 읽음), 직원은 조회/삭제
+-- ============================================================
+create table if not exists requests (
+  id             bigint generated always as identity primary key,
+  floor          int  not null,
+  number         int  not null,
+  student_name   text not null,
+  birth          text,
+  phone          text,
+  refund_account text,
+  created_at     timestamptz default now()
+);
+
+alter table requests enable row level security;
+drop policy if exists "requests_insert" on requests;
+drop policy if exists "requests_select" on requests;
+drop policy if exists "requests_delete" on requests;
+create policy "requests_insert" on requests for insert to anon, authenticated with check (true);
+create policy "requests_select" on requests for select to authenticated using (true);
+create policy "requests_delete" on requests for delete to authenticated using (true);
+
+do $$ begin alter publication supabase_realtime add table requests; exception when duplicate_object then null; end $$;
+
+-- ============================================================
 -- 학생용 공개 조회 뷰 (student.html)
--- 개인정보(이름·전화)는 노출하지 않고 '빈/사용중'만 공개.
--- definer 권한 뷰라 anon 은 rentals 테이블 직접 접근 없이 점유 여부만 읽음.
+-- 개인정보(이름·전화)는 노출하지 않고 '빈/사용중/신청중'만 공개.
 -- ============================================================
 create or replace view public.locker_status as
 select
@@ -105,7 +130,8 @@ select
   l.col,
   l."row",
   l.is_tall,
-  exists (select 1 from rentals r where r.locker_id = l.id and r.active) as occupied
+  exists (select 1 from rentals r where r.locker_id = l.id and r.active) as occupied,
+  exists (select 1 from requests q where q.floor = l.floor and q.number = l.number) as pending
 from lockers l;
 
 grant select on public.locker_status to anon, authenticated;

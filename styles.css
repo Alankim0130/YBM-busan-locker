@@ -268,6 +268,18 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 /* 모달 하단 버튼(등록/취소 등) 동일 비율 */
 .modal-actions{display:flex;gap:9px;}
 .modal-actions .btn{flex:1;}
+
+/* 학생 신청 대기 카드 */
+.req-card{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;}
+.req-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.req-top .rq-loc{font-family:"Space Grotesk";font-weight:700;font-size:15px;}
+.req-top .rq-name{font-weight:600;font-size:14px;}
+.req-top .rq-time{font-size:11.5px;color:var(--ink-3);margin-left:auto;}
+.req-info{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink-2);margin-bottom:11px;}
+.req-info b{color:var(--ink);font-weight:600;font-family:"JetBrains Mono",monospace;}
+.req-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.req-act select{flex:1;min-width:130px;}
+.req-act .btn{flex-shrink:0;}
 .ta{width:100%;min-height:100px;resize:vertical;border:1px solid var(--line-strong);border-radius:var(--r-sm);
   padding:11px 13px;font:inherit;font-size:14px;line-height:1.5;margin-bottom:12px;transition:border-color .15s,box-shadow .15s;}
 .ta:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px rgba(59,111,212,.15);}
