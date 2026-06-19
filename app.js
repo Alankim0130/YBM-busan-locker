@@ -241,6 +241,32 @@
     });
   }
 
+  // 사물함 화면 상단의 빠른 층 선택 바 (PC)
+  function renderFloorPills() {
+    var el = $("floorPills"); if (!el) return;
+    el.innerHTML = "";
+    var byB = {};
+    var order = [];
+    FLOORS.forEach(function (f) { if (!byB[f.building]) { byB[f.building] = []; order.push(f.building); } byB[f.building].push(f); });
+    order.forEach(function (b) {
+      var fs = byB[b];
+      // 건물에 층이 하나뿐이고 이름이 건물명과 같으면(예: 2관) 라벨 없이 단일 칩
+      if (fs.length === 1 && fs[0].name === b) {
+        el.appendChild(makePill(fs[0]));
+        return;
+      }
+      var lab = document.createElement("span"); lab.className = "fp-bldg"; lab.textContent = b; el.appendChild(lab);
+      fs.forEach(function (f) { el.appendChild(makePill(f)); });
+    });
+    function makePill(f) {
+      var p = document.createElement("button");
+      p.className = "fp" + (f.id === currentId ? " active" : "");
+      p.textContent = f.name;
+      p.onclick = function () { currentId = f.id; collapsedBuildings[f.building] = true; saveCollapsed(); showView("lockers"); closeDrawer(); renderAll(); };
+      return p;
+    }
+  }
+
   function makeLockerCell(f, n) {
     var key = keyOf(f, n);
     var broken = brokenAt(key);
@@ -309,7 +335,8 @@
   }
 
   function renderAll() {
-    renderFloorList(); renderGrid(); renderHeader(); renderDashCount();
+    renderFloorList(); renderFloorPills(); renderGrid(); renderHeader(); renderDashCount(); renderResetCount();
+    if ($("resetView") && $("resetView").classList.contains("open")) renderResetList();
     if (selectedKey) renderDrawer();
   }
 
@@ -931,6 +958,45 @@
   function closeDash() { $("dashView").classList.remove("open"); }
   function renderDashIfOpen() { if ($("dashView").classList.contains("open")) renderDash(); }
 
+  /* ---------- 초기화 필요 목록 ---------- */
+  function resetItems() {
+    var items = [];
+    FLOORS.forEach(function (f) {
+      for (var n = f.start; n <= f.end; n++) {
+        var key = keyOf(f, n);
+        if (resetAt(key) && !RENTALS[key]) items.push({ key: key, f: f, n: n });
+      }
+    });
+    return items;
+  }
+  function renderResetCount() {
+    var el = $("resetCount"); if (!el) return;
+    var n = resetItems().length;
+    el.textContent = n; el.classList.toggle("alert", n > 0);
+  }
+  function openResetList() { renderResetList(); $("resetView").classList.add("open"); }
+  function closeResetList() { $("resetView").classList.remove("open"); }
+  function renderResetList() {
+    var items = resetItems();
+    $("resetLead").textContent = "비밀번호를 1004로 바꿔야 하는 사물함 · " + items.length + "건";
+    var list = $("resetList");
+    if (!items.length) { list.innerHTML = '<div class="dash-empty">초기화가 필요한 사물함이 없습니다.</div>'; return; }
+    list.innerHTML = "";
+    items.forEach(function (it) {
+      var st = STATE.reset;
+      var row = document.createElement("div");
+      row.className = "dash-row";
+      row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
+        '<span class="ds-loc">' + locLabel(it.f) + " No." + pad(it.n) + "</span>" +
+        '<span class="ds-name" style="flex:1;color:var(--ink-2)">비밀번호 1004로 초기화</span>' +
+        '<button class="btn small ds-rdone">초기화 완료</button>';
+      row.onclick = function () { currentId = it.f.id; closeResetList(); showView("lockers"); renderAll(); select(it.key); };
+      var btn = row.querySelector(".ds-rdone");
+      btn.addEventListener("click", function (ev) { ev.stopPropagation(); setNeedsReset(it.key, false); renderResetList(); });
+      list.appendChild(row);
+    });
+  }
+
   function renderDash() {
     var items = [];
     FLOORS.forEach(function (f) {
@@ -1296,6 +1362,8 @@
   $("closeBtn").onclick = closeDrawer;
   $("dashBtn").onclick = openDash;
   $("dashClose").onclick = closeDash;
+  $("resetBtn").onclick = openResetList;
+  $("resetClose").onclick = closeResetList;
   $("classBtn").onclick = openClasses;
   $("classClose").onclick = closeClasses;
   $("classEditBtn").onclick = toggleClassEdit;
@@ -1350,6 +1418,7 @@
     else if ($("noticeAllView").classList.contains("open")) closeNoticeAll();
     else if ($("classView").classList.contains("open")) closeClasses();
     else if ($("dashView").classList.contains("open")) closeDash();
+    else if ($("resetView").classList.contains("open")) closeResetList();
     else if (moveSourceKey) cancelMove();
     else closeDrawer();
   });
@@ -1375,6 +1444,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); showView("lockers"); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); closeReq(); cancelMove(); NOTICES = []; REQUESTS = []; noticeIdx = 0; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); showView("lockers"); closeDrawer(); closeDash(); closeResetList(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); closeReq(); cancelMove(); NOTICES = []; REQUESTS = []; noticeIdx = 0; showLogin(); }
   });
 })();

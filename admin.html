@@ -46,6 +46,10 @@
             <span>마감·임박</span>
             <span class="rb-count" id="dashCount">0</span>
           </button>
+          <button class="rail-btn" id="resetBtn">
+            <span>🔧 초기화 필요</span>
+            <span class="rb-count" id="resetCount">0</span>
+          </button>
           <button class="rail-btn" id="classBtn">
             <span>반 관리</span>
             <span class="rb-count" id="classCount" style="background:var(--canvas);color:var(--ink-soft);">0</span>
@@ -70,7 +74,10 @@
       <p class="hint">사물함을 클릭하면 대여자·전화번호·반·종강일·마감일이 보입니다. 대여·반납·이동은 상세 패널에서 처리합니다. 마감일 = 반 종강일 + 15일.</p>
     </aside>
     <main>
-      <div class="stage-top" id="stageTop"><div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div></div>
+      <div class="stage-top" id="stageTop">
+        <div><h2 id="floorTitle">사물함</h2><div class="sub" id="floorSub">불러오는 중…</div></div>
+        <div class="floor-pills" id="floorPills"></div>
+      </div>
       <div class="move-banner" id="moveBanner" hidden>
         <span id="moveBannerText">이동할 빈 칸을 선택하세요.</span>
         <button class="btn small" id="moveCancel">이동 취소</button>
@@ -139,6 +146,17 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
         <button class="close" id="dashClose" aria-label="닫기">&times;</button>
       </div>
       <div class="dash-list" id="dashList"></div>
+    </div>
+  </div>
+
+  <!-- 초기화 필요 목록 -->
+  <div class="overlay" id="resetView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>🔧 초기화 필요</h2><p class="lead" id="resetLead" style="margin:4px 0 0;">비밀번호를 1004로 바꿔야 하는 사물함입니다.</p></div>
+        <button class="close" id="resetClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="dash-list" id="resetList"></div>
     </div>
   </div>
 

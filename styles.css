@@ -74,6 +74,13 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .floor-group .fg-caret{font-size:10px;color:var(--ink-3);transition:transform .2s;display:inline-block;}
 .floor-group.collapsed .fg-caret{transform:rotate(-90deg);}
 .floor-group .fg-active{text-transform:none;letter-spacing:0;color:var(--brand);font-weight:700;font-size:13px;}
+/* 사물함 상단 빠른 층 선택 바 (PC) */
+.floor-pills{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;}
+.floor-pills .fp-bldg{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-left:10px;}
+.floor-pills .fp-bldg:first-child{margin-left:0;}
+.floor-pills .fp{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;}
+.floor-pills .fp:hover{border-color:var(--line-strong);color:var(--ink);}
+.floor-pills .fp.active{background:var(--brand);border-color:var(--brand);color:#fff;}
 .floor-group .fg-meta{margin-left:auto;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-3);}
 .floor-group .fg-meta b{color:var(--free);}
 .floor-btn{appearance:none;border:1px solid var(--line);background:var(--surface);cursor:pointer;
@@ -467,6 +474,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .locker{aspect-ratio:1 / .82;}
   .stage-top{padding:14px 16px 4px;}
   .stage-top h2{font-size:17px;}
+  .floor-pills{display:none;}   /* 모바일은 상단 바에 층 목록이 이미 있음 */
   .move-banner{margin:12px 14px 0;}
 
   /* 상세 패널: 전체폭 슬라이드 */
