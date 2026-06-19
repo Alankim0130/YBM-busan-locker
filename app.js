@@ -101,29 +101,27 @@
   function locName(floorId) { return locLabel(floorById(floorId)); }
 
   /* ---------- 마감일 / 상태 ---------- */
-  // 월별 종강일 맵에서 '오늘' 기준 적용할 종강일을 고름(현재 달 ≤ 의 가장 최근 설정)
-  function effectiveFromMap(cl) {
-    if (!cl) return null;
-    var ym = NOW.getFullYear() + "-" + pad(NOW.getMonth() + 1);
-    var keys = Object.keys(cl).filter(function (k) { return cl[k] && k <= ym; }).sort();
-    return keys.length ? cl[keys[keys.length - 1]] : null;
+  // 등록일(신청한 달) 기준 수업 월 키. 연장(개월)만큼 다음 수업 월로 이동.
+  function termKeyFor(dateISO, addMonths) {
+    var d = parseDate(dateISO);
+    var y = d.getFullYear(), m = d.getMonth() + 1 + (addMonths || 0);
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    return y + "-" + pad(m);
   }
-  function effectiveClosing(c) { if (!c) return null; return effectiveFromMap(c.closings) || c.closing_date || null; }
-  // 설정된 '수업월 → 종강날짜' 요약 (예: "6월→7/5 · 7월→7/26")
-  function closingsSummary(c) {
-    var cl = (c && c.closings) || {};
-    var keys = Object.keys(cl).filter(function (k) { return cl[k]; }).sort();
-    if (!keys.length) return "";
-    return keys.map(function (k) { var v = cl[k]; return (+k.slice(5, 7)) + "월→" + (+v.slice(5, 7)) + "/" + (+v.slice(8, 10)); }).join(" · ");
+  function closingForKey(c, key) {
+    if (!c) return null;
+    var cl = c.closings || {};
+    return cl[key] || c.closing_date || null; // 그 달 미설정이면 레거시 종강일 폴백
   }
 
   function deadlineOf(r) {
-    if (!r || !r.class_id) return null;
+    if (!r || !r.class_id || !r.started_on) return null;
     var c = CLASSES_BY_ID[r.class_id];
-    var cd = effectiveClosing(c);
+    // 6월에 신청 → 6월 종강일을 따름(오늘이 7월이어도 자동으로 안 넘어감). 연장 시 그만큼 다음 달 종강.
+    var cd = closingForKey(c, termKeyFor(r.started_on, r.extended_months || 0));
     if (!cd) return null;
     var d = parseDate(cd);
-    if (r.extended_months) d.setMonth(d.getMonth() + r.extended_months); // 연장(개월)
     d.setDate(d.getDate() + GRACE);
     d.setHours(23, 59, 0, 0);
     return d;
@@ -972,8 +970,7 @@
     function build(res) {
       if (res.error) throw res.error;
       CLASSES = res.data || []; CLASSES_BY_ID = {};
-      // 레거시 closing_date 는 closings 가 비었을 때만 폴백(effectiveClosing). 자동 병합하지 않음 →
-      // 달력에서 설정한 달이 항상 우선(예: 5월만 설정하면 5월 종강 기준으로 마감됨 처리).
+      // 레거시 closing_date 는 그 수업월에 closings 값이 없을 때만 폴백(closingForKey). 자동 병합하지 않음.
       CLASSES.forEach(function (c) { if (!c.closings) c.closings = {}; CLASSES_BY_ID[c.id] = c; });
     }
     return sb.from("classes").select(cols).order("sort", { ascending: true }).then(function (res) {
