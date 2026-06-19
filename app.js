@@ -490,18 +490,27 @@
         if (res.error) { toast("수정 실패: " + res.error.message); return; }
         logAction(LOCKERS[key] && LOCKERS[key].id, "edit", { student_name: name });
         // 등록일을 바꾸면 신청 기록의 '입금' 로그 날짜도 같이 맞춰줌
-        if (dateChanged) syncRentLogDate(LOCKERS[key] && LOCKERS[key].id, date);
+        if (dateChanged) syncRentLogDate(LOCKERS[key] && LOCKERS[key].id, date, {
+          student_name: name, birth: birth || "", phone: phone || "",
+          class_label: classNameOf(classId ? Number(classId) : null), bank: bank || "", refund_account: account || ""
+        });
         toast("정보 수정 완료");
         reload();
       });
   }
-  // 해당 사물함의 가장 최근 '입금' 로그 created_at 을 등록일로 맞춤
-  function syncRentLogDate(lockerId, date) {
+  // 해당 사물함의 가장 최근 '입금' 로그 created_at 을 등록일로 맞춤(없으면 등록일로 새로 생성)
+  function syncRentLogDate(lockerId, date, info) {
     if (!lockerId || !date) return;
+    var ts = date + "T12:00:00+09:00";
+    function refreshLogs() { if ($("logsPane") && !$("logsPane").hidden) logLoad(); }
     sb.from("rental_logs").select("id").eq("locker_id", lockerId).eq("action", "rent")
       .order("created_at", { ascending: false }).limit(1).then(function (res) {
-        if (res.error || !res.data || !res.data[0]) return;
-        sb.from("rental_logs").update({ created_at: date + "T12:00:00+09:00" }).eq("id", res.data[0].id).then(function () {}, function () {});
+        if (!res.error && res.data && res.data[0]) {
+          sb.from("rental_logs").update({ created_at: ts }).eq("id", res.data[0].id).then(refreshLogs, refreshLogs);
+        } else {
+          // 입금 로그가 없던 기록이면 등록일로 새로 생성
+          sb.from("rental_logs").insert({ locker_id: lockerId, action: "rent", detail: info || {}, created_at: ts }).then(refreshLogs, refreshLogs);
+        }
       });
   }
 
