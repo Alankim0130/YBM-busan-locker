@@ -641,7 +641,7 @@
   function enterApp(session) {
     $("loginView").classList.remove("open");
     ME = { name: displayName(session), email: (session && session.user && session.user.email) || "" };
-    $("userEmail").textContent = ME.email || ME.name;
+    var ub = $("userEmail"); ub.textContent = ME.name; ub.title = ME.email;
     $("userBox").hidden = false;
     $("noticeBar").hidden = false;
     if (entered) return;
