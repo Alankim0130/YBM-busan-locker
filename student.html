@@ -298,8 +298,8 @@
     }
 
     /* ---------- 중복 신청 방지 (기기별) ---------- */
-    // 한 번 신청한 기기는 일정 시간(기본 6시간) 동안 추가 신청을 막아 무분별한 반복 신청을 방지.
-    var APPLY_KEY = "ybm_apply_v1", APPLY_COOLDOWN = 6 * 60 * 60 * 1000;
+    // 기기 제한 해제: 0 이면 제한 없이 계속 신청 가능. (다시 막으려면 시간(ms)으로 변경)
+    var APPLY_KEY = "ybm_apply_v1", APPLY_COOLDOWN = 0;
     function getApplied() { try { return JSON.parse(localStorage.getItem(APPLY_KEY) || "null"); } catch (e) { return null; } }
     function applyLocked() { var a = getApplied(); return (a && (Date.now() - a.at) < APPLY_COOLDOWN) ? a : null; }
     function setApplied(fid, num, name) {
