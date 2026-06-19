@@ -153,17 +153,34 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .deadline-box .ext-row b{color:var(--ink);font-family:"Space Grotesk";}
 .ext-btns{display:flex;gap:6px;}
 
-/* 신청 기록 로그 */
-.log-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);
-  border-radius:9px;background:var(--surface-2);font-size:13px;flex-wrap:wrap;}
-.log-act{flex-shrink:0;font-weight:700;font-size:11.5px;padding:4px 10px;border-radius:99px;}
-.log-act.in{background:#e3f3ec;color:#1d7a54;}
-.log-act.out{background:#f0e7e3;color:#b5503a;}
-.log-name{font-weight:600;min-width:58px;}
-.log-birth{font-family:"JetBrains Mono",monospace;color:var(--ink-2);min-width:58px;}
-.log-class{flex:1;min-width:64px;color:var(--ink-2);}
-.log-date{font-family:"JetBrains Mono",monospace;color:var(--ink-2);}
-.log-time{font-family:"JetBrains Mono",monospace;color:var(--ink-3);}
+/* ===== 신청 기록 페이지 (logs.html) ===== */
+.logpage{max-width:1040px;margin:0 auto;width:100%;padding:22px 24px 70px;}
+.logpage-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+.logpage-top .lt-left{display:flex;align-items:center;gap:14px;}
+.logpage-top h1{font-family:"Space Grotesk";font-weight:600;font-size:22px;margin:0;}
+.log-back{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink-2);font-size:13px;font-weight:600;
+  border:1px solid var(--line-strong);border-radius:8px;padding:8px 12px;background:var(--surface);transition:background .15s,border-color .15s;}
+.log-back:hover{background:var(--surface-2);border-color:var(--ink-3);}
+.logpage .lead{color:var(--ink-2);font-size:13px;margin:0 0 18px;}
+.log-month{margin:26px 0 9px;display:flex;align-items:baseline;gap:10px;}
+.log-month .lm-title{font-family:"Space Grotesk";font-weight:600;font-size:16.5px;}
+.log-month .lm-cnt{font-size:12px;color:var(--ink-3);}
+.log-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-sm);}
+.log-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--surface);min-width:560px;}
+.log-table th{background:var(--surface-2);text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:700;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.log-table td{padding:11px 14px;font-size:13.5px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.log-table tbody tr:last-child td{border-bottom:none;}
+.log-table tbody tr:hover{background:var(--surface-2);}
+.log-table .c-mono{font-family:"JetBrains Mono",monospace;color:var(--ink-2);}
+.log-table .c-name{font-weight:600;}
+.log-badge{display:inline-block;font-weight:700;font-size:11.5px;padding:4px 11px;border-radius:99px;}
+.log-badge.in{background:#e3f3ec;color:#1d7a54;}
+.log-badge.out{background:#f0e7e3;color:#b5503a;}
+.log-del{border:1px solid #e6b8ad;background:var(--surface);color:var(--over);border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
+.log-del:hover{background:#fcefec;}
+.log-empty{text-align:center;color:var(--ink-2);font-size:14px;padding:50px 0;}
+.logpage-actions{display:flex;gap:9px;}
 .d-actions{padding:16px 22px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:9px;background:var(--surface-2);}
 .d-actions .line{display:flex;gap:9px;}
 .d-actions .btn{flex:1;text-align:center;}

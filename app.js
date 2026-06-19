@@ -769,43 +769,6 @@
     });
   }
 
-  /* ---------- 신청 기록 로그 ---------- */
-  function fmtKSTDate(ts) { return new Date(ts).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }); }
-  function fmtKSTTime(ts) { return new Date(ts).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }); }
-  function openLog() {
-    $("logList").innerHTML = '<div class="dash-empty">불러오는 중…</div>';
-    $("logView").classList.add("open");
-    loadLogs();
-  }
-  function closeLog() { $("logView").classList.remove("open"); }
-  function loadLogs() {
-    sb.from("rental_logs").select("id, action, detail, created_at")
-      .in("action", ["rent", "return"]).order("created_at", { ascending: false }).limit(500)
-      .then(function (res) {
-        if (res.error) { $("logList").innerHTML = '<div class="dash-empty">기록을 불러오지 못했습니다: ' + esc(res.error.message) + "</div>"; return; }
-        renderLogs(res.data || []);
-      });
-  }
-  function renderLogs(rows) {
-    $("logLead").textContent = "대여(입금)·반납(환급) 기록 · " + rows.length + "건 · 한국시간";
-    var list = $("logList");
-    if (!rows.length) { list.innerHTML = '<div class="dash-empty">아직 기록이 없습니다.</div>'; return; }
-    list.innerHTML = "";
-    rows.forEach(function (l) {
-      var d = l.detail || {};
-      var isRent = l.action === "rent";
-      var row = document.createElement("div");
-      row.className = "log-row";
-      row.innerHTML = '<span class="log-act ' + (isRent ? "in" : "out") + '">' + (isRent ? "입금" : "환급") + "</span>" +
-        '<span class="log-name">' + esc(d.student_name || "") + "</span>" +
-        '<span class="log-birth">' + esc(d.birth || "") + "</span>" +
-        '<span class="log-class">' + esc(d.class_label || "") + "</span>" +
-        '<span class="log-date">' + fmtKSTDate(l.created_at) + "</span>" +
-        '<span class="log-time">' + fmtKSTTime(l.created_at) + "</span>";
-      list.appendChild(row);
-    });
-  }
-
   /* ---------- Realtime ---------- */
   var channel = null;
   function subscribeRealtime() {
@@ -855,8 +818,7 @@
   $("classBtn").onclick = openClasses;
   $("classClose").onclick = closeClasses;
   $("classEditBtn").onclick = toggleClassEdit;
-  $("logBtn").onclick = openLog;
-  $("logClose").onclick = closeLog;
+  $("logBtn").onclick = function () { location.href = "logs.html"; };
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
@@ -879,7 +841,6 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
     if ($("calView").classList.contains("open")) closeCalendar();
-    else if ($("logView").classList.contains("open")) closeLog();
     else if ($("guideView").classList.contains("open")) closeGuide();
     else if ($("noticeView").classList.contains("open")) closeNotice();
     else if ($("noticeAllView").classList.contains("open")) closeNoticeAll();
@@ -910,6 +871,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeLog(); closeNotice(); closeNoticeAll(); closeGuide(); cancelMove(); NOTICES = []; noticeIdx = 0; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); cancelMove(); NOTICES = []; noticeIdx = 0; showLogin(); }
   });
 })();

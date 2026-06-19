@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>신청 기록 · 서면 YBM 사물함</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="logpage" id="page" hidden>
+    <div class="logpage-top">
+      <div class="lt-left">
+        <a class="log-back" href="admin.html">← 관리 화면</a>
+        <h1>신청 기록</h1>
+      </div>
+      <div class="logpage-actions">
+        <button class="btn" id="editBtn">편집</button>
+      </div>
+    </div>
+    <p class="lead" id="lead">대여(입금)·반납(환급) 기록 · 한국시간 · 월별 정리</p>
+    <div id="body"></div>
+  </div>
+
+  <div class="log-empty" id="msg">불러오는 중…</div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  (function () {
+    "use strict";
+    var URL = window.SUPABASE_URL, KEY = window.SUPABASE_ANON_KEY;
+    var $ = function (id) { return document.getElementById(id); };
+    if (!URL || !KEY || URL.indexOf("YOUR-") !== -1 || KEY.indexOf("YOUR-") !== -1) {
+      $("msg").textContent = "설정이 필요합니다. config.js 를 확인하세요."; return;
+    }
+    var sb = window.supabase.createClient(URL, KEY);
+
+    var editMode = false, ROWS = [];
+
+    function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
+    var fmtD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
+    var fmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
+    function ymd(ts){ return fmtD.format(new Date(ts)); }            // 'YYYY-MM-DD'
+    function hm(ts){ return fmtT.format(new Date(ts)); }             // 'HH:MM'
+
+    /* 1년 지난 기록 자동 정리(무료 용량 절약) */
+    function cleanupOld() {
+      var d = new Date(); d.setFullYear(d.getFullYear() - 1);
+      return sb.from("rental_logs").delete().lt("created_at", d.toISOString()).then(function(){}, function(){});
+    }
+
+    function load() {
+      sb.from("rental_logs").select("id, action, detail, created_at")
+        .in("action", ["rent", "return"]).order("created_at", { ascending: false }).limit(5000)
+        .then(function (res) {
+          if (res.error) { $("msg").hidden = false; $("page").hidden = true; $("msg").textContent = "기록을 불러오지 못했습니다: " + res.error.message; return; }
+          ROWS = res.data || [];
+          $("msg").hidden = true; $("page").hidden = false;
+          render();
+        });
+    }
+
+    function render() {
+      $("lead").textContent = "대여(입금)·반납(환급) 기록 · 한국시간 · 월별 정리 · 총 " + ROWS.length + "건";
+      var body = $("body");
+      if (!ROWS.length) { body.innerHTML = '<div class="log-empty">아직 신청 기록이 없습니다.</div>'; return; }
+      // 월별 그룹(최신월 → 과거월)
+      var groups = [], map = {};
+      ROWS.forEach(function (l) {
+        var key = ymd(l.created_at).slice(0, 7); // 'YYYY-MM'
+        if (!map[key]) { map[key] = []; groups.push(key); }
+        map[key].push(l);
+      });
+      body.innerHTML = "";
+      groups.forEach(function (key) {
+        var parts = key.split("-");
+        var head = document.createElement("div");
+        head.className = "log-month";
+        head.innerHTML = '<span class="lm-title">' + parts[0] + "년 " + (+parts[1]) + "월</span>" +
+          '<span class="lm-cnt">' + map[key].length + "건</span>";
+        body.appendChild(head);
+
+        var scroll = document.createElement("div"); scroll.className = "log-scroll";
+        var t = document.createElement("table"); t.className = "log-table";
+        t.innerHTML = "<thead><tr><th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>날짜</th><th>시간</th>" +
+          (editMode ? "<th>삭제</th>" : "") + "</tr></thead>";
+        var tb = document.createElement("tbody");
+        map[key].forEach(function (l) {
+          var d = l.detail || {};
+          var isRent = l.action === "rent";
+          var tr = document.createElement("tr");
+          tr.innerHTML =
+            '<td><span class="log-badge ' + (isRent ? "in" : "out") + '">' + (isRent ? "입금" : "환급") + "</span></td>" +
+            '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
+            '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
+            "<td>" + esc(d.class_label || "") + "</td>" +
+            '<td class="c-mono">' + ymd(l.created_at).replace(/-/g, ".") + "</td>" +
+            '<td class="c-mono">' + hm(l.created_at) + "</td>" +
+            (editMode ? '<td><button class="log-del">삭제</button></td>' : "");
+          if (editMode) tr.querySelector(".log-del").onclick = function () { removeLog(l); };
+          tb.appendChild(tr);
+        });
+        t.appendChild(tb); scroll.appendChild(t); body.appendChild(scroll);
+      });
+    }
+
+    function removeLog(l) {
+      var d = l.detail || {};
+      if (!window.confirm("이 기록을 삭제할까요?\n\n" + (l.action === "rent" ? "입금" : "환급") + " / " + (d.student_name || "") + " / " + ymd(l.created_at))) return;
+      sb.from("rental_logs").delete().eq("id", l.id).then(function (res) {
+        if (res.error) { alert("삭제 실패: " + res.error.message); return; }
+        ROWS = ROWS.filter(function (x) { return x.id !== l.id; });
+        render();
+      });
+    }
+
+    $("editBtn").onclick = function () {
+      editMode = !editMode;
+      $("editBtn").textContent = editMode ? "완료" : "편집";
+      $("editBtn").classList.toggle("primary", editMode);
+      render();
+    };
+
+    /* 인증 확인 후 시작 */
+    sb.auth.getSession().then(function (res) {
+      if (!res.data || !res.data.session) { location.replace("admin.html"); return; }
+      cleanupOld().then(load);
+    });
+  })();
+  </script>
+</body>
+</html>
