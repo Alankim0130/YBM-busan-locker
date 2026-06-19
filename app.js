@@ -332,6 +332,7 @@
         '<div class="field"><label>은행 (선택)</label><input class="namefield" id="newBank" placeholder="예: 카카오뱅크" /></div>' +
         '<div class="field"><label>환급 계좌번호 (선택)</label><input class="namefield" id="newAccount" placeholder="보증금 환급받을 계좌번호" /></div>' +
         '<div class="field"><label>반 (마감일 = 종강일 + 10일)</label><select class="selfield" id="newClass">' + classOptionsHTML("") + "</select></div>" +
+        '<div class="field"><label>등록일 (기본: 오늘 · 과거 기록은 날짜 변경)</label><input class="namefield" type="date" id="newDate" value="' + todayISO() + '" /></div>' +
         '<div class="field"><label>안내</label><div class="v">대여를 시작하면 보증금 1만원 수령으로 기록됩니다.</div></div>';
       actions.innerHTML = '<div class="line"><button class="btn primary" id="rentBtn">대여 시작 · 보증금 1만원 수령</button></div>' +
         '<div class="line"><button class="btn" id="breakBtn">🔧 고장으로 표시</button></div>';
@@ -346,7 +347,7 @@
         if (!nm) { $("newName").focus(); return; }
         if (bd && !/^\d{6}$/.test(bd)) { toast("생년월일은 6자리 숫자로 입력하세요. (예: 880130)"); $("newBirth").focus(); return; }
         if (!cid) { toast("반을 선택하세요. (마감일 계산에 필요)"); $("newClass").focus(); return; }
-        startRental(key, nm, ph, cid, bd, ac, bk);
+        startRental(key, nm, ph, cid, bd, ac, bk, $("newDate").value || todayISO());
       };
       return;
     }
@@ -402,14 +403,15 @@
       '<div class="field"><label>전화번호</label><input class="namefield" id="edPhone" value="' + esc(r.phone || "") + '" inputmode="tel" /></div>' +
       '<div class="field"><label>은행</label><input class="namefield" id="edBank" value="' + esc(r.bank || "") + '" placeholder="예: 카카오뱅크" /></div>' +
       '<div class="field"><label>환급 계좌번호</label><input class="namefield" id="edAccount" value="' + esc(r.refund_account || "") + '" placeholder="보증금 환급받을 계좌번호" /></div>' +
-      '<div class="field"><label>반</label><select class="selfield" id="edClass">' + classOptionsHTML(r.class_id) + "</select></div>";
+      '<div class="field"><label>반</label><select class="selfield" id="edClass">' + classOptionsHTML(r.class_id) + "</select></div>" +
+      '<div class="field"><label>등록일</label><input class="namefield" type="date" id="edDate" value="' + esc(r.started_on || todayISO()) + '" /></div>';
     actions.innerHTML = '<div class="line"><button class="btn primary" id="saveBtn">저장</button><button class="btn" id="cancelBtn">취소</button></div>';
     $("saveBtn").onclick = function () {
       var nm = $("edName").value.trim();
       var bd = $("edBirth").value.trim();
       if (!nm) { $("edName").focus(); return; }
       if (bd && !/^\d{6}$/.test(bd)) { toast("생년월일은 6자리 숫자로 입력하세요."); $("edBirth").focus(); return; }
-      editRental(key, nm, $("edPhone").value.trim(), $("edClass").value || null, bd, $("edAccount").value.trim(), $("edBank").value.trim());
+      editRental(key, nm, $("edPhone").value.trim(), $("edClass").value || null, bd, $("edAccount").value.trim(), $("edBank").value.trim(), $("edDate").value || r.started_on);
     };
     $("cancelBtn").onclick = function () { renderDrawer(); };
   }
@@ -445,14 +447,14 @@
   /* ---------- 액션 (DB 반영 + 로그) ---------- */
   function busy(on) { document.body.style.cursor = on ? "progress" : ""; }
 
-  function startRental(key, name, phone, classId, birth, account, bank) {
+  function startRental(key, name, phone, classId, birth, account, bank, date) {
     var lk = LOCKERS[key];
     if (!lk) { toast("사물함 정보를 찾을 수 없습니다."); return; }
     busy(true);
     sb.from("rentals").insert({
       locker_id: lk.id, student_name: name, phone: phone || null, birth: birth || null,
       bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null, extended_months: 0,
-      started_on: todayISO(), deposit_held: true, active: true
+      started_on: date || todayISO(), deposit_held: true, active: true
     }).then(function (res) {
       busy(false);
       if (res.error) { toast("대여 실패: " + res.error.message); return; }
@@ -476,10 +478,10 @@
     });
   }
 
-  function editRental(key, name, phone, classId, birth, account, bank) {
+  function editRental(key, name, phone, classId, birth, account, bank, date) {
     var r = RENTALS[key]; if (!r) return;
     busy(true);
-    sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null })
+    sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, bank: bank || null, refund_account: account || null, class_id: classId ? Number(classId) : null, started_on: date || r.started_on })
       .eq("id", r.id).then(function (res) {
         busy(false);
         if (res.error) { toast("수정 실패: " + res.error.message); return; }
