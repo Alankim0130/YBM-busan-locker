@@ -152,12 +152,14 @@
       var c = counts(f);
       var btn = document.createElement("button");
       btn.className = "floor-btn" + (f.id === currentId ? " active" : "");
-      btn.innerHTML = '<div class="floor-left"><span class="fname">' + f.name + "</span>" +
+      btn.innerHTML =
+        '<div class="fb-top"><span class="fname">' + f.name + "</span>" +
+        '<span class="fmeta"><b>' + c.free + "</b> / " + f.total + " 빈칸</span></div>" +
         '<div class="fbar">' +
           '<span class="seg" style="flex:' + c.free + ';background:var(--free)"></span>' +
           '<span class="seg" style="flex:' + Math.max(c.used - c.over, 0) + ';background:var(--rent)"></span>' +
           '<span class="seg" style="flex:' + c.over + ';background:var(--over)"></span>' +
-        "</div></div><span class=\"fmeta\">" + c.free + "/" + f.total + " 빈칸</span>";
+        "</div>";
       btn.onclick = function () { currentId = f.id; closeDrawer(); renderAll(); };
       list.appendChild(btn);
     });
@@ -282,7 +284,7 @@
       '<span class="dd" style="color:' + st.color + '">' + dd.label + "</span></div>" +
       '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div></div>";
     actions.innerHTML =
-      '<div class="line"><button class="btn" id="editBtn">정보 수정</button><button class="btn" id="moveBtn">사물함 이동</button></div>' +
+      '<div class="line"><button class="btn" id="editBtn">정보 수정</button><button class="btn" id="moveBtn">이동하기</button></div>' +
       '<div class="line"><button class="btn" id="returnBtn">반납 · 보증금 환급</button></div>';
     $("editBtn").onclick = function () { renderEdit(key); };
     $("moveBtn").onclick = function () { beginMove(key); };
@@ -402,6 +404,21 @@
     $("catList").innerHTML = orderedCategories().map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
   }
 
+  function ymdSelectsHTML(c) {
+    var parts = c.closing_date ? String(c.closing_date).slice(0, 10).split("-") : ["", "", ""];
+    var y = parts[0], m = parts[1] ? String(+parts[1]) : "", d = parts[2] ? String(+parts[2]) : "";
+    var yNow = new Date().getFullYear();
+    var ys = '<select class="cc-y"><option value="">년</option>';
+    for (var yy = yNow - 1; yy <= yNow + 1; yy++) ys += "<option" + (String(yy) === y ? " selected" : "") + ">" + yy + "</option>";
+    ys += "</select>";
+    var ms = '<select class="cc-m"><option value="">월</option>';
+    for (var mm = 1; mm <= 12; mm++) ms += "<option" + (String(mm) === m ? " selected" : "") + ">" + mm + "</option>";
+    ms += "</select>";
+    var ds = '<select class="cc-d"><option value="">일</option>';
+    for (var dd = 1; dd <= 31; dd++) ds += "<option" + (String(dd) === d ? " selected" : "") + ">" + dd + "</option>";
+    ds += "</select>";
+    return ys + ms + ds;
+  }
   function renderClasses() {
     var list = $("classList"); list.innerHTML = "";
     if (!CLASSES.length) { list.innerHTML = '<div class="dash-empty">등록된 반이 없습니다. 위에서 추가하세요.</div>'; return; }
@@ -409,20 +426,27 @@
       var lbl = document.createElement("div");
       lbl.className = "class-cat-label"; lbl.textContent = cat;
       list.appendChild(lbl);
+      var wrap = document.createElement("div");
+      wrap.className = "class-cards";
       CLASSES.filter(function (c) { return c.category === cat; })
         .sort(function (a, b) { return (a.sort || 0) - (b.sort || 0); })
         .forEach(function (c) {
-          var dl = c.closing_date ? (function () { var d = parseDate(c.closing_date); d.setDate(d.getDate() + GRACE); return fmtDate(d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())); })() : "—";
-          var row = document.createElement("div");
-          row.className = "class-row";
-          row.innerHTML = '<span class="cl-name">' + esc(c.name) + "</span>" +
-            '<input type="date" value="' + (c.closing_date ? String(c.closing_date).slice(0, 10) : "") + '" data-id="' + c.id + '" />' +
-            '<span class="cl-due">마감 ' + dl + "</span>" +
-            '<button class="cl-del" data-id="' + c.id + '" title="삭제">&times;</button>';
-          row.querySelector("input").onchange = function (e) { updateClosing(c.id, e.target.value || null); };
-          row.querySelector(".cl-del").onclick = function () { deleteClass(c); };
-          list.appendChild(row);
+          var card = document.createElement("div");
+          card.className = "class-card";
+          card.innerHTML = '<span class="cc-name">' + esc(c.name) + "</span>" +
+            '<div class="cc-dates">' + ymdSelectsHTML(c) + "</div>" +
+            '<button class="cc-del" title="삭제">&times;</button>';
+          function onChange() {
+            var y = card.querySelector(".cc-y").value, m = card.querySelector(".cc-m").value, d = card.querySelector(".cc-d").value;
+            updateClosing(c.id, (y && m && d) ? (y + "-" + pad(+m) + "-" + pad(+d)) : null);
+          }
+          card.querySelector(".cc-y").onchange = onChange;
+          card.querySelector(".cc-m").onchange = onChange;
+          card.querySelector(".cc-d").onchange = onChange;
+          card.querySelector(".cc-del").onclick = function () { deleteClass(c); };
+          wrap.appendChild(card);
         });
+      list.appendChild(wrap);
     });
   }
 
