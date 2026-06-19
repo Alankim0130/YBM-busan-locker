@@ -223,9 +223,9 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 
 /* ===== 반 관리 (달력으로 종강일 선택) ===== */
 .class-add{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
-.class-add input{flex:1;min-width:130px;border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:11px 13px;font:inherit;font-size:13.5px;}
+.class-add input{flex:1;min-width:130px;height:44px;border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:0 13px;font:inherit;font-size:13.5px;}
 .class-add input:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px rgba(59,111,212,.15);}
-.class-add .btn{flex-shrink:0;}
+.class-add .btn{flex-shrink:0;height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 18px;}
 .class-cat-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:18px 0 9px;}
 .class-cat-label:first-child{margin-top:0;}
 .class-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px;}
