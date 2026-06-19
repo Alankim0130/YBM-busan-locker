@@ -429,9 +429,10 @@
     }
 
     var dl = deadlineOf(r); var dd = ddInfo(dl);
+    var termM = r.started_on ? (+termKeyFor(r.started_on, r.extended_months || 0).slice(5, 7)) : 0; // 적용 수업 월
     var note = s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
-      : !dl ? "이 반의 종강일이 아직 입력되지 않았습니다. ‘반 관리’에서 종강일을 입력하면 마감일이 자동 계산됩니다."
-      : "마감일은 반 종강일 + 15일입니다. 종강일이 갱신되면 마감일도 자동으로 미뤄집니다.";
+      : !dl ? (termM ? termM + "월 수업 종강일이 아직 입력되지 않았습니다. ‘반 관리’ 상단에서 " + termM + "월을 골라 종강일을 넣으세요." : "이 반의 종강일이 아직 입력되지 않았습니다.")
+      : "마감일은 등록월(" + termM + "월 수업) 종강일 + 15일입니다. 등록일을 바꾸면 적용 종강월도 바뀝니다.";
     var dmsg = contactMsg(r, fid, num);   // 마감 안내
     var gmsg = guideMsg(r, fid, num);     // 비밀번호 이용 안내
     var deadlineContact = '<button class="btn small" id="copyDeadlineBtn">마감 안내 문구 복사</button>';
@@ -451,7 +452,7 @@
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + ' <span class="pay-tag ' + (r.pay_method === "cash" ? "cash" : "") + '">' + payLabel(r.pay_method) + "</span></div></div>" +
       '<div class="field"><label>이용 안내 (비밀번호)</label><div class="contact-row">' + guideContact + '</div><div class="guide-prev">' + esc(GUIDE) + "</div></div>" +
       '<div class="field"><label>마감 안내</label><div class="contact-row">' + deadlineContact + "</div></div>" +
-      '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (종강 + 15일' + (ext ? " + 연장 " + ext + "개월" : "") + ')</span>' +
+      '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (' + (termM ? termM + "월 수업 " : "") + '종강 + 15일' + (ext ? " + 연장 " + ext + "개월" : "") + ')</span>' +
       '<span class="dd" style="color:' + st.color + '">' + dd.label + "</span></div>" +
       '<div class="v mono">' + (dl ? fmtShort(dl) : "—") + '</div><div class="note">' + note + "</div>" +
       '<div class="ext-row"><span>연장 <b>' + ext + '</b>개월</span><span class="ext-btns">' +
