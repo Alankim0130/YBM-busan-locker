@@ -13,6 +13,7 @@
     --line:#cbd3dc; --free:#3ba776; --used:#aeb8c4;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  [hidden]{display:none!important;}
   html,body{margin:0;height:100%;}
   body{background:var(--canvas);color:var(--ink);font-family:"Inter",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;overflow:hidden;}
@@ -93,6 +94,9 @@
   .rbtn:active{transform:translateY(1px);}
   .msg{height:100dvh;display:flex;align-items:center;justify-content:center;text-align:center;
     padding:24px;color:var(--ink-soft);font-size:14px;line-height:1.7;}
+  /* 신청 접수 안내 배너 */
+  .applied-bar{flex:0 0 auto;background:#e3f3ec;border:1px solid #bfe3d2;color:#1d7a54;
+    border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;font-weight:600;text-align:center;}
   /* 보증금 입금 계좌 바 */
   .deposit{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
     background:linear-gradient(150deg,#222c3a,#141b26);color:#fff;border-radius:12px;
@@ -114,6 +118,7 @@
       <div class="dep-txt">💳 보증금 입금 · 카카오뱅크 <b>조여름 3333-32-7024720</b> <span class="dep-tag">(사물함)</span></div>
       <button class="dep-copy" id="depCopy">계좌 복사</button>
     </div>
+    <div class="applied-bar" id="appliedBar" hidden>✓ 신청이 접수되었습니다 · 데스크에서 확인 중입니다</div>
     <header>
       <div class="mark">L</div>
       <div><h1>사물함 빈자리</h1><p>서면 YBM · 초록(빈자리)을 눌러 바로 신청하세요.</p></div>
@@ -166,8 +171,8 @@
   <!-- 신청 완료 -->
   <div class="ovl" id="doneView">
     <div class="sheet">
-      <div class="done-ico">✓</div>
-      <h2>신청 완료</h2>
+      <div class="done-ico" id="doneIco">✓</div>
+      <h2 id="doneTitle">신청 완료</h2>
       <p class="sub" id="doneText">신청이 접수되었습니다.</p>
       <p class="sub">데스크에서 확인 후 확정해 드립니다. 보증금은 아래 계좌로 입금해 주세요.</p>
       <div class="done-acct">카카오뱅크 <b>조여름 3333-32-7024720</b> (사물함)
@@ -252,13 +257,32 @@
         STATUS = {};
         (res.data || []).forEach(function (r) { STATUS[r.floor + "-" + r.number] = r.broken ? "broken" : r.occupied ? "used" : (r.pending ? "pending" : "free"); });
         if (!loaded) { loaded = true; $("msg").hidden = true; $("app").hidden = false; }
-        render(); stamp();
+        render(); stamp(); refreshAppliedBar();
       });
+    }
+
+    /* ---------- 중복 신청 방지 (기기별) ---------- */
+    // 한 번 신청한 기기는 일정 시간(기본 6시간) 동안 추가 신청을 막아 무분별한 반복 신청을 방지.
+    var APPLY_KEY = "ybm_apply_v1", APPLY_COOLDOWN = 6 * 60 * 60 * 1000;
+    function getApplied() { try { return JSON.parse(localStorage.getItem(APPLY_KEY) || "null"); } catch (e) { return null; } }
+    function applyLocked() { var a = getApplied(); return (a && (Date.now() - a.at) < APPLY_COOLDOWN) ? a : null; }
+    function setApplied(fid, num, name) {
+      try { localStorage.setItem(APPLY_KEY, JSON.stringify({ at: Date.now(), floor: fid, number: num, name: name })); } catch (e) {}
+    }
+    function refreshAppliedBar() { $("appliedBar").hidden = !applyLocked(); }
+    function showAlready(a) {
+      $("doneIco").textContent = "⏳";
+      $("doneTitle").textContent = "이미 신청하셨습니다";
+      $("doneText").textContent = (a && a.floor ? floorById(a.floor).name + " " + pad(a.number) + "번 사물함을 이미 신청했습니다. " : "이미 신청을 접수했습니다. ") +
+        "데스크에서 확인 중이니 잠시만 기다려 주세요.";
+      $("doneView").classList.add("open");
     }
 
     /* ---------- 사물함 신청 ---------- */
     var applyFid = 0, applyNum = 0;
     function openApply(fid, num) {
+      var locked = applyLocked();
+      if (locked) { showAlready(locked); return; }
       applyFid = fid; applyNum = num;
       $("apTitle").textContent = floorById(fid).name + " " + pad(num) + "번 사물함 신청";
       $("apName").value = ""; $("apBirth").value = ""; $("apPhone").value = ""; $("apAccount").value = "";
@@ -266,7 +290,7 @@
       $("applyView").classList.add("open");
       setTimeout(function () { $("apName").focus(); }, 50);
     }
-    function closeApply() { $("applyView").classList.remove("open"); }
+    function closeApply() { $("applyView").classList.remove("open"); window.scrollTo(0, 0); }
     function submitApply() {
       var name = $("apName").value.trim();
       var birth = $("apBirth").value.trim();
@@ -281,8 +305,18 @@
       sb.from("requests").insert({ floor: applyFid, number: applyNum, student_name: name, birth: birth, phone: phone, refund_account: account })
         .then(function (res) {
           btn.disabled = false; btn.textContent = "신청하기";
-          if (res.error) { err.textContent = "신청 실패: " + res.error.message; return; }
+          if (res.error) {
+            // 23505 = unique 위반(같은 전화번호로 이미 신청한 경우)
+            if (res.error.code === "23505" || /duplicate|unique/i.test(res.error.message || "")) {
+              setApplied(applyFid, applyNum, name); refreshAppliedBar();
+              closeApply(); showAlready(getApplied()); load(); return;
+            }
+            err.textContent = "신청 실패: " + res.error.message; return;
+          }
+          setApplied(applyFid, applyNum, name); refreshAppliedBar();
           closeApply();
+          $("doneIco").textContent = "✓";
+          $("doneTitle").textContent = "신청 완료";
           $("doneText").textContent = floorById(applyFid).name + " " + pad(applyNum) + "번 사물함을 신청했습니다.";
           $("doneView").classList.add("open");
           load();
@@ -290,7 +324,7 @@
     }
     $("apCancel").onclick = closeApply;
     $("apSubmit").onclick = submitApply;
-    $("doneClose").onclick = function () { $("doneView").classList.remove("open"); };
+    $("doneClose").onclick = function () { $("doneView").classList.remove("open"); window.scrollTo(0, 0); };
     $("depCopy2").onclick = function () {
       var num = "3333327024720", b = $("depCopy2");
       function done() { var t = b.textContent; b.textContent = "복사됨!"; setTimeout(function () { b.textContent = t; }, 1500); }

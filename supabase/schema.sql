@@ -124,6 +124,11 @@ create policy "requests_delete" on requests for delete to authenticated using (t
 
 do $$ begin alter publication supabase_realtime add table requests; exception when duplicate_object then null; end $$;
 
+-- 같은 전화번호로 중복(대기) 신청 방지 — 기존 중복 데이터가 있으면 건너뜀.
+do $$ begin
+  create unique index if not exists requests_phone_uniq on requests (phone) where phone is not null;
+exception when unique_violation then raise notice 'requests.phone 중복 데이터가 있어 유니크 인덱스 생성을 건너뜀'; end $$;
+
 -- ============================================================
 -- 학생용 공개 조회 뷰 (student.html)
 -- 개인정보(이름·전화)는 노출하지 않고 '빈/사용중/신청중'만 공개.
