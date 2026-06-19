@@ -584,6 +584,44 @@
     });
   }
 
+  /* ---------- 학생 검색 ---------- */
+  function openSearch() {
+    $("searchInput").value = "";
+    renderSearch("");
+    $("searchView").classList.add("open");
+    setTimeout(function () { $("searchInput").focus(); }, 40);
+  }
+  function closeSearch() { $("searchView").classList.remove("open"); }
+  function renderSearch(q) {
+    var box = $("searchResults");
+    var qq = (q || "").trim();
+    if (!qq) { box.innerHTML = '<div class="dash-empty">이름 또는 생년월일을 입력하세요.</div>'; return; }
+    var digits = qq.replace(/\D/g, "");
+    var items = [];
+    Object.keys(RENTALS).forEach(function (key) {
+      var r = RENTALS[key];
+      var hit = (r.name && r.name.indexOf(qq) !== -1) || (digits && r.birth && String(r.birth).indexOf(digits) !== -1);
+      if (!hit) return;
+      var p = key.split("-");
+      items.push({ key: key, fid: parseInt(p[0], 10), num: parseInt(p[1], 10), r: r });
+    });
+    items.sort(function (a, b) { return (a.fid - b.fid) || (a.num - b.num); });
+    if (!items.length) { box.innerHTML = '<div class="dash-empty">검색 결과가 없습니다. (현재 대여 중인 학생만 검색됩니다)</div>'; return; }
+    box.innerHTML = "";
+    items.forEach(function (it) {
+      var st = STATE[statusOf(it.r)];
+      var row = document.createElement("div");
+      row.className = "dash-row";
+      row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
+        '<span class="ds-loc">' + floorById(it.fid).name + " No." + pad(it.num) + "</span>" +
+        '<span class="ds-name">' + esc(it.r.name) + "</span>" +
+        '<span class="ds-phone">' + (it.r.birth ? esc(it.r.birth) : "—") + "</span>" +
+        '<span class="ds-dd" style="color:var(--ink-2)">' + esc(classLabel(it.r)) + "</span>";
+      row.onclick = function () { currentId = it.fid; closeSearch(); renderAll(); select(it.key); };
+      box.appendChild(row);
+    });
+  }
+
   /* ---------- 갱신 마감 대시보드 ---------- */
   function openDash() { renderDash(); $("dashView").classList.add("open"); }
   function closeDash() { $("dashView").classList.remove("open"); }
@@ -819,6 +857,9 @@
   $("classClose").onclick = closeClasses;
   $("classEditBtn").onclick = toggleClassEdit;
   $("logBtn").onclick = function () { location.href = "logs.html"; };
+  $("searchBtn").onclick = openSearch;
+  $("searchClose").onclick = closeSearch;
+  $("searchInput").addEventListener("input", function (e) { renderSearch(e.target.value); });
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
   $("moveCancel").onclick = cancelMove;
@@ -841,6 +882,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
     if ($("calView").classList.contains("open")) closeCalendar();
+    else if ($("searchView").classList.contains("open")) closeSearch();
     else if ($("guideView").classList.contains("open")) closeGuide();
     else if ($("noticeView").classList.contains("open")) closeNotice();
     else if ($("noticeAllView").classList.contains("open")) closeNoticeAll();
@@ -871,6 +913,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); cancelMove(); NOTICES = []; noticeIdx = 0; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); closeDrawer(); closeDash(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); cancelMove(); NOTICES = []; noticeIdx = 0; showLogin(); }
   });
 })();

@@ -33,6 +33,10 @@
     <aside>
       <div><p class="rail-label">층 선택</p><div class="floors" id="floorList"></div></div>
       <div>
+        <p class="rail-label">학생 조회</p>
+        <button class="rail-btn" id="searchBtn"><span>🔍 학생 검색</span></button>
+      </div>
+      <div>
         <p class="rail-label">마감 관리</p>
         <div class="rail-group">
           <button class="rail-btn" id="dashBtn">
@@ -130,6 +134,18 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
         <button class="btn primary" id="addClassBtn">반 추가</button>
       </div>
       <div class="dash-list" id="classList"></div>
+    </div>
+  </div>
+
+  <!-- 학생 검색 -->
+  <div class="overlay" id="searchView">
+    <div class="card dash-card">
+      <div class="dash-head">
+        <div><h2>학생 검색</h2><p class="lead" style="margin:4px 0 0;">이름 또는 생년월일(6자리)로 사물함 위치를 찾습니다.</p></div>
+        <button class="close" id="searchClose" aria-label="닫기">&times;</button>
+      </div>
+      <input class="namefield" id="searchInput" placeholder="이름 또는 생년월일 입력 (예: 김태우 / 880130)" autocomplete="off" />
+      <div class="dash-list" id="searchResults" style="margin-top:12px;"></div>
     </div>
   </div>
 
