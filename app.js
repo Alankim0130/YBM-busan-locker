@@ -92,6 +92,9 @@
 
   function floorById(id) { return FLOORS.find(function (f) { return f.id === id; }); }
   function keyOf(f, n) { return f.id + "-" + n; }
+  // 위치 표시용 라벨: 건물(관)을 앞에 붙임. (이름에 이미 관이 들어간 2관은 중복 방지)
+  function locLabel(f) { return f ? ((f.building && f.building !== f.name) ? f.building + " " + f.name : f.name) : ""; }
+  function locName(floorId) { return locLabel(floorById(floorId)); }
 
   /* ---------- 마감일 / 상태 ---------- */
   function deadlineOf(r) {
@@ -127,12 +130,12 @@
   function contactMsg(r, fid, num) {
     var f = floorById(fid); var dl = deadlineOf(r);
     var when = dl ? fmtShort(dl) : "곧 마감 예정";
-    return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함 마감일이 " + when +
+    return "[서면 YBM] " + r.name + "님, " + locLabel(f) + " " + pad(num) + "번 사물함 마감일이 " + when +
       "입니다. 계속 사용하시려면 데스크로 연장 의사를 알려주세요. 감사합니다.";
   }
   function guideMsg(r, fid, num) {
     var f = floorById(fid);
-    return "[서면 YBM] " + r.name + "님, " + f.name + " " + pad(num) + "번 사물함을 신청하셨습니다.\n" + GUIDE;
+    return "[서면 YBM] " + r.name + "님, " + locLabel(f) + " " + pad(num) + "번 사물함을 신청하셨습니다.\n" + GUIDE;
   }
   function copyText(t) {
     function ok() { toast("문구가 복사되었습니다."); }
@@ -237,7 +240,7 @@
 
   function renderHeader() {
     var f = floorById(currentId); var c = counts(f);
-    $("floorTitle").textContent = f.name + " 사물함";
+    $("floorTitle").textContent = locLabel(f) + " 사물함";
     $("floorSub").textContent = "전체 " + f.total + "칸 (" + f.cols + " × " + f.rows + ") · 사용 중 " +
       c.used + " · 빈칸 " + c.free + (c.over ? " · 마감됨 " + c.over : "") + (c.broken ? " · 고장 " + c.broken : "");
   }
@@ -285,7 +288,7 @@
     var broken = !r && brokenAt(key);
     var s = broken ? "broken" : statusOf(r); var st = STATE[s];
     $("dId").textContent = "No. " + pad(num);
-    $("dFloor").textContent = f.name;
+    $("dFloor").textContent = locLabel(f);
     var body = $("dBody"); var actions = $("dActions");
 
     if (broken) {
@@ -386,7 +389,7 @@
   function beginMove(key) {
     moveSourceKey = key;
     var parts = key.split("-");
-    $("moveBannerText").textContent = floorById(parseInt(parts[0], 10)).name + " No." + pad(parseInt(parts[1], 10)) +
+    $("moveBannerText").textContent = locName(parseInt(parts[0], 10)) + " No." + pad(parseInt(parts[1], 10)) +
       " 대여를 옮길 빈 칸을 선택하세요. (다른 층도 가능)";
     $("moveBanner").hidden = false;
     drawer.classList.remove("open");
@@ -405,7 +408,7 @@
       logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id) });
       moveSourceKey = null; $("moveBanner").hidden = true;
       var tp = targetKey.split("-"); currentId = parseInt(tp[0], 10);
-      toast(r.name + " 님 → " + floorById(currentId).name + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료");
+      toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료");
       reload().then(function () { select(targetKey); });
     });
   }
@@ -691,7 +694,7 @@
       var row = document.createElement("div");
       row.className = "dash-row";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
-        '<span class="ds-loc">' + floorById(it.fid).name + " No." + pad(it.num) + "</span>" +
+        '<span class="ds-loc">' + locName(it.fid) + " No." + pad(it.num) + "</span>" +
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
         '<span class="ds-phone">' + (it.r.birth ? esc(it.r.birth) : "—") + "</span>" +
         '<span class="ds-dd" style="color:var(--ink-2)">' + esc(classLabel(it.r)) + "</span>";
@@ -724,7 +727,7 @@
     REQUESTS.forEach(function (q) {
       var f = floorById(q.floor);
       var card = document.createElement("div"); card.className = "req-card";
-      card.innerHTML = '<div class="req-top"><span class="rq-loc">' + (f ? f.name : q.floor + "층") + " No." + pad(q.number) + "</span>" +
+      card.innerHTML = '<div class="req-top"><span class="rq-loc">' + (f ? locLabel(f) : q.floor + "층") + " No." + pad(q.number) + "</span>" +
         '<span class="rq-name">' + esc(q.student_name) + '</span><span class="rq-time">' + reqTime(q.created_at) + "</span></div>" +
         '<div class="req-info"><span>생년월일 <b>' + esc(q.birth || "-") + "</b></span><span>전화 <b>" + esc(q.phone || "-") + "</b></span><span>환급계좌 <b>" + esc(q.refund_account || "-") + "</b></span></div>" +
         '<div class="req-act"><select class="selfield rq-class">' + classOptionsHTML("") + "</select>" +
@@ -788,7 +791,7 @@
       var row = document.createElement("div");
       row.className = "dash-row";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
-        '<span class="ds-loc">' + it.f.name + " No." + pad(it.n) + "</span>" +
+        '<span class="ds-loc">' + locLabel(it.f) + " No." + pad(it.n) + "</span>" +
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
         '<span class="ds-phone">' + (it.r.phone ? esc(it.r.phone) : "전화 미입력") + "</span>" +
         '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>" +
@@ -958,7 +961,7 @@
   var logFmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
   function logYmd(ts) { return logFmtD.format(new Date(ts)); }
   function logHm(ts) { return logFmtT.format(new Date(ts)); }
-  function logLocker(l) { return l.lockers ? (l.lockers.floor + "층 " + l.lockers.number + "번") : "—"; }
+  function logLocker(l) { if (!l.lockers) return "—"; var f = floorById(l.lockers.floor); return (f ? locLabel(f) : l.lockers.floor + "층") + " " + l.lockers.number + "번"; }
   var LOGMETA = { rent: { t: "입금", c: "in" }, extend: { t: "연장", c: "ext" }, move: { t: "이동", c: "mv" } };
 
   function openLogs() {
