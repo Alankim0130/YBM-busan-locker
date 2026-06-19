@@ -1196,6 +1196,7 @@
   $("reqClose").onclick = closeReq;
 
   // 빈 공간(사물함 영역의 칸·패널 밖)을 클릭하면 상세 패널 닫기
+  // 캡처 단계에서 판정 — 버튼 클릭으로 패널이 다시 그려지기 전에 위치를 확인해야 함
   var mainEl = document.querySelector("main");
   if (mainEl) mainEl.addEventListener("click", function (e) {
     if (!drawer.classList.contains("open")) return;   // 열려 있을 때만
@@ -1203,7 +1204,7 @@
     if (e.target.closest(".locker")) return;          // 칸 클릭은 선택/전환 유지
     if (moveSourceKey) return;                         // 이동 모드 중엔 간섭 안 함
     closeDrawer();
-  });
+  }, true);
   $("searchInput").addEventListener("input", function (e) { renderSearch(e.target.value); });
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
