@@ -315,13 +315,25 @@
     return el;
   }
 
+  // 모든 층 동일한 칸 크기(--cell): 가장 큰 층(6×6)이 한 화면에 들어가는 크기로 계산
+  function computeCellSize() {
+    var stage = document.querySelector(".stage"); if (!stage) return;
+    var w = stage.clientWidth, h = stage.clientHeight; if (w < 50 || h < 50) return;
+    var cs = getComputedStyle(stage);
+    var availW = w - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 38;  // 38: wall 좌우 패딩
+    var availH = h - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - 54;   // 54: wall 상하 패딩
+    var maxCols = 1, maxRows = 1;
+    FLOORS.forEach(function (f) { maxCols = Math.max(maxCols, f.cols); maxRows = Math.max(maxRows, f.rows); });
+    var gap = 8;
+    var cw = (availW - gap * (maxCols - 1)) / maxCols;
+    var ch = (availH - gap * (maxRows - 1)) / maxRows;
+    var cell = Math.floor(Math.max(30, Math.min(cw, ch)));
+    document.documentElement.style.setProperty("--cell", cell + "px");
+  }
+
   function renderGrid() {
     var f = floorById(currentId);
-    // 화면에 맞춰 채우기: 행/열 수를 wall 에 전달(셀은 1fr×1fr 로 균등). 모든 층 동일 규칙.
-    var wallEl = grid.parentElement;
-    if (wallEl) { wallEl.style.setProperty("--cols", f.cols); wallEl.style.setProperty("--rows", f.rows); }
     grid.style.setProperty("--cols", f.cols);
-    grid.style.setProperty("--rows", f.rows);
     grid.style.gridAutoRows = "";
     grid.innerHTML = "";
     if (f.custom) {
@@ -366,6 +378,7 @@
   }
 
   function renderAll() {
+    computeCellSize();
     renderFloorList(); renderFloorPills(); renderGrid(); renderHeader(); renderDashCount(); renderResetCount();
     if ($("resetView") && $("resetView").classList.contains("open")) renderResetList();
     if (selectedKey) renderDrawer();
@@ -1433,6 +1446,7 @@
     if (moveSourceKey) return;                         // 이동 모드 중엔 간섭 안 함
     closeDrawer();
   });
+  var rzT; window.addEventListener("resize", function () { clearTimeout(rzT); rzT = setTimeout(computeCellSize, 120); });
   $("searchInput").addEventListener("input", function (e) { renderSearch(e.target.value); });
   $("addClassBtn").onclick = addClass;
   $("newClassName").addEventListener("keydown", function (e) { if (e.key === "Enter") addClass(); });
