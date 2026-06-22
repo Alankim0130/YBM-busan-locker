@@ -467,29 +467,33 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .brand p{display:none;}
   .deadline{display:none;}
   .app{flex-direction:column;}
-  /* 상단 바: 3줄 (① 층 / ② 마감임박·반관리·이용안내 / ③ 색상안내) */
-  aside{width:100%;flex-direction:column;align-items:stretch;gap:9px;
-    padding:11px 14px;border-right:none;border-bottom:1px solid var(--line);overflow:visible;}
+  /* 상단 레일 컴팩트: 메뉴 버튼만(한 줄 가로 스크롤). 층은 사물함 위 칩으로, 범례는 숨김 */
+  aside{width:100%;flex-direction:column;align-items:stretch;gap:7px;
+    padding:8px 12px;border-right:none;border-bottom:1px solid var(--line);overflow:visible;}
   aside>div{width:100%;}
   .rail-label{display:none;}
-  .floors{flex-direction:row;flex-wrap:wrap;gap:8px;align-items:center;}
-  .floor-group{flex:0 0 100%;width:100%;padding:11px 13px;margin:0;}
-  .floor-btn{flex:0 0 auto;min-width:max-content;padding:8px 13px;gap:6px;}
-  .floor-btn .fbar{display:none;}
-  .rail-group{flex-direction:row;flex-wrap:wrap;gap:8px;}
-  .rail-btn{width:auto;flex:0 0 auto;padding:9px 13px;white-space:nowrap;}
-  .legend{flex-direction:row;flex-wrap:wrap;gap:14px;}
-  .legend .row{white-space:nowrap;font-size:12px;}
+  #railFloors{display:none;}    /* 층 선택은 사물함 바로 위 칩으로 이동 */
+  #railLegend{display:none;}     /* 색상 범례 숨김(공간 확보) */
+  .rail-group{flex-direction:row;flex-wrap:nowrap;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .rail-group::-webkit-scrollbar{display:none;}
+  .rail-btn{width:auto;flex:0 0 auto;padding:8px 12px;font-size:13px;white-space:nowrap;}
+  .rail-btn .rb-count{min-width:20px;height:20px;font-size:12px;}
   .hint{display:none;}
 
-  .stage{padding:14px;align-items:start;}
-  .wall{width:100%;padding:28px 12px 12px;}
+  .stage{padding:12px;align-items:start;}
+  .wall{width:100%;padding:22px 11px 11px;}
   .grid{grid-template-columns:repeat(var(--cols),1fr);grid-auto-rows:auto;gap:7px;}
   .locker{aspect-ratio:1 / .82;}
-  .stage-top{padding:14px 16px 4px;}
-  .stage-top h2{font-size:17px;}
-  .floor-pills{display:none;}   /* 모바일은 상단 바에 층 목록이 이미 있음 */
-  .move-banner{margin:12px 14px 0;}
+  .stage-top{padding:10px 14px 2px;}
+  .stage-top h2{font-size:16px;}
+  .stage-top .sub{font-size:11px;}
+  /* 사물함 바로 위 가로 스크롤 층 선택 칩 */
+  .floor-pills{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin-top:7px;padding-bottom:2px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .floor-pills::-webkit-scrollbar{display:none;}
+  .floor-pills .fp{flex:0 0 auto;}
+  .floor-pills .fp-bldg{flex:0 0 auto;}
+  .move-banner{margin:10px 14px 0;}
 
   /* 상세 패널: 전체폭 슬라이드 */
   .drawer{width:100%;max-width:100%;}
