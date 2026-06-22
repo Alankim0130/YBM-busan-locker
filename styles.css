@@ -74,8 +74,8 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .floor-group .fg-caret{font-size:10px;color:var(--ink-3);transition:transform .2s;display:inline-block;}
 .floor-group.collapsed .fg-caret{transform:rotate(-90deg);}
 .floor-group .fg-active{text-transform:none;letter-spacing:0;color:var(--brand);font-weight:700;font-size:13px;}
-/* 사물함 상단 빠른 층 선택 바 — 건물별 한 줄씩 */
-.floor-pills{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:10px;}
+/* 사물함 상단 빠른 층 선택 바 — PC: 한 줄(2관이 1관 오른쪽) / 모바일: 건물별 줄바꿈 */
+.floor-pills{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:10px;}
 .fp-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
 .floor-pills .fp-bldg{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;min-width:30px;}
 .floor-pills .fp{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;}
@@ -287,29 +287,30 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .guide-prev{margin-top:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);
   padding:10px 12px;font-size:12.5px;line-height:1.6;color:var(--ink-2);white-space:pre-wrap;word-break:break-word;}
 
-/* ===== 공지사항 바 (한 줄, 회전) ===== */
+/* ===== 공지사항 바 (한 줄, 회전) — 전체 디자인과 통일(중립 톤) ===== */
 .notice-bar{display:flex;align-items:center;gap:12px;
-  background:linear-gradient(180deg,#fff4cf,#ffe9ad);
-  border-bottom:2px solid #efb02a;padding:9px 24px;box-shadow:0 3px 10px rgba(214,158,0,.12);}
-.notice-head{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;background:#f5a623;color:#3d2c00;
-  font-family:"Space Grotesk";font-weight:700;font-size:13.5px;letter-spacing:.02em;
-  padding:6px 13px;border-radius:99px;box-shadow:0 1px 2px rgba(160,110,0,.28),inset 0 1px 0 rgba(255,255,255,.3);}
-.notice-head .nh-ico{font-size:15px;}
+  background:var(--surface);
+  border-bottom:1px solid var(--line);padding:10px 24px;box-shadow:0 4px 14px -10px rgba(16,24,40,.18);}
+.notice-head{flex-shrink:0;display:inline-flex;align-items:center;gap:7px;
+  background:linear-gradient(180deg,#2a3342,var(--brand));color:#fff;
+  font-family:"Space Grotesk";font-weight:700;font-size:13px;letter-spacing:.02em;
+  padding:6px 13px;border-radius:99px;box-shadow:0 3px 8px -2px rgba(16,24,40,.3),inset 0 1px 0 rgba(255,255,255,.12);}
+.notice-head .nh-ico{font-size:14px;}
 .notice-cur{flex:1;min-width:0;overflow:hidden;}
 .notice-cur .nc{display:flex;align-items:baseline;gap:10px;min-width:0;animation:ncFade .45s ease;}
 @keyframes ncFade{from{opacity:0;transform:translateY(-3px);}to{opacity:1;transform:none;}}
-.notice-cur .nc-text{flex:1;min-width:0;font-size:13.5px;color:#3a2f12;font-weight:500;
+.notice-cur .nc-text{flex:1;min-width:0;font-size:13.5px;color:var(--ink);font-weight:500;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.notice-cur .nc-by{flex-shrink:0;font-family:"Space Grotesk";font-weight:700;font-size:12px;color:#9a5e00;white-space:nowrap;}
-.notice-cur .nc-empty{font-size:13px;color:#9a7320;}
+.notice-cur .nc-by{flex-shrink:0;font-family:"Space Grotesk";font-weight:700;font-size:11.5px;color:var(--ink-3);white-space:nowrap;}
+.notice-cur .nc-empty{font-size:13px;color:var(--ink-3);}
 .notice-actions{flex-shrink:0;display:flex;align-items:center;gap:8px;}
-.notice-link{border:none;background:none;cursor:pointer;color:#8a5a00;font:inherit;font-size:12.5px;font-weight:700;
-  text-decoration:underline;text-underline-offset:2px;padding:6px 4px;white-space:nowrap;}
-.notice-link:hover{color:#5e3d00;}
-.notice-add{flex-shrink:0;border:1.5px solid #e0a012;background:#fff;color:#9a6200;
+.notice-link{border:none;background:none;cursor:pointer;color:var(--focus);font:inherit;font-size:12.5px;font-weight:700;
+  padding:6px 4px;white-space:nowrap;}
+.notice-link:hover{color:#2b56ad;text-decoration:underline;text-underline-offset:2px;}
+.notice-add{flex-shrink:0;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
   border-radius:var(--r-sm);padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
   white-space:nowrap;transition:background .15s,border-color .15s,transform .04s;box-shadow:var(--sh-sm);}
-.notice-add:hover{background:#fff8e6;border-color:#c98a00;}
+.notice-add:hover{background:var(--surface-2);border-color:var(--ink-3);}
 .notice-add:active{transform:translateY(1px);}
 
 /* 공지 전체보기 모달 카드 안의 공지 항목 */
@@ -497,8 +498,8 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .grid{gap:6px;}
   .stage-top{padding:10px 14px 2px;}
   .stage-top h2{font-size:16px;}
-  /* 사물함 바로 위 층 선택 칩 — 건물별 한 줄씩 */
-  .floor-pills{margin-top:7px;gap:5px;}
+  /* 모바일: 건물별로 한 줄씩(2관 3층이 1관 아래) */
+  .floor-pills{flex-direction:column;align-items:flex-start;margin-top:7px;gap:5px;}
   .fp-group{flex-wrap:wrap;}
   .move-banner{margin:10px 14px 0;}
 
