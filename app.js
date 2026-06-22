@@ -58,8 +58,8 @@
     { id: 3, name: "3층", building: "1관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
     { id: 4, name: "4층", building: "1관", cols: 3, rows: 6, start: 92,  tallCount: 0 },
     { id: 7, name: "7층", building: "1관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
-    // 2관: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
-    { id: 8, name: "2관", building: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
+    // 2관 3층: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
+    { id: 8, name: "3층", building: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
       custom: {
         lockers: [[110,1,1],[111,1,2],[112,1,3],[113,1,4],[114,1,5],[115,3,1],[116,3,2],[117,3,3],[118,3,4],[119,3,5]],
         blocks: [{ label: "🛗", sub: "엘리베이터", col: 2, row: 1, rowSpan: 5 }]
@@ -317,11 +317,14 @@
 
   function renderGrid() {
     var f = floorById(currentId);
-    grid.style.setProperty("--cols", f.cols); // 칸 크기는 CSS가 결정(전 칸 동일 크기·반응형)
+    // 화면에 맞춰 채우기: 행/열 수를 wall 에 전달(셀은 1fr×1fr 로 균등). 모든 층 동일 규칙.
+    var wallEl = grid.parentElement;
+    if (wallEl) { wallEl.style.setProperty("--cols", f.cols); wallEl.style.setProperty("--rows", f.rows); }
+    grid.style.setProperty("--cols", f.cols);
+    grid.style.setProperty("--rows", f.rows);
     grid.style.gridAutoRows = "";
     grid.innerHTML = "";
     if (f.custom) {
-      grid.style.gridAutoRows = "var(--cell-h)";
       f.custom.blocks.forEach(function (b) {
         var d = document.createElement("div");
         d.className = "locker-block";
