@@ -269,7 +269,7 @@
     });
   }
 
-  // 사물함 화면 상단의 빠른 층 선택 바 (PC)
+  // 사물함 화면 상단의 빠른 층 선택 바 — 건물별로 한 줄씩
   function renderFloorPills() {
     var el = $("floorPills"); if (!el) return;
     el.innerHTML = "";
@@ -277,14 +277,10 @@
     var order = [];
     FLOORS.forEach(function (f) { if (!byB[f.building]) { byB[f.building] = []; order.push(f.building); } byB[f.building].push(f); });
     order.forEach(function (b) {
-      var fs = byB[b];
-      // 건물에 층이 하나뿐이고 이름이 건물명과 같으면(예: 2관) 라벨 없이 단일 칩
-      if (fs.length === 1 && fs[0].name === b) {
-        el.appendChild(makePill(fs[0]));
-        return;
-      }
-      var lab = document.createElement("span"); lab.className = "fp-bldg"; lab.textContent = b; el.appendChild(lab);
-      fs.forEach(function (f) { el.appendChild(makePill(f)); });
+      var grp = document.createElement("div"); grp.className = "fp-group";
+      var lab = document.createElement("span"); lab.className = "fp-bldg"; lab.textContent = b; grp.appendChild(lab);
+      byB[b].forEach(function (f) { grp.appendChild(makePill(f)); });
+      el.appendChild(grp);
     });
     function makePill(f) {
       var p = document.createElement("button");

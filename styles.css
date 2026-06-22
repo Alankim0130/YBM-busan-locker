@@ -74,10 +74,10 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .floor-group .fg-caret{font-size:10px;color:var(--ink-3);transition:transform .2s;display:inline-block;}
 .floor-group.collapsed .fg-caret{transform:rotate(-90deg);}
 .floor-group .fg-active{text-transform:none;letter-spacing:0;color:var(--brand);font-weight:700;font-size:13px;}
-/* 사물함 상단 빠른 층 선택 바 (PC) */
-.floor-pills{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;}
-.floor-pills .fp-bldg{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;margin-left:10px;}
-.floor-pills .fp-bldg:first-child{margin-left:0;}
+/* 사물함 상단 빠른 층 선택 바 — 건물별 한 줄씩 */
+.floor-pills{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:10px;}
+.fp-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.floor-pills .fp-bldg{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;min-width:30px;}
 .floor-pills .fp{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;}
 .floor-pills .fp:hover{border-color:var(--line-strong);color:var(--ink);}
 .floor-pills .fp.active{background:var(--brand);border-color:var(--brand);color:#fff;}
@@ -486,12 +486,9 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .grid{gap:6px;}
   .stage-top{padding:10px 14px 2px;}
   .stage-top h2{font-size:16px;}
-  /* 사물함 바로 위 가로 스크롤 층 선택 칩 */
-  .floor-pills{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin-top:7px;padding-bottom:2px;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;}
-  .floor-pills::-webkit-scrollbar{display:none;}
-  .floor-pills .fp{flex:0 0 auto;}
-  .floor-pills .fp-bldg{flex:0 0 auto;}
+  /* 사물함 바로 위 층 선택 칩 — 건물별 한 줄씩 */
+  .floor-pills{margin-top:7px;gap:5px;}
+  .fp-group{flex-wrap:wrap;}
   .move-banner{margin:10px 14px 0;}
 
   /* 상세 패널: 전체폭 슬라이드 */
