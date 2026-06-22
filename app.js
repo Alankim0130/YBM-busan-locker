@@ -311,7 +311,7 @@
     return el;
   }
 
-  // 모든 층 동일한 칸 크기(--cell): 가장 큰 층(6×6)이 한 화면에 들어가는 크기로 계산
+  // 모든 층 동일한 칸 크기: 가장 큰 층(6×6)이 화면을 채우는 크기. 살짝 세로형(실제 사물함 비율)
   function computeCellSize() {
     var stage = document.querySelector(".stage"); if (!stage) return;
     var w = stage.clientWidth, h = stage.clientHeight; if (w < 50 || h < 50) return;
@@ -321,14 +321,20 @@
     var maxCols = 1, maxRows = 1;
     FLOORS.forEach(function (f) { maxCols = Math.max(maxCols, f.cols); maxRows = Math.max(maxRows, f.rows); });
     var gap = 8;
-    var cw = (availW - gap * (maxCols - 1)) / maxCols;
-    var ch = (availH - gap * (maxRows - 1)) / maxRows;
-    var cell = Math.floor(Math.max(30, Math.min(cw, ch)));
-    document.documentElement.style.setProperty("--cell", cell + "px");
+    var cw = Math.floor((availW - gap * (maxCols - 1)) / maxCols);
+    var ch = Math.floor((availH - gap * (maxRows - 1)) / maxRows);
+    cw = Math.max(36, cw);
+    ch = Math.max(40, ch);
+    ch = Math.min(ch, Math.round(cw * 1.8));     // 너무 길쭉하지 않게(살짝 세로형까지만)
+    document.documentElement.style.setProperty("--cell-w", cw + "px");
+    document.documentElement.style.setProperty("--cell-h", ch + "px");
   }
 
+  var lastGridFloor = null;
   function renderGrid() {
     var f = floorById(currentId);
+    var animate = lastGridFloor !== f.id && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    lastGridFloor = f.id; // 층 바뀔 때만 등장 애니메이션
     grid.style.setProperty("--cols", f.cols);
     grid.style.gridAutoRows = "";
     grid.innerHTML = "";
@@ -346,9 +352,16 @@
         el.style.gridColumn = String(it[1]); el.style.gridRow = String(it[2]);
         grid.appendChild(el);
       });
-      return;
+    } else {
+      for (var i = 0; i < f.total; i++) grid.appendChild(makeLockerCell(f, f.start + i));
     }
-    for (var i = 0; i < f.total; i++) grid.appendChild(makeLockerCell(f, f.start + i));
+    if (animate) {
+      var kids = grid.children;
+      for (var k = 0; k < kids.length; k++) {
+        kids[k].style.animation = "lockerIn .36s cubic-bezier(.22,1,.36,1) both";
+        kids[k].style.animationDelay = Math.min(k * 9, 260) + "ms";
+      }
+    }
   }
 
   function renderHeader() {

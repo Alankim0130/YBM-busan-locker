@@ -80,7 +80,9 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .floor-pills .fp-bldg{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;min-width:30px;}
 .floor-pills .fp{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;}
 .floor-pills .fp:hover{border-color:var(--line-strong);color:var(--ink);}
-.floor-pills .fp.active{background:var(--brand);border-color:var(--brand);color:#fff;}
+.floor-pills .fp.active{background:linear-gradient(180deg,#2a3342,var(--brand));border-color:var(--brand-2);color:#fff;box-shadow:0 4px 10px -3px rgba(16,24,40,.4);}
+.floor-pills .fp{transition:transform .12s,background .12s,border-color .12s,box-shadow .12s;}
+.floor-pills .fp:active{transform:scale(.95);}
 .floor-group .fg-meta{margin-left:auto;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink-3);}
 .floor-group .fg-meta b{color:var(--free);}
 .floor-btn{appearance:none;border:1px solid var(--line);background:var(--surface);cursor:pointer;
@@ -119,24 +121,33 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .stage-top{display:flex;align-items:center;justify-content:space-between;padding:20px 28px 8px;gap:12px;}
 .stage-top h2{margin:0;font-family:"Space Grotesk";font-weight:600;font-size:20px;letter-spacing:.01em;}
 .stage-top .sub{display:none;}  /* 사물함 설명줄 숨김(층 칩 공간 확보) */
-.stage{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:14px 24px 18px;}
+.stage{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:16px 24px 20px;
+  background:radial-gradient(120% 80% at 50% -10%, #f4f7fb 0%, var(--bg) 60%);}
 .wall{display:inline-flex;min-width:0;min-height:0;
-  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
-  box-shadow:var(--sh-md);padding:34px 18px 18px;position:relative;}
-.wall::after{content:"WALL";position:absolute;top:13px;left:20px;font-size:9.5px;letter-spacing:.22em;
-  font-weight:700;color:var(--ink-3);opacity:.55;}
+  background:linear-gradient(180deg,#ffffff 0%,#f7f9fc 100%);
+  border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 18px 40px -16px rgba(16,24,40,.28),0 2px 8px rgba(16,24,40,.05),inset 0 1px 0 #fff;
+  padding:36px 20px 20px;position:relative;}
+.wall::after{content:"WALL";position:absolute;top:14px;left:22px;font-size:9.5px;letter-spacing:.24em;
+  font-weight:700;color:var(--ink-3);opacity:.5;}
+.wall::before{content:"";position:absolute;top:13px;right:20px;width:30px;height:5px;border-radius:99px;
+  background:repeating-linear-gradient(90deg,var(--line-strong) 0 4px,transparent 4px 8px);opacity:.7;}
 
-/* 사물함 격자 — 전 층 동일한 고정 칸 크기(--cell). JS가 화면에 맞춰 --cell 계산 */
-.grid{display:grid;gap:8px;grid-template-columns:repeat(var(--cols,6),var(--cell,64px));grid-auto-rows:var(--cell,64px);}
-.locker{position:relative;border-radius:9px;cursor:pointer;border:none;font:inherit;min-height:0;min-width:0;
+/* 사물함 격자 — 전 층 동일 칸 크기(가로 --cell-w / 세로 --cell-h). JS가 화면 맞춰 계산 */
+.grid{display:grid;gap:9px;grid-template-columns:repeat(var(--cols,6),var(--cell-w,64px));grid-auto-rows:var(--cell-h,82px);}
+@keyframes lockerIn{from{opacity:0;transform:translateY(10px) scale(.94);}to{opacity:1;transform:none;}}
+.locker{position:relative;border-radius:11px;cursor:pointer;border:none;font:inherit;min-height:0;min-width:0;
   background:var(--c);overflow:hidden;text-align:left;padding:clamp(6px,1.2vmin,10px) clamp(7px,1.3vmin,11px);
-  display:flex;flex-direction:column;justify-content:space-between;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -3px 0 rgba(0,0,0,.13),0 1px 2px rgba(16,24,40,.10);
-  transition:transform .14s ease,box-shadow .14s ease,filter .14s;}
+  display:flex;flex-direction:column;justify-content:space-between;isolation:isolate;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.32),inset 0 -4px 7px rgba(0,0,0,.16),0 2px 5px rgba(16,24,40,.12);
+  transition:transform .16s cubic-bezier(.22,1,.36,1),box-shadow .16s ease,filter .16s;}
+.locker::before{content:"";position:absolute;inset:0;z-index:-1;
+  background:linear-gradient(160deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,0) 42%,rgba(0,0,0,.10) 100%);}
 .locker .id{font-family:"Space Grotesk";font-weight:700;font-size:clamp(12px,1.9vmin,16px);color:#fff;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.22);}
 .locker .who{font-size:clamp(9px,1.4vmin,12px);color:rgba(255,255,255,.95);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 1px rgba(0,0,0,.18);}
 .locker .handle{position:absolute;right:11px;top:50%;width:13px;height:5px;border-radius:3px;background:rgba(0,0,0,.26);transform:translateY(-50%);}
-.locker:hover{filter:brightness(1.07);transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -3px 0 rgba(0,0,0,.13),var(--sh-md);}
+.locker:hover{filter:brightness(1.05);transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.32),inset 0 -4px 7px rgba(0,0,0,.16),0 9px 20px -5px rgba(16,24,40,.30);}
+.locker:active{transform:translateY(0) scale(.98);}
 .locker:focus-visible{outline:none;}
 .locker.sel,.locker:focus-visible{box-shadow:inset 0 0 0 2px #fff,0 0 0 3px var(--brand),var(--sh-md);transform:translateY(-1px);}
 .locker.movable{box-shadow:inset 0 0 0 2px #fff,0 0 0 3px var(--free);animation:movePulse 1.2s ease-in-out infinite;}
