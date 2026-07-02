@@ -501,10 +501,12 @@
       "</span></div></div>";
     actions.innerHTML =
       '<div class="line"><button class="btn" id="editBtn">정보 수정</button><button class="btn" id="moveBtn">이동하기</button></div>' +
-      '<div class="line"><button class="btn" id="returnBtn">반납 신청 (보증금 환급 대기)</button></div>';
+      '<div class="line"><button class="btn" id="returnBtn">반납 신청 (보증금 환급 대기)</button></div>' +
+      '<div class="line"><button class="btn danger" id="discardBtn">🗑 폐기 진행 (연락두절·미환급)</button></div>';
     $("editBtn").onclick = function () { renderEdit(key); };
     $("moveBtn").onclick = function () { beginMove(key); };
     $("returnBtn").onclick = function () { returnRental(key); };
+    $("discardBtn").onclick = function () { discardRental(key); };
     var cd = $("copyDeadlineBtn"); if (cd) cd.onclick = function () { copyText(dmsg); };
     var cg = $("copyGuideBtn"); if (cg) cg.onclick = function () { copyText(gmsg); };
     var cp = $("copyPhoneBtn"); if (cp) cp.onclick = function () { copyText(r.phone || ""); };
@@ -680,6 +682,22 @@
       logAction(lk && lk.id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", pay_method: r.pay_method || "transfer", refunded: false });
       if (lk) sb.from("lockers").update({ needs_reset: true }).eq("id", lk.id).then(function () {}, function () {});
       toast("반납 신청 접수 · 비밀번호를 1004로 초기화한 뒤 ‘초기화 완료’를 누르세요");
+      reload();
+    });
+  }
+
+  // 연락두절 등으로 내용물 폐기 → 대여 종료(보증금 미환급) + 초기화 필요 + '폐기' 기록
+  function discardRental(key) {
+    var r = RENTALS[key]; if (!r) return;
+    if (!window.confirm(r.name + " 님의 사물함을 폐기 처리합니다.\n\n· 연락두절 등으로 내용물을 폐기합니다.\n· 보증금은 환급하지 않습니다.\n· 사물함은 즉시 비워지고 ‘초기화 필요’ 상태가 됩니다.\n\n진행할까요?")) return;
+    busy(true);
+    var lk = LOCKERS[key];
+    sb.from("rentals").update({ active: false }).eq("id", r.id).then(function (res) {
+      busy(false);
+      if (res.error) { toast("폐기 실패: " + res.error.message); return; }
+      logAction(lk && lk.id, "discard", { student_name: r.name, birth: r.birth || "", phone: r.phone || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", pay_method: r.pay_method || "transfer" });
+      if (lk) sb.from("lockers").update({ needs_reset: true }).eq("id", lk.id).then(function () {}, function () {});
+      toast(r.name + " 님 사물함 폐기 처리 · 비밀번호를 1004로 초기화 후 ‘초기화 완료’를 누르세요");
       reload();
     });
   }
@@ -1276,13 +1294,13 @@
     if (logs) { closeDrawer(); if (moveSourceKey) cancelMove(); $("moveBanner").hidden = true; }
   }
   var logEdit = false, LOGROWS = [], logY = 0, logM = 0, logFilter = "all";
-  var LOGFILTERS = [["all", "전체"], ["rent", "입금"], ["return", "반납"], ["extend", "연장"], ["move", "이동"]];
+  var LOGFILTERS = [["all", "전체"], ["rent", "입금"], ["return", "반납"], ["extend", "연장"], ["move", "이동"], ["discard", "폐기"]];
   var logFmtD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
   var logFmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
   function logYmd(ts) { return logFmtD.format(new Date(ts)); }
   function logHm(ts) { return logFmtT.format(new Date(ts)); }
   function logLocker(l) { if (!l.lockers) return "—"; var f = floorById(l.lockers.floor); return (f ? locLabel(f) : l.lockers.floor + "층") + " " + l.lockers.number + "번"; }
-  var LOGMETA = { rent: { t: "입금", c: "in" }, extend: { t: "연장", c: "ext" }, move: { t: "이동", c: "mv" } };
+  var LOGMETA = { rent: { t: "입금", c: "in" }, extend: { t: "연장", c: "ext" }, move: { t: "이동", c: "mv" }, discard: { t: "폐기", c: "discard" } };
 
   function openLogs() {
     showView("logs");
@@ -1293,7 +1311,7 @@
   function logCleanup() { var d = new Date(); d.setFullYear(d.getFullYear() - 1); return sb.from("rental_logs").delete().lt("created_at", d.toISOString()).then(function(){}, function(){}); }
   function logLoad() {
     sb.from("rental_logs").select("id, action, detail, created_at, lockers(floor, number)")
-      .in("action", ["rent", "return", "extend", "move"]).order("created_at", { ascending: false }).limit(8000)
+      .in("action", ["rent", "return", "extend", "move", "discard"]).order("created_at", { ascending: false }).limit(8000)
       .then(function (res) {
         if (res.error) { $("logTableArea").innerHTML = '<div class="log-empty">기록을 불러오지 못했습니다: ' + esc(res.error.message) + "</div>"; return; }
         LOGROWS = res.data || []; logRender();

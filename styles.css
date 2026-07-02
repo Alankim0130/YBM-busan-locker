@@ -254,6 +254,7 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .log-badge.ext{background:#e6eefb;color:#2f5bc4;}
 .log-badge.mv{background:#eef1f4;color:#586273;}
 .log-badge.pending{background:#fff2d6;color:#9a6a00;}
+.log-badge.discard{background:#fbe3de;color:#b23a22;}
 .log-done{border:1px solid #2f9e6e;background:var(--surface);color:#1d7a54;border-radius:7px;padding:5px 11px;
   font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
 .log-done:hover{background:#eafaf2;}
@@ -274,6 +275,8 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .btn:active{transform:translateY(1px);}
 .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand);box-shadow:var(--sh-sm);}
 .btn.primary:hover{background:var(--brand-2);border-color:var(--brand-2);}
+.btn.danger{color:var(--over);border-color:#e6b8ad;background:var(--surface);}
+.btn.danger:hover{background:#fbe9e5;border-color:var(--over);}
 .btn:disabled{opacity:.45;cursor:not-allowed;}
 .btn.small{padding:8px 12px;font-size:12px;}
 .btn.full{width:100%;justify-content:center;}
