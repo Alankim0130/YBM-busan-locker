@@ -1358,6 +1358,7 @@
       var d = l.detail || {}; var meta = logBadge(l);
       var proc = "";
       if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>' : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
+      else if (l.action === "rent") proc = d.paid_confirmed ? '<span class="proc-done">✓ 입금확인</span>' : '<button class="log-confirm" data-id="' + l.id + '">입금확인</button>';
       var acct = (d.bank || d.refund_account)
         ? '<span class="la-txt">' + esc(d.refund_account || "—") + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
         : '<span class="la-none">—</span>';
@@ -1380,6 +1381,7 @@
     area.innerHTML = html;
     var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
     area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
+    area.querySelectorAll(".log-confirm").forEach(function (b) { b.onclick = function () { logMarkPaid(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText(copyAcct(d.student_name || "", d.bank || "", d.refund_account || "")); }; });
     if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
   }
@@ -1387,6 +1389,15 @@
     if (!l) return; var d = l.detail || {};
     if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n환급계좌: " + (d.refund_account || "-") + "\n\n※ 계좌로 보증금을 입금한 뒤 체크하세요.")) return;
     var nd = {}; for (var k in d) nd[k] = d[k]; nd.refunded = true; nd.refunded_at = new Date().toISOString();
+    sb.from("rental_logs").update({ detail: nd }).eq("id", l.id).then(function (res) {
+      if (res.error) { toast("처리 실패: " + res.error.message); return; }
+      l.detail = nd; logRender();
+    });
+  }
+  function logMarkPaid(l) {
+    if (!l) return; var d = l.detail || {};
+    if (!window.confirm("입금(보증금 수령)을 확인 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + " / " + (d.pay_method === "cash" ? "현금" : "이체"))) return;
+    var nd = {}; for (var k in d) nd[k] = d[k]; nd.paid_confirmed = true; nd.paid_confirmed_at = new Date().toISOString();
     sb.from("rental_logs").update({ detail: nd }).eq("id", l.id).then(function (res) {
       if (res.error) { toast("처리 실패: " + res.error.message); return; }
       l.detail = nd; logRender();

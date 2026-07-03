@@ -258,6 +258,9 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .log-done{border:1px solid #2f9e6e;background:var(--surface);color:#1d7a54;border-radius:7px;padding:5px 11px;
   font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
 .log-done:hover{background:#eafaf2;}
+.log-confirm{border:1px solid var(--focus);background:var(--surface);color:#2b56ad;border-radius:7px;padding:5px 11px;
+  font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
+.log-confirm:hover{background:#eef3fb;}
 .proc-done{color:var(--ink-3);font-size:12px;font-weight:600;white-space:nowrap;}
 .log-del{border:1px solid #e6b8ad;background:var(--surface);color:var(--over);border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
 .log-del:hover{background:#fcefec;}
