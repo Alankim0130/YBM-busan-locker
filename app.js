@@ -1293,7 +1293,7 @@
     $("stageWrap").hidden = logs;
     if (logs) { closeDrawer(); if (moveSourceKey) cancelMove(); $("moveBanner").hidden = true; }
   }
-  var logEdit = false, LOGROWS = [], logY = 0, logM = 0, logFilter = "all";
+  var logEdit = false, LOGROWS = [], logY = 0, logM = 0, logFilter = "all", logSel = {};
   var LOGFILTERS = [["all", "전체"], ["rent", "입금"], ["return", "반납"], ["extend", "연장"], ["move", "이동"], ["discard", "폐기"]];
   var logFmtD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" });
   var logFmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
@@ -1304,6 +1304,7 @@
 
   function openLogs() {
     showView("logs");
+    logSel = {};
     var tp = logYmd(Date.now()).split("-"); logY = +tp[0]; logM = +tp[1];
     $("logTableArea").innerHTML = '<div class="log-empty">불러오는 중…</div>';
     logCleanup().then(logLoad);
@@ -1352,6 +1353,7 @@
     if (logFilter !== "all") rows = rows.filter(function (l) { return l.action === logFilter; });
     if (!rows.length) { area.innerHTML = '<div class="log-empty">' + logY + "년 " + logM + "월 " + (logFilter !== "all" ? "‘" + (LOGFILTERS.filter(function (x) { return x[0] === logFilter; })[0] || ["", ""])[1] + "’ " : "") + "기록이 없습니다.</div>"; return; }
     var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
+      '<th class="c-check"><input type="checkbox" id="logCheckAll" title="이 화면 전체 선택"></th>' +
       "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>결제</th><th>은행</th><th>계좌번호</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
       (logEdit ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
     rows.forEach(function (l) {
@@ -1363,6 +1365,7 @@
         ? '<span class="la-txt">' + esc(d.refund_account || "—") + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
         : '<span class="la-none">—</span>';
       html += "<tr>" +
+        '<td class="c-check"><input type="checkbox" class="log-check" data-id="' + l.id + '"' + (logSel[l.id] ? " checked" : "") + "></td>" +
         '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
         '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
         '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
@@ -1384,6 +1387,41 @@
     area.querySelectorAll(".log-confirm").forEach(function (b) { b.onclick = function () { logMarkPaid(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText(copyAcct(d.student_name || "", d.bank || "", d.refund_account || "")); }; });
     if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
+    var checks = area.querySelectorAll(".log-check");
+    checks.forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute("data-id"); if (cb.checked) logSel[id] = true; else delete logSel[id]; syncCheckAll(); }; });
+    var all = $("logCheckAll");
+    if (all) all.onchange = function () { checks.forEach(function (cb) { cb.checked = all.checked; var id = cb.getAttribute("data-id"); if (all.checked) logSel[id] = true; else delete logSel[id]; }); };
+    syncCheckAll();
+    function syncCheckAll() { if (!all) return; var arr = Array.prototype.slice.call(checks); all.checked = arr.length > 0 && arr.every(function (c) { return c.checked; }); }
+  }
+  // 선택 항목을 [입금]/[반납] 포맷으로 복사
+  function logMd(ts) { var p = logYmd(ts).split("-"); return (+p[1]) + "/" + (+p[2]); }
+  function logBuildReport() {
+    var sel = LOGROWS.filter(function (l) { return logSel[l.id]; });
+    if (!sel.length) { toast("보고할 항목을 체크로 선택하세요."); return; }
+    function byDate(a, b) { return a.created_at < b.created_at ? -1 : (a.created_at > b.created_at ? 1 : 0); }
+    var rent = sel.filter(function (l) { return l.action === "rent"; }).sort(byDate);
+    var ret = sel.filter(function (l) { return l.action === "return"; }).sort(byDate);
+    var out = [];
+    if (rent.length) {
+      out.push("[입금 " + rent.length + "건]");
+      rent.forEach(function (l) { var d = l.detail || {}; out.push("□ " + logMd(l.created_at) + " " + (d.student_name || "") + " " + (d.birth || "")); });
+    }
+    if (ret.length) {
+      if (out.length) out.push("");
+      out.push("[반납 " + ret.length + "건]");
+      ret.forEach(function (l) {
+        var d = l.detail || {};
+        out.push("□ " + logMd(l.created_at) + " " + (d.student_name || "") + " " + (d.birth || ""));
+        var acct = [d.bank, d.refund_account].filter(Boolean).join(" ");
+        if (acct) out.push(acct);
+      });
+    }
+    if (!out.length) { toast("입금·반납 항목을 선택하세요. (연장·이동·폐기는 보고에서 제외)"); return; }
+    var text = out.join("\n");
+    function ok() { toast("입금 " + rent.length + " · 반납 " + ret.length + "건 복사됨"); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () { fallbackCopy(text, ok); });
+    else fallbackCopy(text, ok);
   }
   function logMarkRefunded(l) {
     if (!l) return; var d = l.detail || {};
@@ -1467,6 +1505,7 @@
   $("classEditBtn").onclick = toggleClassEdit;
   $("logBtn").onclick = openLogs;
   $("logBack").onclick = function () { showView("lockers"); };
+  $("logReportBtn").onclick = logBuildReport;
   $("logEditBtn").onclick = function () { logEdit = !logEdit; $("logEditBtn").textContent = logEdit ? "완료" : "편집"; $("logEditBtn").classList.toggle("primary", logEdit); logRender(); };
   $("logPrevY").onclick = function () { logY--; logRender(); };
   $("logNextY").onclick = function () { logY++; logRender(); };

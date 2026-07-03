@@ -197,7 +197,10 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .logs-pane{flex:1;min-height:0;overflow:auto;padding:20px 28px 40px;}
 .logs-pane-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
 .logs-pane-top .lt-left{display:flex;align-items:center;gap:14px;}
+.logs-pane-top .lt-actions{display:flex;align-items:center;gap:8px;}
 .logs-pane-top h2{font-family:"Space Grotesk";font-weight:600;font-size:20px;margin:0;}
+.log-table .c-check{width:34px;text-align:center;padding-left:10px;padding-right:6px;}
+.log-table .c-check input{width:17px;height:17px;cursor:pointer;accent-color:var(--brand);}
 
 /* ===== 신청 기록 페이지 (logs.html) ===== */
 .logpage{max-width:1040px;margin:0 auto;width:100%;padding:22px 24px 70px;}
