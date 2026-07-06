@@ -557,15 +557,14 @@
     var src = LOCKERS[srcKey];
     busy(true);
     sb.from("rentals").update({ locker_id: target.id }).eq("id", r.id).then(function (res) {
-      busy(false);
-      if (res.error) { toast("이동 실패: " + res.error.message); return; }
+      if (res.error) { busy(false); toast("이동 실패: " + res.error.message); return; }
       logAction(target.id, "move", { from: srcKey, to: targetKey, student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", pay_method: r.pay_method || "transfer" });
-      // 출발 사물함은 비밀번호 초기화(1004) 필요 → '초기화 필요' 상태로 둠
-      if (src) sb.from("lockers").update({ needs_reset: true }).eq("id", src.id).then(function () {}, function () {});
       moveSourceKey = null; $("moveBanner").hidden = true;
       var tp = targetKey.split("-"); currentId = parseInt(tp[0], 10);
-      toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료 · 출발 칸은 초기화 필요");
-      reload().then(function () { select(targetKey); });
+      // 출발 칸을 '초기화 필요'로 표시한 뒤 새로고침(그래야 즉시 반영)
+      var setReset = src ? sb.from("lockers").update({ needs_reset: true }).eq("id", src.id) : Promise.resolve({});
+      setReset.then(function () { busy(false); toast(r.name + " 님 → " + locName(currentId) + " No." + pad(parseInt(tp[1], 10)) + " 이동 완료 · 출발 칸은 초기화 필요"); reload().then(function () { select(targetKey); }); },
+        function () { busy(false); reload().then(function () { select(targetKey); }); });
     });
   }
 
@@ -677,13 +676,21 @@
     // 비밀번호 초기화(1004) 전까지 '초기화 필요' 상태로 둠
     var lk = LOCKERS[key];
     sb.from("rentals").update({ active: false }).eq("id", r.id).then(function (res) {
-      busy(false);
-      if (res.error) { toast("반납 신청 실패: " + res.error.message); return; }
+      if (res.error) { busy(false); toast("반납 신청 실패: " + res.error.message); return; }
       logAction(lk && lk.id, "return", { student_name: r.name, birth: r.birth || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", pay_method: r.pay_method || "transfer", refunded: false });
-      if (lk) sb.from("lockers").update({ needs_reset: true }).eq("id", lk.id).then(function () {}, function () {});
-      toast("반납 신청 접수 · 비밀번호를 1004로 초기화한 뒤 ‘초기화 완료’를 누르세요");
-      reload();
+      // 초기화 필요 반영이 끝난 뒤 새로고침(그래야 '빈 공간'이 아닌 '초기화 필요'로 즉시 표시)
+      markResetThen(lk, "반납 신청 접수 · 비밀번호를 1004로 초기화한 뒤 ‘초기화 완료’를 누르세요");
     });
+  }
+  // 사물함을 '초기화 필요'로 표시하고, 커밋 완료 후 새로고침
+  function markResetThen(lk, okMsg) {
+    var p = lk ? sb.from("lockers").update({ needs_reset: true }).eq("id", lk.id) : Promise.resolve({});
+    p.then(function (r2) {
+      busy(false);
+      if (r2 && r2.error) toast(/needs_reset/i.test(r2.error.message || "") ? "스키마 적용 필요: schema.sql(또는 mobile_update.sql)을 실행하세요." : "초기화 필요 표시 실패: " + r2.error.message);
+      else toast(okMsg);
+      reload();
+    }, function () { busy(false); reload(); });
   }
 
   // 연락두절 등으로 내용물 폐기 → 대여 종료(보증금 미환급) + 초기화 필요 + '폐기' 기록
@@ -693,12 +700,9 @@
     busy(true);
     var lk = LOCKERS[key];
     sb.from("rentals").update({ active: false }).eq("id", r.id).then(function (res) {
-      busy(false);
-      if (res.error) { toast("폐기 실패: " + res.error.message); return; }
+      if (res.error) { busy(false); toast("폐기 실패: " + res.error.message); return; }
       logAction(lk && lk.id, "discard", { student_name: r.name, birth: r.birth || "", phone: r.phone || "", class_label: classNameOf(r.class_id), bank: r.bank || "", refund_account: r.refund_account || "", pay_method: r.pay_method || "transfer" });
-      if (lk) sb.from("lockers").update({ needs_reset: true }).eq("id", lk.id).then(function () {}, function () {});
-      toast(r.name + " 님 사물함 폐기 처리 · 비밀번호를 1004로 초기화 후 ‘초기화 완료’를 누르세요");
-      reload();
+      markResetThen(lk, r.name + " 님 사물함 폐기 처리 · 비밀번호를 1004로 초기화 후 ‘초기화 완료’를 누르세요");
     });
   }
 
