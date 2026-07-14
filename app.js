@@ -117,11 +117,21 @@
 
   function deadlineOf(r) {
     if (!r || !r.class_id || !r.started_on) return null;
-    var c = CLASSES_BY_ID[r.class_id];
-    // 6월에 신청 → 6월 종강일을 따름(오늘이 7월이어도 자동으로 안 넘어감). 연장 시 그만큼 다음 달 종강.
-    var cd = closingForKey(c, termKeyFor(r.started_on, r.extended_months || 0));
-    if (!cd) return null;
-    var d = parseDate(cd);
+    var c = CLASSES_BY_ID[r.class_id]; if (!c) return null;
+    var ext = r.extended_months || 0;
+    var cl = c.closings || {};
+    var d;
+    // 1) 연장 후 수업월의 종강일이 '직접' 설정돼 있으면 그걸 사용(정확)
+    var extClosing = cl[termKeyFor(r.started_on, ext)];
+    if (extClosing) {
+      d = parseDate(extClosing);
+    } else {
+      // 2) 없으면: 등록월 종강일(직접값 우선, 없으면 레거시) + 연장개월 → 항상 앞으로 밀림
+      var base = cl[termKeyFor(r.started_on, 0)] || c.closing_date || null;
+      if (!base) return null;
+      d = parseDate(base);
+      if (ext) d.setMonth(d.getMonth() + ext);
+    }
     d.setDate(d.getDate() + GRACE);
     d.setHours(23, 59, 0, 0);
     return d;
@@ -469,7 +479,7 @@
     var forced = isForcedOver(r);
     var dl = forced ? null : deadlineOf(r);
     var dd = forced ? { days: -1, label: "마감됨" } : ddInfo(dl);
-    var termM = r.started_on ? (+termKeyFor(r.started_on, r.extended_months || 0).slice(5, 7)) : 0; // 적용 수업 월
+    var termM = r.started_on ? (+termKeyFor(r.started_on, 0).slice(5, 7)) : 0; // 등록(수업) 월
     var note = forced ? (termM + "월 수업(과거) · 종강일 미설정이라 마감 처리되었습니다. 계속 쓰려면 ‘연장하기’로 다음 달로 옮기거나, 반납·환급을 처리하세요.")
       : s === "over" ? "마감일이 지났습니다. 학생에게 연락해 연장 의사를 확인하거나 반납·보증금 환급을 처리하세요."
       : !dl ? (termM ? termM + "월 수업 종강일이 아직 입력되지 않았습니다. ‘반 관리’ 상단에서 " + termM + "월을 골라 종강일을 넣으세요." : "이 반의 종강일이 아직 입력되지 않았습니다.")
@@ -1009,10 +1019,10 @@
         '<div class="req-pay"><span class="rqp-label">보증금</span>' + payToggleHTML("rqpay-" + q.id, "transfer") + "</div>" +
         '<div class="req-act"><select class="selfield rq-class">' + classOptionsHTML("") + "</select>" +
         '<button class="btn primary rq-accept">수락</button><button class="btn rq-reject">거절</button></div>';
-      bindPayToggle("rqpay-" + q.id);
       card.querySelector(".rq-accept").onclick = function () { acceptReq(q, card.querySelector(".rq-class").value, payToggleVal("rqpay-" + q.id)); };
       card.querySelector(".rq-reject").onclick = function () { rejectReq(q); };
       list.appendChild(card);
+      bindPayToggle("rqpay-" + q.id); // DOM 추가 후 연결(그래야 현금/이체 버튼이 눌림)
     });
   }
   function acceptReq(q, classId, pay) {
