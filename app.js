@@ -698,7 +698,7 @@
     p.then(function (r2) {
       busy(false);
       if (r2 && r2.error) toast(/needs_reset/i.test(r2.error.message || "") ? "스키마 적용 필요: schema.sql(또는 mobile_update.sql)을 실행하세요." : "초기화 필요 표시 실패: " + r2.error.message);
-      else toast(okMsg);
+      else { if (lk) lk.needs_reset = true; toast(okMsg); }  // 메모리에도 즉시 반영 → realtime 지연과 무관하게 바로 '초기화 필요' 표시
       reload();
     }, function () { busy(false); reload(); });
   }
@@ -1187,7 +1187,8 @@
     });
   }
   function reload() {
-    return Promise.all([loadClasses(), loadRentals()]).then(function () {
+    // lockers(초기화 필요/고장 등)도 함께 다시 읽어야 함 — realtime 이벤트가 지연/유실돼도 상태가 정확히 반영됨
+    return Promise.all([loadLockers(), loadClasses(), loadRentals()]).then(function () {
       renderAll(); renderDashIfOpen(); if ($("classView").classList.contains("open")) renderClasses();
     }).catch(function (e) { toast("데이터 로드 실패: " + (e.message || e)); });
   }
