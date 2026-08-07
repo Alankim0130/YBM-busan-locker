@@ -53,11 +53,11 @@
 
   /* ---------- 실제 층 구성 ---------- */
   var FLOORS = [
-    { id: 1, name: "1층", building: "1관", cols: 6, rows: 5, start: 1,   tallCount: 0 },
-    { id: 2, name: "2층", building: "1관", cols: 5, rows: 5, start: 31,  tallCount: 0 },
-    { id: 3, name: "3층", building: "1관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
-    { id: 4, name: "4층", building: "1관", cols: 3, rows: 6, start: 92,  tallCount: 0 },
-    { id: 7, name: "7층", building: "1관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+    { id: 1, name: "1층", building: "본관", cols: 6, rows: 5, start: 1,   tallCount: 0 },
+    { id: 2, name: "2층", building: "본관", cols: 5, rows: 5, start: 31,  tallCount: 0 },
+    { id: 3, name: "3층", building: "본관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
+    { id: 4, name: "4층", building: "본관", cols: 3, rows: 6, start: 92,  tallCount: 0 },
+    { id: 7, name: "7층", building: "본관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
     // 2관 3층: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
     { id: 8, name: "3층", building: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
       custom: {

@@ -203,11 +203,11 @@
     var sb = window.supabase.createClient(URL, KEY);
 
     var FLOORS = [
-      { id: 1, name: "1관 1층", cols: 6, rows: 5, start: 1,   tallCount: 0 },
-      { id: 2, name: "1관 2층", cols: 5, rows: 5, start: 31,  tallCount: 0 },
-      { id: 3, name: "1관 3층", cols: 6, rows: 6, start: 56,  tallCount: 6 },
-      { id: 4, name: "1관 4층", cols: 3, rows: 6, start: 92,  tallCount: 0 },
-      { id: 7, name: "1관 7층", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+      { id: 1, name: "본관 1층", cols: 6, rows: 5, start: 1,   tallCount: 0 },
+      { id: 2, name: "본관 2층", cols: 5, rows: 5, start: 31,  tallCount: 0 },
+      { id: 3, name: "본관 3층", cols: 6, rows: 6, start: 56,  tallCount: 6 },
+      { id: 4, name: "본관 4층", cols: 3, rows: 6, start: 92,  tallCount: 0 },
+      { id: 7, name: "본관 7층", cols: 6, rows: 6, start: 1,   tallCount: 6 },
       // 2관: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
       { id: 8, name: "2관 3층", cols: 3, rows: 5, start: 110, tallCount: 0,
         custom: {
