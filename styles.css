@@ -384,17 +384,17 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .card pre{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:13px;font-size:12px;font-family:"JetBrains Mono",monospace;overflow:auto;line-height:1.6;color:var(--ink);}
 
 /* ===== 대시보드 ===== */
-.dash-card{width:760px;max-width:100%;}
+.dash-card{width:600px;max-width:100%;}
+.dl-card{width:880px;max-width:100%;}   /* 갱신 마감 대시보드만 넓게(열이 많음) */
 .dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
 .dash-list{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow:auto;}
-.dash-row{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);
+.dash-row{display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid var(--line);
   border-radius:var(--r);padding:11px 14px;cursor:pointer;transition:border-color .15s,background .15s;}
 .dash-row:hover{border-color:var(--line-strong);background:var(--surface);}
 .dash-row .ds-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
 .dash-row .ds-loc{font-family:"Space Grotesk";font-weight:600;font-size:14px;min-width:100px;}
-/* 이름은 늘리지 않음 — 등록 월 배지를 이름 바로 옆에 붙이고, 남는 폭은 전화번호가 흡수 */
-.dash-row .ds-name{flex:0 0 auto;font-size:13.5px;font-weight:500;min-width:58px;}
-.dash-row .ds-phone{flex:1;font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--ink-2);min-width:118px;}
+.dash-row .ds-name{flex:1;font-size:13.5px;font-weight:500;min-width:60px;}
+.dash-row .ds-phone{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--ink-2);min-width:120px;}
 .dash-row .ds-dd{font-family:"Space Grotesk";font-weight:700;font-size:13px;}
 .dash-row .ds-sms{flex-shrink:0;padding:7px 12px;font-size:12px;}
 /* 등록 월(신청한 달) 배지 */
@@ -418,6 +418,17 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .dash-filter .df-chip b{font-family:"Space Grotesk";font-weight:700;color:var(--ink-3);margin-left:2px;}
 .dash-filter .df-chip.active{background:var(--brand);border-color:var(--brand);color:#fff;}
 .dash-filter .df-chip.active b{color:#a9b4c4;}
+/* PC: 마감 대시보드 행만 표 형태로 — 열이 세로로 딱 맞게 그리드 고정
+   (이름 칸이 남는 폭을 흡수하므로 모든 행에서 열 위치가 동일) */
+@media (min-width:861px){
+  .dash-row.dl-row{display:grid;align-items:center;
+    grid-template-columns:10px 112px minmax(0,1fr) 116px 118px 96px auto auto;}
+  .dash-row.dl-row .ds-loc,
+  .dash-row.dl-row .ds-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dash-row.dl-row .ds-month{justify-self:start;}   /* 배지 왼쪽 끝을 일렬로 */
+  .dash-row.dl-row .ds-phone{flex:none;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dash-row.dl-row .ds-dd{justify-self:end;}        /* D-day 오른쪽 끝을 일렬로 */
+}
 /* 학생 검색 결과(2줄: 정보 + 계좌·복사) */
 .search-row{align-items:stretch;}
 .search-row .sr-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;}
@@ -536,11 +547,11 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .move-banner{margin:10px 14px 0;}
 
   /* 갱신 마감 대시보드: 좁은 화면에서는 한 줄에 다 못 넣으므로 줄바꿈 */
-  .dash-row{flex-wrap:wrap;gap:7px 10px;}
-  .dash-row .ds-name{flex:0 1 auto;}
-  .dash-row .ds-loc{min-width:0;}
-  .dash-row .ds-phone{flex:0 1 auto;min-width:0;}   /* 좁은 화면에선 늘리지 않음(줄바꿈이 우선) */
-  .dash-row .ds-plan{margin-left:auto;}
+  .dash-row.dl-row{flex-wrap:wrap;gap:7px 10px;}
+  .dash-row.dl-row .ds-name{flex:0 1 auto;}
+  .dash-row.dl-row .ds-loc{min-width:0;}
+  .dash-row.dl-row .ds-phone{flex:0 1 auto;min-width:0;}   /* 좁은 화면에선 늘리지 않음(줄바꿈이 우선) */
+  .dash-row.dl-row .ds-plan{margin-left:auto;}
 
   /* 상세 패널: 전체폭 슬라이드 */
   .drawer{width:100%;max-width:100%;}

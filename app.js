@@ -1165,7 +1165,7 @@
       var st = STATE[it.s];
       var planned = !!it.r.contact_planned;
       var row = document.createElement("div");
-      row.className = "dash-row";
+      row.className = "dash-row dl-row";   // dl-row: PC에서 열 맞춤(그리드) 적용
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
         '<span class="ds-loc">' + locLabel(it.f) + " No." + pad(it.n) + "</span>" +
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
