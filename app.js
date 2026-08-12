@@ -1052,6 +1052,17 @@
   }
 
   /* ---------- 갱신 마감 대시보드 ---------- */
+  var dashMonth = "all";   // 등록 월 필터 — "all" 또는 "YYYY-MM"(등록일 없으면 "none")
+
+  // 등록 월(사물함을 신청한 달) — 연장과 무관하게 최초 등록일 기준
+  function regMonthKey(r) { return (r && r.started_on) ? termKeyFor(r.started_on, 0) : "none"; }
+  function monthLabel(key) {
+    var p = String(key).split("-"), y = +p[0], m = +p[1];
+    return (y === NOW.getFullYear()) ? (m + "월") : (String(y).slice(2) + "년 " + m + "월");
+  }
+  function monthChipLabel(k) { return k === "none" ? "등록일 미상" : monthLabel(k); }
+  function monthRowLabel(k) { return k === "none" ? "등록일 미상" : monthLabel(k) + " 등록"; }
+
   function openDash() { renderDash(); $("dashView").classList.add("open"); }
   function closeDash() { $("dashView").classList.remove("open"); }
   function renderDashIfOpen() { if ($("dashView").classList.contains("open")) renderDash(); }
@@ -1095,14 +1106,15 @@
     });
   }
 
-  function renderDash() {
+  // 마감됨 / 마감 임박 사물함 목록(필터 적용 전)
+  function dashItems() {
     var items = [];
     FLOORS.forEach(function (f) {
       for (var n = f.start; n <= f.end; n++) {
         var key = keyOf(f, n); var r = RENTALS[key]; if (!r) continue;
         var s = statusOf(r); var dd = ddInfo(deadlineOf(r));
         if (s === "over" || (dd.days !== null && dd.days <= SOON)) {
-          items.push({ key: key, f: f, n: n, r: r, s: s, days: dd.days, label: dd.label });
+          items.push({ key: key, f: f, n: n, r: r, s: s, days: dd.days, label: dd.label, mkey: regMonthKey(r) });
         }
       }
     });
@@ -1110,25 +1122,90 @@
       var da = a.days === null ? 9999 : a.days, db = b.days === null ? 9999 : b.days;
       return da - db; // 마감 임박/경과 순
     });
-    $("dashLead").textContent = "마감됨 또는 마감 " + SOON + "일 이내 · " + items.length + "건 (연락이 필요한 사물함)";
+    return items;
+  }
+
+  // 등록 월 필터 칩 — 목록에 실제로 있는 달만 표시
+  function renderDashFilter(all) {
+    var box = $("dashFilter"); if (!box) return;
+    var keys = [], cnt = {};
+    all.forEach(function (it) {
+      if (cnt[it.mkey] === undefined) { cnt[it.mkey] = 0; keys.push(it.mkey); }
+      cnt[it.mkey]++;
+    });
+    keys.sort();   // 오래된 달 → 최근 달
+    if (dashMonth !== "all" && cnt[dashMonth] === undefined) dashMonth = "all";  // 고른 달이 비면 전체로
+    box.hidden = !all.length;
+    var html = '<button class="df-chip' + (dashMonth === "all" ? " active" : "") + '" data-m="all">전체 <b>' + all.length + "</b></button>";
+    keys.forEach(function (k) {
+      html += '<button class="df-chip' + (dashMonth === k ? " active" : "") + '" data-m="' + esc(k) + '">' +
+        esc(monthChipLabel(k)) + " <b>" + cnt[k] + "</b></button>";
+    });
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll(".df-chip"), function (b) {
+      b.addEventListener("click", function () { dashMonth = b.getAttribute("data-m"); renderDash(); });
+    });
+  }
+
+  function renderDash() {
+    var all = dashItems();
+    renderDashFilter(all);
+    var items = dashMonth === "all" ? all : all.filter(function (it) { return it.mkey === dashMonth; });
+    $("dashLead").textContent = "마감됨 또는 마감 " + SOON + "일 이내 · " + all.length + "건 (연락이 필요한 사물함)" +
+      (dashMonth === "all" ? "" : " · " + monthChipLabel(dashMonth) + " 등록 " + items.length + "건 보는 중");
     var list = $("dashList");
-    if (!items.length) { list.innerHTML = '<div class="dash-empty">연락이 필요한 사물함이 없습니다. 모두 정상입니다.</div>'; return; }
+    if (!items.length) {
+      list.innerHTML = '<div class="dash-empty">' +
+        (all.length ? esc(monthChipLabel(dashMonth)) + "에 등록한 사물함이 없습니다."
+                    : "연락이 필요한 사물함이 없습니다. 모두 정상입니다.") + "</div>";
+      return;
+    }
     list.innerHTML = "";
     items.forEach(function (it) {
       var st = STATE[it.s];
+      var planned = !!it.r.contact_planned;
       var row = document.createElement("div");
       row.className = "dash-row";
       row.innerHTML = '<span class="ds-dot" style="background:' + st.color + '"></span>' +
         '<span class="ds-loc">' + locLabel(it.f) + " No." + pad(it.n) + "</span>" +
         '<span class="ds-name">' + esc(it.r.name) + "</span>" +
+        '<span class="ds-month">' + esc(monthRowLabel(it.mkey)) + "</span>" +
         '<span class="ds-phone">' + (it.r.phone ? esc(it.r.phone) : "전화 미입력") + "</span>" +
         '<span class="ds-dd" style="color:' + st.color + '">' + it.label + "</span>" +
-        '<button class="btn small ds-sms">복사</button>';
+        '<button class="btn small ds-sms">복사</button>' +
+        '<label class="ds-plan' + (planned ? " planned" : "") + '">' +
+          '<input type="checkbox"' + (planned ? " checked" : "") + '><span>연락예정</span></label>';
       row.onclick = function () { currentId = it.f.id; closeDash(); showView("lockers"); renderAll(); select(it.key); };
       var cbtn = row.querySelector(".ds-sms");
       cbtn.addEventListener("click", function (ev) { ev.stopPropagation(); copyText(contactMsg(it.r, it.f.id, it.n)); });
+      var plan = row.querySelector(".ds-plan");
+      plan.addEventListener("click", function (ev) { ev.stopPropagation(); });   // 체크만 하고 사물함 화면으로 넘어가지 않게
+      plan.querySelector("input").addEventListener("change", function (ev) {
+        var on = ev.target.checked;
+        plan.classList.toggle("planned", on);
+        setContactPlanned(it.r, on, ev.target, plan);
+      });
       list.appendChild(row);
     });
+  }
+
+  // '연락예정' 체크 저장 — 직원 모두가 공유(실패하면 체크를 원래대로 되돌림)
+  function setContactPlanned(r, val, box, lab) {
+    var prev = !!r.contact_planned;
+    r.contact_planned = val;   // 응답을 기다리지 않고 화면에 먼저 반영
+    function revert(msg) {
+      r.contact_planned = prev;
+      if (box) box.checked = prev;
+      if (lab) lab.classList.toggle("planned", prev);
+      toast(msg);
+    }
+    sb.from("rentals").update({ contact_planned: val }).eq("id", r.id).then(function (res) {
+      if (res.error) {
+        revert(/contact_planned/i.test(res.error.message || "")
+          ? "스키마 적용 필요: mobile_update.sql 을 실행해 주세요."
+          : "연락예정 저장 실패: " + res.error.message);
+      }
+    }, function () { revert("연락예정 저장 실패 — 잠시 후 다시 시도해 주세요."); });
   }
 
   /* ---------- 데이터 로드 ---------- */
@@ -1163,7 +1240,7 @@
     });
   }
   function loadRentals() {
-    var cols = "id, student_name, phone, birth, class_id, extended_months, bank, refund_account, pay_method, started_on, deposit_held, lockers(floor, number)";
+    var cols = "id, student_name, phone, birth, class_id, extended_months, bank, refund_account, pay_method, contact_planned, started_on, deposit_held, lockers(floor, number)";
     var safeCols = "id, student_name, phone, birth, class_id, extended_months, refund_account, started_on, deposit_held, lockers(floor, number)";
     function build(res) {
       if (res.error) throw res.error;
@@ -1173,14 +1250,14 @@
         RENTALS[row.lockers.floor + "-" + row.lockers.number] = {
           id: row.id, name: row.student_name, phone: row.phone, birth: row.birth, class_id: row.class_id,
           extended_months: row.extended_months || 0, bank: row.bank, refund_account: row.refund_account,
-          pay_method: row.pay_method || "transfer",
+          pay_method: row.pay_method || "transfer", contact_planned: !!row.contact_planned,
           started_on: row.started_on, deposit_held: row.deposit_held
         };
       });
     }
     return sb.from("rentals").select(cols).eq("active", true).then(function (res) {
-      // bank/pay_method 컬럼이 아직 없으면(스키마 미적용) 빼고 재시도해 앱이 죽지 않게 함
-      if (res.error && /bank|pay_method/i.test(res.error.message || "")) {
+      // bank/pay_method/contact_planned 컬럼이 아직 없으면(스키마 미적용) 빼고 재시도해 앱이 죽지 않게 함
+      if (res.error && /bank|pay_method|contact_planned/i.test(res.error.message || "")) {
         return sb.from("rentals").select(safeCols).eq("active", true).then(build);
       }
       return build(res);

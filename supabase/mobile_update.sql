@@ -8,6 +8,7 @@ alter table classes  add column if not exists closings jsonb default '{}'::jsonb
 alter table rentals  add column if not exists bank text;                            -- 은행
 alter table rentals  add column if not exists refund_account text;                  -- 환급 계좌
 alter table rentals  add column if not exists pay_method text default 'transfer';   -- 이체/현금
+alter table rentals  add column if not exists contact_planned boolean default false; -- 연락예정 체크
 alter table requests add column if not exists bank text;                            -- 신청 은행
 
 -- 학생용 공개 뷰: 초기화 필요는 학생에게 '사용중'으로 보이게 occupied 에 포함

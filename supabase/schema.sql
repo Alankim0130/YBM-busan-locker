@@ -50,6 +50,7 @@ alter table rentals add column if not exists extended_months int default 0;  -- 
 alter table rentals add column if not exists refund_account text;     -- 보증금 환급받을 계좌
 alter table rentals add column if not exists bank text;               -- 환급 은행 이름
 alter table rentals add column if not exists pay_method text default 'transfer';  -- 보증금 입금 방법: transfer(이체) / cash(현금)
+alter table rentals add column if not exists contact_planned boolean default false;  -- 갱신 마감 대시보드 '연락예정' 체크(직원 공유)
 alter table lockers add column if not exists broken boolean default false;   -- 고장 표시(기존 설치 업그레이드용)
 alter table classes add column if not exists closings jsonb default '{}'::jsonb;  -- 월별 종강일(기존 설치 업그레이드용)
 alter table lockers add column if not exists needs_reset boolean default false;   -- 초기화 필요(기존 설치 업그레이드용)
