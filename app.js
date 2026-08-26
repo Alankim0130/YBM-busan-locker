@@ -1521,9 +1521,15 @@
       var proc = "";
       if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>' : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
       else if (l.action === "rent") proc = d.paid_confirmed ? '<span class="proc-done">✓ 입금확인</span>' : '<button class="log-confirm" data-id="' + l.id + '">입금확인</button>';
-      var acct = (d.bank || d.refund_account)
-        ? '<span class="la-txt">' + esc(d.refund_account || "—") + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
-        : '<span class="la-none">—</span>';
+      // 편집 모드에서는 은행·계좌를 눌러 바로 수정, 평소에는 읽기 전용 + 복사
+      var bankCell = logEdit
+        ? '<button class="acct-btn' + (d.bank ? "" : " empty") + '" data-id="' + l.id + '" title="은행·계좌 수정">' + esc(d.bank || "＋ 입력") + "</button>"
+        : esc(d.bank || "—");
+      var acct = logEdit
+        ? '<button class="acct-btn' + (d.refund_account ? "" : " empty") + '" data-id="' + l.id + '" title="은행·계좌 수정">' + esc(d.refund_account || "＋ 입력") + "</button>"
+        : ((d.bank || d.refund_account)
+            ? '<span class="la-txt">' + esc(d.refund_account || "—") + '</span><button class="la-copy" data-id="' + l.id + '">복사</button>'
+            : '<span class="la-none">—</span>');
       html += "<tr>" +
         '<td class="c-check"><input type="checkbox" class="log-check" data-id="' + l.id + '"' + (logSel[l.id] ? " checked" : "") + "></td>" +
         '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
@@ -1531,7 +1537,7 @@
         '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
         "<td>" + esc(d.class_label || "") + "</td>" +
         '<td class="c-memo">' + memoCell(l) + "</td>" +
-        "<td>" + esc(d.bank || "—") + "</td>" +
+        "<td>" + bankCell + "</td>" +
         '<td class="c-acct">' + acct + "</td>" +
         '<td class="c-locker">' + esc(logLocker(l)) + "</td>" +
         '<td class="c-mono">' + logYmd(l.created_at).replace(/-/g, ".") + "</td>" +
@@ -1554,6 +1560,7 @@
       };
     });
     if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
+    area.querySelectorAll(".acct-btn").forEach(function (b) { b.onclick = function () { openAcct(byId[b.getAttribute("data-id")]); }; });
     var checks = area.querySelectorAll(".log-check");
     checks.forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute("data-id"); if (cb.checked) logSel[id] = true; else delete logSel[id]; syncCheckAll(); }; });
     var all = $("logCheckAll");
@@ -1660,6 +1667,67 @@
         reload();
       });
     }, function () { busy(false); toast("이름 수정 실패"); });
+  }
+
+  /* ---------- 은행 · 환급 계좌 수정 (연동: 기록 + 사물함 + 신청대기) ---------- */
+  var acctCtx = null;   // { name, birth }
+  function openAcct(l) {
+    var d = l.detail || {};
+    var name = String(d.student_name || "").trim();
+    if (!name) { toast("이름이 없는 기록은 계좌를 수정할 수 없습니다."); return; }
+    acctCtx = { name: name, birth: String(d.birth || "").trim() };
+    $("acctWho").textContent = name + (acctCtx.birth ? " · " + acctCtx.birth : "") + " · 보증금 환급 계좌";
+    $("acctBank").value = d.bank || "";
+    $("acctNo").value = d.refund_account || "";
+    $("acctErr").textContent = "";
+    $("acctView").classList.add("open");
+    setTimeout(function () { $("acctBank").focus(); }, 40);
+  }
+  function closeAcct() { $("acctView").classList.remove("open"); acctCtx = null; }
+  function saveAcct() {
+    if (!acctCtx) return;
+    var name = acctCtx.name, birth = acctCtx.birth;
+    var bank = $("acctBank").value.trim(), no = $("acctNo").value.trim();
+    // 영향 범위 집계
+    var logs = LOGROWS.filter(function (x) {
+      var dd = x.detail || {};
+      return String(dd.student_name || "").trim() === name && String(dd.birth || "").trim() === birth;
+    });
+    var lockers = Object.keys(RENTALS).filter(function (k) {
+      var r = RENTALS[k];
+      return String(r.name || "").trim() === name && String(r.birth || "").trim() === birth;
+    });
+    if (!window.confirm(
+      name + " 님의 환급 계좌를 바꿉니다.\n\n· 은행: " + (bank || "(비움)") + "\n· 계좌번호: " + (no || "(비움)") + "\n" +
+      (birth ? "" : "\n※ 생년월일이 없어, 이름이 같은 기록이 모두 바뀝니다.\n") +
+      "\n· 신청 기록 " + logs.length + "건\n· 사용 중인 사물함 " + lockers.length + "건\n\n계속할까요?")) return;
+    var btn = $("acctSave"); btn.disabled = true; btn.textContent = "저장 중…";
+    var patch = { bank: bank || null, refund_account: no || null };
+    var rq = sb.from("rentals").update(patch).eq("student_name", name);
+    if (birth) rq = rq.eq("birth", birth);
+    var qq = sb.from("requests").update(patch).eq("student_name", name);
+    if (birth) qq = qq.eq("birth", birth);
+    Promise.all([rq, qq]).then(function (rs) {
+      var err = rs.filter(function (r) { return r && r.error; })[0];
+      if (err) { btn.disabled = false; btn.textContent = "저장"; $("acctErr").textContent = "저장 실패: " + err.error.message; return; }
+      // 신청 기록은 detail(jsonb) 안이라 건별 수정 — 보고서·복사 문구도 이 값을 씀
+      return sb.from("rental_logs").select("id, detail").filter("detail->>student_name", "eq", name).limit(8000)
+        .then(function (res) {
+          var jobs = [];
+          (res.error ? [] : (res.data || [])).forEach(function (x) {
+            var dd = x.detail || {};
+            if (String(dd.birth == null ? "" : dd.birth).trim() !== birth) return;   // 동명이인 보호
+            jobs.push(sb.from("rental_logs").update({ detail: Object.assign({}, dd, { bank: bank, refund_account: no }) }).eq("id", x.id));
+          });
+          return Promise.all(jobs).then(function () { return jobs.length; });
+        })
+        .then(function (n) {
+          btn.disabled = false; btn.textContent = "저장";
+          closeAcct();
+          toast("계좌를 수정했습니다 · 신청 기록 " + n + "건 포함");
+          logLoad(); reload();
+        });
+    }, function () { btn.disabled = false; btn.textContent = "저장"; $("acctErr").textContent = "저장에 실패했습니다. 잠시 후 다시 시도해 주세요."; });
   }
 
   function logMarkRefunded(l) {
@@ -1785,6 +1853,9 @@
   $("snoteSave").onclick = saveSNote;
   $("snoteCancel").onclick = closeSNote;
   $("snoteView").onclick = function (e) { if (e.target === $("snoteView")) closeSNote(); };
+  $("acctSave").onclick = saveAcct;
+  $("acctCancel").onclick = closeAcct;
+  $("acctView").onclick = function (e) { if (e.target === $("acctView")) closeAcct(); };
   $("noticeAddBtn").onclick = openNotice;
   $("noticeMoreBtn").onclick = openNoticeAll;
   $("noticeAllClose").onclick = closeNoticeAll;

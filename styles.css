@@ -255,6 +255,12 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .log-table .c-memo .memo-btn:hover{border-color:var(--focus);color:var(--focus);background:#f4f8ff;}
 .log-table .c-memo .memo-btn.has{border-style:solid;border-color:#f0d488;background:#fdf6e3;color:#8a6d1f;}
 .log-table .c-memo .memo-btn.has:hover{border-color:#e0a100;color:#6f5716;}
+/* 편집 모드: 은행·계좌 바로 수정 */
+.log-table .acct-btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
+  border-radius:7px;padding:4px 9px;font:inherit;font-size:12.5px;cursor:pointer;max-width:170px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:background .15s,border-color .15s,color .15s;}
+.log-table .acct-btn:hover{border-color:var(--focus);color:var(--focus);background:#f4f8ff;}
+.log-table .acct-btn.empty{border-style:dashed;color:var(--ink-3);}
 /* 메모 편집 창 */
 .snote-meta{margin:8px 0 0;font-size:11.5px;color:var(--ink-3);min-height:16px;}
 /* 상세 패널 메모 */

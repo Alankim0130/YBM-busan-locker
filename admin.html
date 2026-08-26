@@ -259,6 +259,23 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
     </div>
   </div>
 
+  <!-- 은행 · 환급 계좌 수정 -->
+  <div class="overlay" id="acctView">
+    <div class="card">
+      <h2>💳 환급 계좌 수정</h2>
+      <p class="lead" id="acctWho">—</p>
+      <label class="fl">은행</label>
+      <input id="acctBank" placeholder="예: 카카오뱅크" />
+      <label class="fl">계좌번호</label>
+      <input id="acctNo" placeholder="숫자만 입력 (예: 333332702472)" inputmode="numeric" />
+      <p class="err" id="acctErr"></p>
+      <div class="modal-actions">
+        <button class="btn primary" id="acctSave">저장</button>
+        <button class="btn" id="acctCancel">취소</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 특별공지 작성 -->
   <div class="overlay" id="noticeView">
     <div class="card">
