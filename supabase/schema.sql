@@ -181,6 +181,26 @@ create policy "notices_delete" on notices for delete to authenticated using (tru
 do $$ begin alter publication supabase_realtime add table notices; exception when duplicate_object then null; end $$;
 
 -- ============================================================
+-- 학생 개인별 메모 (직원끼리 공유) — 이름 + 생년월일 로 한 사람을 식별
+-- 사물함을 반납하고 다시 신청해도 메모는 그대로 남습니다.
+-- ============================================================
+create table if not exists student_notes (
+  id           bigint generated always as identity primary key,
+  student_name text not null,
+  birth        text not null default '',   -- 6자리(YYMMDD). 없으면 빈 문자열
+  body         text not null default '',
+  updated_by   text,                       -- 마지막으로 저장한 직원 표시 이름
+  updated_at   timestamptz default now(),
+  unique (student_name, birth)
+);
+
+alter table student_notes enable row level security;
+drop policy if exists "snotes_all" on student_notes;
+create policy "snotes_all" on student_notes for all to authenticated using (true) with check (true);
+
+do $$ begin alter publication supabase_realtime add table student_notes; exception when duplicate_object then null; end $$;
+
+-- ============================================================
 -- 앱 설정 (편집 가능한 문구 등) — 사물함 이용 안내(초기 비밀번호/변경 방법)
 -- ============================================================
 create table if not exists app_settings (

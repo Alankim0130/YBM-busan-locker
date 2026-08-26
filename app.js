@@ -492,6 +492,7 @@
       ? esc(r.phone) + ' <button class="btn small" id="copyPhoneBtn" style="padding:4px 9px;font-size:11px;margin-left:6px;">복사</button>'
       : "—";
     var ext = r.extended_months || 0;
+    var memoTxt = snoteBody(r.name, r.birth);
     body.innerHTML = '<span class="badge" style="background:' + st.color + '"><span class="bd"></span>' + st.label + "</span>" +
       '<div class="field"><label>대여자</label><div class="v">' + esc(r.name) + "</div></div>" +
       '<div class="field"><label>생년월일</label><div class="v mono">' + (r.birth ? esc(r.birth) : "—") + "</div></div>" +
@@ -501,6 +502,9 @@
       '<div class="field"><label>반</label><div class="v">' + esc(classLabel(r)) + "</div></div>" +
       '<div class="field"><label>등록일</label><div class="v mono">' + fmtDate(r.started_on) + "</div></div>" +
       '<div class="field"><label>보증금</label><div class="v">' + (r.deposit_held ? "10,000원 수령 · 반납 시 환급" : "미수령") + ' <span class="pay-tag ' + (r.pay_method === "cash" ? "cash" : "") + '">' + payLabel(r.pay_method) + "</span></div></div>" +
+      '<div class="field"><label>메모 (직원 공유)</label><div class="memo-box">' +
+        (memoTxt ? '<div class="memo-txt">' + esc(memoTxt) + "</div>" : '<div class="memo-none">아직 메모가 없습니다.</div>') +
+        '<button class="btn small" id="memoBtn">' + (memoTxt ? "메모 수정" : "＋ 메모 쓰기") + "</button></div></div>" +
       '<div class="field"><label>이용 안내 (비밀번호)</label><div class="contact-row">' + guideContact + '</div><div class="guide-prev">' + esc(GUIDE) + "</div></div>" +
       '<div class="field"><label>마감 안내</label><div class="contact-row">' + deadlineContact + "</div></div>" +
       '<div class="deadline-box"><div class="top"><span style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)">마감일 (' + (termM ? termM + "월 수업 " : "") + '종강 + 15일' + (ext ? " + 연장 " + ext + "개월" : "") + ')</span>' +
@@ -517,6 +521,7 @@
     $("moveBtn").onclick = function () { beginMove(key); };
     $("returnBtn").onclick = function () { returnRental(key); };
     $("discardBtn").onclick = function () { discardRental(key); };
+    var mb2 = $("memoBtn"); if (mb2) mb2.onclick = function () { openSNote(r.name, r.birth, function () { renderDrawer(); }); };
     var cd = $("copyDeadlineBtn"); if (cd) cd.onclick = function () { copyText(dmsg); };
     var cg = $("copyGuideBtn"); if (cg) cg.onclick = function () { copyText(gmsg); };
     var cp = $("copyPhoneBtn"); if (cp) cp.onclick = function () { copyText(r.phone || ""); };
@@ -630,6 +635,7 @@
   function editRental(key, name, phone, classId, birth, account, bank, date, pay) {
     var r = RENTALS[key]; if (!r) return;
     pay = pay || r.pay_method || "transfer";
+    var oldName = r.name, oldBirth = r.birth || "";   // 이름/생년월일이 바뀌면 기록·메모까지 따라가야 함
     busy(true);
     sb.from("rentals").update({ student_name: name, phone: phone || null, birth: birth || null, bank: bank || null, refund_account: account || null, pay_method: pay, class_id: classId ? Number(classId) : null, started_on: date || r.started_on })
       .eq("id", r.id).then(function (res) {
@@ -640,6 +646,11 @@
         syncRentLogDate(LOCKERS[key] && LOCKERS[key].id, date || r.started_on, {
           student_name: name, birth: birth || "", phone: phone || "",
           class_label: classNameOf(classId ? Number(classId) : null), bank: bank || "", refund_account: account || "", pay_method: pay
+        });
+        // 이름/생년월일을 고쳤으면 지난 신청 기록과 메모도 같은 사람으로 맞춤
+        syncStudentIdentity(oldName, oldBirth, name, birth || "").then(function (n) {
+          if (n) toast("지난 신청 기록 " + n + "건의 이름도 함께 수정했습니다.");
+          loadSNotes().then(function () { if (selectedKey) renderDrawer(); });
         });
         toast("정보 수정 완료");
         reload();
@@ -1356,6 +1367,54 @@
     });
   }
 
+  /* ---------- 학생 개인별 메모 (직원 공유) ----------
+     이름 + 생년월일 로 한 사람을 식별. 반납 후 다시 신청해도 메모는 유지됨. */
+  var SNOTES = {};   // "이름|생년월일" -> { id, student_name, birth, body, updated_by, updated_at }
+  var SNOTE_OK = true;   // 테이블 미생성 시 false (메모 기능만 조용히 비활성)
+  function snoteKey(name, birth) { return String(name == null ? "" : name).trim() + "|" + String(birth == null ? "" : birth).trim(); }
+  function snoteOf(name, birth) { return SNOTES[snoteKey(name, birth)] || null; }
+  function snoteBody(name, birth) { var n = snoteOf(name, birth); return n && n.body ? n.body : ""; }
+  function loadSNotes() {
+    return sb.from("student_notes").select("id, student_name, birth, body, updated_by, updated_at").limit(5000)
+      .then(function (res) {
+        if (res.error) { SNOTE_OK = false; return; }
+        SNOTE_OK = true; SNOTES = {};
+        (res.data || []).forEach(function (n) { SNOTES[snoteKey(n.student_name, n.birth)] = n; });
+      }, function () { SNOTE_OK = false; });
+  }
+  // 메모 편집 창
+  var snoteCtx = null;   // { name, birth, after }
+  function openSNote(name, birth, after) {
+    if (!SNOTE_OK) { toast("스키마 적용 필요: mobile_update.sql 을 실행해 주세요."); return; }
+    var n = snoteOf(name, birth);
+    snoteCtx = { name: name, birth: birth, after: after };
+    $("snoteWho").textContent = (name || "-") + (birth ? " · " + birth : "") + " · 직원 모두에게 공유됩니다";
+    $("snoteBody").value = (n && n.body) || "";
+    $("snoteMeta").textContent = (n && n.updated_by)
+      ? "마지막 수정 " + esc(n.updated_by) + (n.updated_at ? " · " + logYmd(n.updated_at).replace(/-/g, ".") : "")
+      : "";
+    $("snoteView").classList.add("open");
+    setTimeout(function () { $("snoteBody").focus(); }, 40);
+  }
+  function closeSNote() { $("snoteView").classList.remove("open"); snoteCtx = null; }
+  function saveSNote() {
+    if (!snoteCtx) return;
+    var ctx = snoteCtx, body = $("snoteBody").value.trim();
+    var btn = $("snoteSave"); btn.disabled = true; btn.textContent = "저장 중…";
+    sb.from("student_notes").upsert({
+      student_name: String(ctx.name || "").trim(), birth: String(ctx.birth || "").trim(),
+      body: body, updated_by: (ME && ME.name) || "직원", updated_at: new Date().toISOString()
+    }, { onConflict: "student_name,birth" }).select().then(function (res) {
+      btn.disabled = false; btn.textContent = "저장";
+      if (res.error) { toast("메모 저장 실패: " + res.error.message); return; }
+      var row = (res.data || [])[0];
+      if (row) SNOTES[snoteKey(row.student_name, row.birth)] = row;
+      closeSNote();
+      toast(body ? "메모를 저장했습니다." : "메모를 비웠습니다.");
+      if (ctx.after) ctx.after();
+    });
+  }
+
   /* ---------- 이용 안내(비밀번호) 설정 ---------- */
   function loadSettings() {
     return sb.from("app_settings").select("key,value").eq("key", "password_guide").then(function (res) {
@@ -1439,6 +1498,15 @@
       bar.appendChild(b);
     });
   }
+  // 메모 칸 — 내용이 있으면 앞부분만 미리보기, 없으면 '＋ 메모'
+  function memoCell(l) {
+    var d = l.detail || {};
+    var b = snoteBody(d.student_name, d.birth);
+    var prev = b.replace(/\s+/g, " ").trim();
+    if (prev.length > 14) prev = prev.slice(0, 14) + "…";
+    return '<button class="memo-btn' + (b ? " has" : "") + '" data-id="' + l.id + '" title="' + esc(b || "메모 쓰기") + '">' +
+      (b ? esc(prev) : "＋ 메모") + "</button>";
+  }
   function logRenderTable() {
     var area = $("logTableArea");
     var rows = LOGROWS.filter(function (l) { var p = logYmd(l.created_at).split("-"); return +p[0] === logY && +p[1] === logM; });
@@ -1446,7 +1514,7 @@
     if (!rows.length) { area.innerHTML = '<div class="log-empty">' + logY + "년 " + logM + "월 " + (logFilter !== "all" ? "‘" + (LOGFILTERS.filter(function (x) { return x[0] === logFilter; })[0] || ["", ""])[1] + "’ " : "") + "기록이 없습니다.</div>"; return; }
     var html = '<div class="log-scroll"><table class="log-table"><thead><tr>' +
       '<th class="c-check"><input type="checkbox" id="logCheckAll" title="이 화면 전체 선택"></th>' +
-      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>결제</th><th>은행</th><th>계좌번호</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
+      "<th>구분</th><th>이름</th><th>생년월일</th><th>반</th><th>메모</th><th>은행</th><th>계좌번호</th><th>사물함</th><th>날짜</th><th>시간</th><th>처리</th>" +
       (logEdit ? "<th>삭제</th>" : "") + "</tr></thead><tbody>";
     rows.forEach(function (l) {
       var d = l.detail || {}; var meta = logBadge(l);
@@ -1459,10 +1527,10 @@
       html += "<tr>" +
         '<td class="c-check"><input type="checkbox" class="log-check" data-id="' + l.id + '"' + (logSel[l.id] ? " checked" : "") + "></td>" +
         '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
-        '<td class="c-name">' + esc(d.student_name || "") + "</td>" +
+        '<td class="c-name"><button class="name-btn" data-id="' + l.id + '" title="이름 수정">' + esc(d.student_name || "—") + "</button></td>" +
         '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
         "<td>" + esc(d.class_label || "") + "</td>" +
-        '<td>' + (d.pay_method ? '<span class="pay-tag ' + (d.pay_method === "cash" ? "cash" : "") + '">' + payLabel(d.pay_method) + "</span>" : "—") + "</td>" +
+        '<td class="c-memo">' + memoCell(l) + "</td>" +
         "<td>" + esc(d.bank || "—") + "</td>" +
         '<td class="c-acct">' + acct + "</td>" +
         '<td class="c-locker">' + esc(logLocker(l)) + "</td>" +
@@ -1478,6 +1546,13 @@
     area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".log-confirm").forEach(function (b) { b.onclick = function () { logMarkPaid(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText(copyAcct(d.student_name || "", d.bank || "", d.refund_account || "")); }; });
+    area.querySelectorAll(".name-btn").forEach(function (b) { b.onclick = function () { logEditName(byId[b.getAttribute("data-id")]); }; });
+    area.querySelectorAll(".memo-btn").forEach(function (b) {
+      b.onclick = function () {
+        var l = byId[b.getAttribute("data-id")], d = l.detail || {};
+        openSNote(d.student_name || "", d.birth || "", function () { logRenderTable(); if (selectedKey) renderDrawer(); });
+      };
+    });
     if (logEdit) area.querySelectorAll(".log-del").forEach(function (b) { b.onclick = function () { logRemove(byId[b.getAttribute("data-id")]); }; });
     var checks = area.querySelectorAll(".log-check");
     checks.forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute("data-id"); if (cb.checked) logSel[id] = true; else delete logSel[id]; syncCheckAll(); }; });
@@ -1515,6 +1590,78 @@
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () { fallbackCopy(text, ok); });
     else fallbackCopy(text, ok);
   }
+  /* ---------- 학생 이름 수정 (연동: 기록 + 사물함 + 신청대기 + 메모) ---------- */
+  // 이름/생년월일이 바뀌면 신청 기록(detail jsonb)과 메모 키까지 함께 맞춘다.
+  // rental_logs 는 jsonb 안이라 일괄 update 가 안 되므로 건별로 수정.
+  function syncStudentIdentity(oldName, oldBirth, newName, newBirth) {
+    oldName = String(oldName == null ? "" : oldName).trim();
+    oldBirth = String(oldBirth == null ? "" : oldBirth).trim();
+    newName = String(newName == null ? "" : newName).trim();
+    newBirth = String(newBirth == null ? "" : newBirth).trim();
+    if (!oldName || (oldName === newName && oldBirth === newBirth)) return Promise.resolve(0);
+    return sb.from("rental_logs").select("id, detail")
+      .filter("detail->>student_name", "eq", oldName).limit(8000)
+      .then(function (res) {
+        var jobs = [];
+        (res.error ? [] : (res.data || [])).forEach(function (x) {
+          var dd = x.detail || {};
+          if (String(dd.birth == null ? "" : dd.birth).trim() !== oldBirth) return;   // 동명이인 보호
+          var nd = Object.assign({}, dd, { student_name: newName, birth: newBirth });
+          jobs.push(sb.from("rental_logs").update({ detail: nd }).eq("id", x.id));
+        });
+        var n = SNOTES[snoteKey(oldName, oldBirth)];
+        if (n && n.id) jobs.push(sb.from("student_notes").update({ student_name: newName, birth: newBirth }).eq("id", n.id));
+        var logCount = jobs.length - (n && n.id ? 1 : 0);
+        return Promise.all(jobs).then(function () { return logCount; });
+      });
+  }
+
+  function logEditName(l) {
+    var d = l.detail || {};
+    var oldName = String(d.student_name || "").trim();
+    var birth = String(d.birth || "").trim();
+    if (!oldName) { toast("이름이 없는 기록입니다."); return; }
+    var input = window.prompt("학생 이름을 수정합니다.\n생년월일: " + (birth || "미입력") + "\n\n※ 같은 학생의 다른 기록·사물함·메모까지 함께 바뀝니다.", oldName);
+    if (input === null) return;
+    var newName = String(input).trim();
+    if (!newName) { toast("이름을 입력하세요."); return; }
+    if (newName === oldName) return;
+    renameStudent(oldName, birth, newName);
+  }
+
+  function renameStudent(oldName, birth, newName) {
+    // 영향 범위 미리 집계(확인창용)
+    var logs = LOGROWS.filter(function (x) {
+      var dd = x.detail || {};
+      return String(dd.student_name || "").trim() === oldName && String(dd.birth || "").trim() === birth;
+    });
+    var lockers = Object.keys(RENTALS).filter(function (k) {
+      var r = RENTALS[k];
+      return String(r.name || "").trim() === oldName && String(r.birth || "").trim() === birth;
+    });
+    var hasNote = !!SNOTES[snoteKey(oldName, birth)];
+    if (!window.confirm(
+      "‘" + oldName + "’ → ‘" + newName + "’ 으로 바꿉니다.\n" +
+      (birth ? "생년월일 " + birth + " 인 학생만 바뀝니다.\n" : "※ 생년월일이 없어, 이름이 같은 기록이 모두 바뀝니다.\n") +
+      "\n· 신청 기록 " + logs.length + "건\n· 사용 중인 사물함 " + lockers.length + "건\n· 메모 " + (hasNote ? 1 : 0) + "건\n\n계속할까요?")) return;
+    busy(true);
+    // 대여(과거 포함) + 신청 대기는 컬럼이라 한 번에 수정
+    var rq = sb.from("rentals").update({ student_name: newName }).eq("student_name", oldName);
+    if (birth) rq = rq.eq("birth", birth);
+    var qq = sb.from("requests").update({ student_name: newName }).eq("student_name", oldName);
+    if (birth) qq = qq.eq("birth", birth);
+    Promise.all([rq, qq]).then(function (rs) {
+      var err = rs.filter(function (r) { return r && r.error; })[0];
+      if (err) { busy(false); toast("이름 수정 실패: " + err.error.message); return; }
+      return syncStudentIdentity(oldName, birth, newName, birth).then(function (n) {
+        busy(false);
+        toast("‘" + newName + "’ 으로 수정했습니다 · 신청 기록 " + n + "건 포함");
+        loadSNotes().then(logLoad);
+        reload();
+      });
+    }, function () { busy(false); toast("이름 수정 실패"); });
+  }
+
   function logMarkRefunded(l) {
     if (!l) return; var d = l.detail || {};
     if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n환급계좌: " + (d.refund_account || "-") + "\n\n※ 계좌로 보증금을 입금한 뒤 체크하세요.")) return;
@@ -1550,6 +1697,12 @@
       .on("postgres_changes", { event: "*", schema: "public", table: "rentals" }, function () { reload(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "classes" }, function () { reload(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "notices" }, function () { loadNotices(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "student_notes" }, function () {
+        loadSNotes().then(function () {
+          if (selectedKey) renderDrawer();
+          if ($("logsPane") && !$("logsPane").hidden) logRenderTable();
+        });
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, function () { loadSettings().then(function () { if (selectedKey) renderDrawer(); }); })
       .on("postgres_changes", { event: "*", schema: "public", table: "requests" }, function (payload) { if (payload && payload.eventType === "INSERT") toast("📥 새 사물함 신청이 들어왔습니다."); loadRequests(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "lockers" }, function () { loadLockers().then(function () { renderAll(); if (selectedKey) renderDrawer(); }); })
@@ -1577,7 +1730,7 @@
     if (entered) return;
     entered = true;
     busy(true);
-    loadLockers().then(function () { return Promise.all([loadClasses(), loadRentals(), loadNotices(), loadSettings(), loadRequests()]); }).then(function () {
+    loadLockers().then(function () { return Promise.all([loadClasses(), loadRentals(), loadNotices(), loadSettings(), loadRequests(), loadSNotes()]); }).then(function () {
       busy(false); renderAll();
     }).catch(function (e) {
       busy(false);
@@ -1629,6 +1782,9 @@
   $("guideBtn").onclick = openGuide;
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;
+  $("snoteSave").onclick = saveSNote;
+  $("snoteCancel").onclick = closeSNote;
+  $("snoteView").onclick = function (e) { if (e.target === $("snoteView")) closeSNote(); };
   $("noticeAddBtn").onclick = openNotice;
   $("noticeMoreBtn").onclick = openNoticeAll;
   $("noticeAllClose").onclick = closeNoticeAll;

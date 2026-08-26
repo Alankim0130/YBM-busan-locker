@@ -245,6 +245,20 @@ window.SUPABASE_ANON_KEY = "eyJhbGci...";</pre>
     </div>
   </div>
 
+  <!-- 학생 메모 (직원 공유) -->
+  <div class="overlay" id="snoteView">
+    <div class="card">
+      <h2>📝 학생 메모</h2>
+      <p class="lead" id="snoteWho">—</p>
+      <textarea class="ta" id="snoteBody" placeholder="예: 연락 잘 안 받음 · 8월 말 재등록 예정 · 보증금 현금으로 받음"></textarea>
+      <p class="snote-meta" id="snoteMeta"></p>
+      <div class="modal-actions">
+        <button class="btn primary" id="snoteSave">저장</button>
+        <button class="btn" id="snoteCancel">취소</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 특별공지 작성 -->
   <div class="overlay" id="noticeView">
     <div class="card">
