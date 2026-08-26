@@ -261,12 +261,18 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:background .15s,border-color .15s,color .15s;}
 .log-table .acct-btn:hover{border-color:var(--focus);color:var(--focus);background:#f4f8ff;}
 .log-table .acct-btn.empty{border-style:dashed;color:var(--ink-3);}
-/* 메모 편집 창 */
+/* 메모 창 — 보기 모드 (긴 글은 줄바꿈 + 스크롤) */
+.snote-read{background:#fdf6e3;border:1px solid #f0d488;border-radius:var(--r-sm);
+  padding:13px 15px;font-size:13.5px;line-height:1.7;color:#6f5716;
+  white-space:pre-wrap;overflow-wrap:anywhere;max-height:46vh;overflow-y:auto;min-height:64px;}
+.snote-read.empty{background:var(--surface-2);border-color:var(--line);color:var(--ink-3);
+  display:flex;align-items:center;justify-content:center;font-size:13px;}
 .snote-meta{margin:8px 0 0;font-size:11.5px;color:var(--ink-3);min-height:16px;}
 /* 상세 패널 메모 */
 .memo-box{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
 .memo-box .memo-txt{width:100%;background:#fdf6e3;border:1px solid #f0d488;border-radius:var(--r-sm);
-  padding:9px 11px;font-size:13px;line-height:1.6;color:#6f5716;white-space:pre-wrap;word-break:break-word;}
+  padding:9px 11px;font-size:13px;line-height:1.6;color:#6f5716;
+  white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow-y:auto;}
 .memo-box .memo-none{font-size:13px;color:var(--ink-3);}
 .la-copy{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink-2);border-radius:6px;
   padding:3px 9px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;}

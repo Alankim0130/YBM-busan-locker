@@ -1386,15 +1386,34 @@
   var snoteCtx = null;   // { name, birth, after }
   function openSNote(name, birth, after) {
     if (!SNOTE_OK) { toast("스키마 적용 필요: mobile_update.sql 을 실행해 주세요."); return; }
-    var n = snoteOf(name, birth);
     snoteCtx = { name: name, birth: birth, after: after };
     $("snoteWho").textContent = (name || "-") + (birth ? " · " + birth : "") + " · 직원 모두에게 공유됩니다";
-    $("snoteBody").value = (n && n.body) || "";
-    $("snoteMeta").textContent = (n && n.updated_by)
-      ? "마지막 수정 " + esc(n.updated_by) + (n.updated_at ? " · " + logYmd(n.updated_at).replace(/-/g, ".") : "")
-      : "";
     $("snoteView").classList.add("open");
-    setTimeout(function () { $("snoteBody").focus(); }, 40);
+    showSNoteRead();
+  }
+  // 보기 모드 — 메모를 먼저 읽고, '수정'을 눌러야 편집
+  function showSNoteRead() {
+    if (!snoteCtx) return;
+    var n = snoteOf(snoteCtx.name, snoteCtx.birth);
+    var body = (n && n.body) || "";
+    var box = $("snoteText");
+    box.textContent = body || "아직 메모가 없습니다.";
+    box.classList.toggle("empty", !body);
+    $("snoteMeta").textContent = (n && n.updated_by && body)
+      ? "마지막 수정 " + n.updated_by + (n.updated_at ? " · " + logYmd(n.updated_at).replace(/-/g, ".") : "")
+      : "";
+    $("snoteEdit").textContent = body ? "✏️ 수정" : "✏️ 메모 쓰기";
+    $("snoteRead").hidden = false;
+    $("snoteForm").hidden = true;
+  }
+  // 수정 모드
+  function showSNoteEdit() {
+    if (!snoteCtx) return;
+    var n = snoteOf(snoteCtx.name, snoteCtx.birth);
+    $("snoteBody").value = (n && n.body) || "";
+    $("snoteRead").hidden = true;
+    $("snoteForm").hidden = false;
+    setTimeout(function () { var t = $("snoteBody"); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }, 40);
   }
   function closeSNote() { $("snoteView").classList.remove("open"); snoteCtx = null; }
   function saveSNote() {
@@ -1409,8 +1428,8 @@
       if (res.error) { toast("메모 저장 실패: " + res.error.message); return; }
       var row = (res.data || [])[0];
       if (row) SNOTES[snoteKey(row.student_name, row.birth)] = row;
-      closeSNote();
       toast(body ? "메모를 저장했습니다." : "메모를 비웠습니다.");
+      showSNoteRead();          // 저장 후에는 보기 모드로 돌아가 방금 쓴 내용을 확인
       if (ctx.after) ctx.after();
     });
   }
@@ -1851,7 +1870,9 @@
   $("guideSave").onclick = saveGuide;
   $("guideCancel").onclick = closeGuide;
   $("snoteSave").onclick = saveSNote;
-  $("snoteCancel").onclick = closeSNote;
+  $("snoteEdit").onclick = showSNoteEdit;
+  $("snoteDone").onclick = closeSNote;
+  $("snoteCancel").onclick = showSNoteRead;   // 수정 취소 → 보기로 되돌아감(창은 유지)
   $("snoteView").onclick = function (e) { if (e.target === $("snoteView")) closeSNote(); };
   $("acctSave").onclick = saveAcct;
   $("acctCancel").onclick = closeAcct;
