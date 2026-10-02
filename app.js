@@ -1551,7 +1551,7 @@
             : '<span class="la-none">—</span>');
       html += "<tr>" +
         '<td class="c-check"><input type="checkbox" class="log-check" data-id="' + l.id + '"' + (logSel[l.id] ? " checked" : "") + "></td>" +
-        '<td><span class="log-badge ' + meta.c + '">' + meta.t + "</span></td>" +
+        '<td><button class="log-badge ' + meta.c + '" data-id="' + l.id + '" title="눌러서 구분 변경">' + meta.t + " ▾</button></td>" +
         '<td class="c-name"><button class="name-btn" data-id="' + l.id + '" title="이름 수정">' + esc(d.student_name || "—") + "</button></td>" +
         '<td class="c-mono">' + esc(d.birth || "") + "</td>" +
         "<td>" + esc(d.class_label || "") + "</td>" +
@@ -1568,6 +1568,7 @@
     html += "</tbody></table></div>";
     area.innerHTML = html;
     var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
+    area.querySelectorAll("button.log-badge").forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); logTypeMenu(byId[b.getAttribute("data-id")], b); }; });
     area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".log-confirm").forEach(function (b) { b.onclick = function () { logMarkPaid(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText(copyAcct(d.student_name || "", d.bank || "", d.refund_account || "")); }; });
@@ -1749,6 +1750,52 @@
     }, function () { btn.disabled = false; btn.textContent = "저장"; $("acctErr").textContent = "저장에 실패했습니다. 잠시 후 다시 시도해 주세요."; });
   }
 
+  // 구분 배지를 눌러 기록의 구분을 바로 변경 (예: 반납신청 → 폐기)
+  var LOGTYPES = [
+    { k: "return_pending", t: "반납신청", action: "return", refunded: false },
+    { k: "return_done", t: "반납완료", action: "return", refunded: true },
+    { k: "discard", t: "폐기", action: "discard" },
+    { k: "rent", t: "입금", action: "rent" },
+    { k: "extend", t: "연장", action: "extend" },
+    { k: "move", t: "이동", action: "move" }
+  ];
+  function logTypeKey(l) { if (l.action === "return") return (l.detail && l.detail.refunded) ? "return_done" : "return_pending"; return l.action; }
+  function closeLogTypeMenu() { var m = $("logTypeMenu"); if (m) m.remove(); document.removeEventListener("click", closeLogTypeMenu); }
+  function logTypeMenu(l, anchor) {
+    if (!l) return;
+    var had = $("logTypeMenu"); closeLogTypeMenu(); if (had && had.getAttribute("data-id") === String(l.id)) return;
+    var cur = logTypeKey(l);
+    var m = document.createElement("div");
+    m.id = "logTypeMenu"; m.className = "log-type-menu"; m.setAttribute("data-id", l.id);
+    LOGTYPES.forEach(function (o) {
+      var b = document.createElement("button");
+      b.className = "ltm-item" + (o.k === cur ? " current" : "");
+      b.textContent = (o.k === cur ? "✓ " : "") + o.t;
+      b.onclick = function (e) { e.stopPropagation(); closeLogTypeMenu(); if (o.k !== cur) logChangeType(l, o); };
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+    var r = anchor.getBoundingClientRect();
+    var top = r.bottom + 4; if (top + m.offsetHeight > window.innerHeight - 8) top = Math.max(8, r.top - m.offsetHeight - 4);
+    m.style.top = top + "px";
+    m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - m.offsetWidth - 8)) + "px";
+    setTimeout(function () { document.addEventListener("click", closeLogTypeMenu); }, 0);
+  }
+  function logChangeType(l, o) {
+    var d = l.detail || {};
+    var from = logBadge(l).t;
+    if (!window.confirm("구분을 변경할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n" + from + " → " + o.t + "\n\n※ 신청기록의 구분만 바뀌며, 사물함 상태는 바뀌지 않습니다.")) return;
+    var nd = {}; for (var k in d) nd[k] = d[k];
+    if (o.action === "return") {
+      nd.refunded = o.refunded;
+      if (o.refunded) nd.refunded_at = nd.refunded_at || new Date().toISOString(); else delete nd.refunded_at;
+    }
+    sb.from("rental_logs").update({ action: o.action, detail: nd }).eq("id", l.id).then(function (res) {
+      if (res.error) { toast("변경 실패: " + res.error.message); return; }
+      l.action = o.action; l.detail = nd; logRender();
+      toast((d.student_name || "") + " · " + from + " → " + o.t + " 변경됨");
+    });
+  }
   function logMarkRefunded(l) {
     if (!l) return; var d = l.detail || {};
     if (!window.confirm("보증금 반납(환급)을 완료 처리할까요?\n\n" + (d.student_name || "") + " / " + logLocker(l) + "\n환급계좌: " + (d.refund_account || "-") + "\n\n※ 계좌로 보증금을 입금한 뒤 체크하세요.")) return;

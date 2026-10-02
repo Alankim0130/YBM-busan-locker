@@ -290,6 +290,13 @@ main{flex:1;min-width:0;position:relative;display:flex;flex-direction:column;ove
 .log-badge.mv{background:#eef1f4;color:#586273;}
 .log-badge.pending{background:#fff2d6;color:#9a6a00;}
 .log-badge.discard{background:#fbe3de;color:#b23a22;}
+button.log-badge{border:0;cursor:pointer;font-family:inherit;line-height:inherit;}
+button.log-badge:hover{filter:brightness(.95);box-shadow:0 0 0 2px rgba(0,0,0,.06);}
+.log-type-menu{position:fixed;z-index:1000;background:var(--surface,#fff);border:1px solid rgba(0,0,0,.12);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;display:flex;flex-direction:column;min-width:110px;}
+.ltm-item{border:0;background:none;text-align:left;padding:7px 12px;border-radius:7px;font:inherit;font-size:13px;cursor:pointer;color:inherit;}
+.ltm-item:hover{background:rgba(0,0,0,.06);}
+.ltm-item.current{font-weight:700;color:var(--ink-3,#888);cursor:default;}
 .log-done{border:1px solid #2f9e6e;background:var(--surface);color:#1d7a54;border-radius:7px;padding:5px 11px;
   font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
 .log-done:hover{background:#eafaf2;}
