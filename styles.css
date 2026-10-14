@@ -645,4 +645,4 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .nb-note{font-size:12px;color:var(--ink-3);}
 .nb-dl{display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin:6px 0 4px;}
 .nb-note code{background:var(--surface-2);padding:1px 5px;border-radius:4px;}
-.nb-hash{word-break:break-all;font-size:11px;}
+.nb-one{margin:10px 0 2px;font-size:14px;color:var(--ink);}

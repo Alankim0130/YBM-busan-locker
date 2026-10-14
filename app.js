@@ -2048,16 +2048,11 @@
   $("nbNotifyBtn").onclick = nbAskNotify;
   $("nbShareLink").onclick = function () {
     var url = location.origin + "/naver-alert";
-    function ok() { toast("설치 링크를 복사했어요 — 카카오톡에 붙여넣으세요: " + url); }
+    function ok() { toast("링크를 복사했어요 — 카카오톡에 붙여넣으세요"); }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, function () { fallbackCopy(url, ok); });
     else fallbackCopy(url, ok);
   };
-  $("nbWinBtn").onclick = function () {
-    var box = $("nbWin"); box.hidden = !box.hidden;
-    if (!box.hidden) fetch("/download/YBM-NaverAlert.exe.sha256", { cache: "no-store" })
-      .then(function (r) { return r.ok ? r.text() : ""; })
-      .then(function (t) { t = (t || "").trim(); $("nbHash").textContent = /^[0-9a-f]{64}$/.test(t) ? t : "—"; }, function () {});
-  };
+  $("nbWinBtn").onclick = function () { var box = $("nbWin"); box.hidden = !box.hidden; };
   $("nbRefreshBtn").onclick = function () { $("nbLead").textContent = "확인 중…"; nbPoll(); };
   $("nbPrev").onclick = function () { if (nbData && nbDay > nbData.today) { nbDay = nbAddDay(nbDay, -1); nbRender(); } };
   $("nbNext").onclick = function () { nbDay = nbAddDay(nbDay, 1); nbRender(); };

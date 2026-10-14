@@ -5,131 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="robots" content="noindex, nofollow" />
 <title>YBM 네이버 예약 알림 설치</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* 카카오톡 등으로 링크를 보내 직원 PC에서 여는 설치 안내 (로그인 불필요) */
-  :root{
-    --bg:#eaeef3; --surface:#fff; --surface-2:#f6f8fb; --line:#e2e7ee; --line-strong:#cfd7e1;
-    --ink:#19212e; --ink-2:#586273; --ink-3:#8b94a3; --brand:#1d2531; --brand-2:#0f1520;
-    --green:#1d7a54; --green-bg:#e3f3ec; --warn:#9a6a00; --warn-bg:#fff2d6;
-    --r:12px; --r-lg:16px;
-    --sh-sm:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.05);
-    --sh-md:0 8px 24px rgba(16,24,40,.10);
-  }
+  :root{ --ink:#19212e; --line:#e2e7ee; --brand:#1d2531; --brand-2:#0f1520; }
   *{box-sizing:border-box;}
   html,body{margin:0;}
-  body{background:radial-gradient(120% 120% at 50% 0%,#f1f4f8 0%,#e6eaf0 60%,#e1e6ed 100%);
-    color:var(--ink);font-family:"Inter",system-ui,-apple-system,"Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:anywhere;
-    min-height:100dvh;display:flex;justify-content:center;padding:36px 16px calc(36px + env(safe-area-inset-bottom));}
-  .wrap{width:100%;max-width:640px;}
-  .top{text-align:center;margin-bottom:22px;}
-  .top img{height:46px;width:auto;display:block;margin:0 auto 16px;}
-  .top h1{font-family:"Space Grotesk","Inter",sans-serif;font-weight:600;font-size:24px;margin:0;}
-  .top p{margin:8px 0 0;font-size:14.5px;color:var(--ink-2);line-height:1.6;}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-sm);padding:22px 22px;margin-bottom:14px;}
-  .mobile{display:none;background:var(--warn-bg);color:var(--warn);border:1px solid #f0d9a3;border-radius:var(--r);padding:14px 16px;font-size:14px;line-height:1.6;margin-bottom:14px;}
-  .mobile b{color:#6f4d00;}
-  .dl{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px 18px;border-radius:var(--r);
-    background:var(--brand);color:#fff;text-decoration:none;font-weight:700;font-size:16.5px;box-shadow:var(--sh-md);}
+  body{background:#eaeef3;color:var(--ink);font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;word-break:keep-all;
+    min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:32px 16px;}
+  .box{width:100%;max-width:420px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:30px 24px;text-align:center;
+    box-shadow:0 8px 24px rgba(16,24,40,.10);}
+  img{height:42px;width:auto;display:block;margin:0 auto 14px;}
+  h1{font-size:21px;margin:0 0 22px;}
+  .dl{display:block;padding:15px 18px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none;font-weight:700;font-size:16.5px;}
   .dl:hover{background:var(--brand-2);}
-  .dl small{font-weight:500;opacity:.75;font-size:13px;}
-  .row{display:flex;gap:8px;margin-top:10px;}
-  .btn{flex:1;border:1px solid var(--line-strong);background:var(--surface);border-radius:10px;padding:11px 12px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;}
-  .btn:hover{background:var(--surface-2);}
-  h2{font-size:15.5px;margin:0 0 12px;}
-  ol{margin:0;padding-left:22px;line-height:1.75;font-size:14.5px;}
-  ol li{margin-bottom:8px;}
-  ol li:last-child{margin-bottom:0;}
-  .sub{display:block;color:var(--ink-2);font-size:13.5px;}
-  ul{margin:0;padding-left:20px;line-height:1.75;font-size:13.5px;color:var(--ink-2);}
-  kbd{border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:12.5px;background:var(--surface-2);font-family:inherit;}
-  code{background:var(--surface-2);border-radius:4px;padding:1px 5px;font-size:12px;word-break:break-all;}
-  .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--brand);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;}
-  .toast.show{opacity:1;}
+  p{margin:18px 0 0;font-size:15px;line-height:1.6;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="top">
+  <div class="box">
     <img src="/assets/ybm-logo.png" alt="YBM" onerror="this.style.display='none'">
     <h1>YBM 네이버 예약 알림</h1>
-    <p>윈도우 PC용 프로그램 · 강사 상담 예약이 <b>추가·취소</b>되면<br>화면 오른쪽 아래에 알려 드려요.</p>
+    <a class="dl" href="/download/YBM-NaverAlert.exe" download="YBM 네이버예약 알림.exe">⬇ 설치 파일 받기</a>
+    <p>‘Windows의 PC 보호’ 창이 뜨면<br>→ <b>추가 정보</b> → <b>실행</b></p>
   </div>
-
-  <div class="mobile" id="mobileNote">
-    📱 휴대폰에서는 설치할 수 없어요. <b>PC에서 이 링크를 열어 주세요.</b><br>
-    (PC 카카오톡에서 같은 링크를 누르거나, 아래 ‘링크 복사’ 후 PC로 보내기)
-  </div>
-
-  <div class="card">
-    <a class="dl" id="dl" href="/download/YBM-NaverAlert.exe" download="YBM 네이버예약 알림.exe">⬇ 설치 파일 받기 <small>(약 100KB)</small></a>
-    <div class="row"><button class="btn" id="copyLink">🔗 이 페이지 링크 복사</button></div>
-  </div>
-
-  <div class="card">
-    <h2>설치 방법 (1분)</h2>
-    <ol>
-      <li><b>설치 파일 받기</b>를 누릅니다.
-        <span class="sub">브라우저가 ‘일반적으로 다운로드되지 않는 파일’이라고 하면 <b>…</b> 또는 <b>⌃</b> → <b>유지</b></span></li>
-      <li>받은 파일을 실행합니다.
-        <span class="sub">‘Windows의 PC 보호’ 창이 뜨면 글자 아래 <b>추가 정보</b> → <b>실행</b> (설치할 때 PC마다 한 번만 떠요)</span></li>
-      <li>‘설치할까요?’에서 <b>확인</b> → 끝.
-        <span class="sub">관리자 권한은 필요 없어요. 예약 현황 창과 ‘설치가 끝났습니다’ 알림이 뜨면 완료예요.</span></li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h2>설치하고 나면</h2>
-    <ul>
-      <li>윈도우를 켜면 <b>자동으로 실행</b>되어 2분마다 확인합니다. 따로 열 필요 없어요.</li>
-      <li>예약이 추가·취소되면 오른쪽 아래 알림창이 <b>‘확인’을 누를 때까지</b> 남아 있어요.</li>
-      <li>작업 표시줄 오른쪽 아래 <b>달력 아이콘</b>을 누르면 날짜별 예약 현황을 볼 수 있어요 (안 보이면 <kbd>^</kbd> 안에).</li>
-      <li>PC가 꺼져 있던 동안의 변동은 다음에 켜면 알려 드려요.</li>
-      <li>제거: 설정 → 앱 → 설치된 앱 → ‘YBM 네이버 예약 알림’ → 제거</li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>안전 정보</h2>
-    <ul>
-      <li>네이버 예약의 <b>공개 정보(시간대별 예약 수)</b>만 확인하며, 개인정보·비밀번호를 저장하지 않아요.</li>
-      <li>‘Windows의 PC 보호’는 위험하다는 뜻이 아니라, 인증서 서명이 없는 새 프로그램이라 뜨는 경고예요.</li>
-      <li>파일 확인값(SHA-256): <code id="hash">—</code><br>
-        다른 경로로 받은 파일은 PowerShell에서 <code>Get-FileHash 파일이름.exe</code> 결과와 같은지 확인하세요.</li>
-    </ul>
-  </div>
-</div>
-<div class="toast" id="toast"></div>
-<script>
-  (function () {
-    var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    if (mobile) document.getElementById("mobileNote").style.display = "block";
-
-    function toast(msg) {
-      var t = document.getElementById("toast");
-      t.textContent = msg; t.classList.add("show");
-      clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("show"); }, 2200);
-    }
-    function copy(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () { toast("링크를 복사했어요 — 카카오톡에 붙여넣으세요"); }, fallback);
-      } else fallback();
-      function fallback() {
-        var ta = document.createElement("textarea");
-        ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta); ta.select();
-        try { document.execCommand("copy"); toast("링크를 복사했어요 — 카카오톡에 붙여넣으세요"); } catch (e) { prompt("아래 링크를 복사하세요", text); }
-        document.body.removeChild(ta);
-      }
-    }
-    document.getElementById("copyLink").onclick = function () { copy(location.origin + "/naver-alert"); };
-
-    fetch("/download/YBM-NaverAlert.exe.sha256", { cache: "no-store" })
-      .then(function (r) { return r.ok ? r.text() : ""; })
-      .then(function (t) { t = (t || "").trim(); if (/^[0-9a-f]{64}$/.test(t)) document.getElementById("hash").textContent = t; }, function () {});
-  })();
-</script>
 </body>
 </html>
