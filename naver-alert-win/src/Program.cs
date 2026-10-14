@@ -26,8 +26,8 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("서면 YBM 네이버 예약(강사 상담) 알림")]
 [assembly: AssemblyCompany("서면 YBM")]
 [assembly: AssemblyProduct("YBM 네이버 예약 알림")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
 [assembly: TargetFramework(".NETFramework,Version=v4.7.2", FrameworkDisplayName = ".NET Framework 4.7.2")]
 
 namespace YbmNaverAlert
@@ -56,7 +56,13 @@ namespace YbmNaverAlert
                     case "/background": o.Background = true; break;
                     case "/installed": o.Installed = true; break;
                     case "/portable": o.Portable = true; break;
-                    case "/endpoint": o.Endpoint = val; break;
+                    case "/endpoint":
+                        {
+                            // 시험용 — 이 PC 안의 주소(127.0.0.1·localhost)만 허용. 다른 서버로 바꿔 치기 못 하게
+                            Uri u;
+                            if (val != null && Uri.TryCreate(val, UriKind.Absolute, out u) && u.IsLoopback) o.Endpoint = val;
+                            break;
+                        }
                     case "/datadir": o.DataDir = val; break;
                     case "/interval":
                         {
@@ -79,7 +85,7 @@ namespace YbmNaverAlert
     static class Program
     {
         public const string AppName = "YBM 네이버 예약 알림";
-        public const string Version = "1.0.0";
+        public const string Version = "1.0.1";
 
         public static bool IsWindows { get { return Environment.OSVersion.Platform == PlatformID.Win32NT; } }
 
@@ -98,12 +104,12 @@ namespace YbmNaverAlert
             Application.ThreadException += (s, e) => Store.Log("오류: " + e.Exception);
             AppDomain.CurrentDomain.UnhandledException += (s, e) => Store.Log("치명적 오류: " + e.ExceptionObject);
 
+            Ui.Init(o.Scale);
+            if (o.Uninstall) { Installer.Uninstall(o.Quiet); return 0; }   // 제거 중에는 기록 폴더를 다시 만들지 않는다
+
             Store.Dir = o.DataDir ?? Installer.Dir;
             try { Directory.CreateDirectory(Store.Dir); } catch { }
             if (o.Endpoint != null) Booking.Endpoint = o.Endpoint;
-            Ui.Init(o.Scale);
-
-            if (o.Uninstall) { Installer.Uninstall(o.Quiet); return 0; }
             if (IsWindows && !o.Portable && !Installer.RunningFromInstallDir()) return Installer.Install() ? 0 : 1;
 
             bool created;

@@ -7,7 +7,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Management;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -60,6 +59,7 @@ namespace YbmNaverAlert
             {
                 StopRunning();
                 RemoveOldPowerShellVersion();
+                CleanTempLeftovers();
                 Directory.CreateDirectory(Dir);
                 CopyFresh(self, ExePath);
                 SetAutoStart(true);
@@ -85,16 +85,33 @@ namespace YbmNaverAlert
             try { Registry.CurrentUser.DeleteSubKeyTree(UninstallKey, false); } catch { }
             try { if (File.Exists(StartMenuLink)) File.Delete(StartMenuLink); } catch { }
             RemoveOldPowerShellVersion();
-            if (!quiet) MessageBox.Show("YBM 네이버 예약 알림을 제거했습니다.", Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            // 실행 중인 자신(설치 폴더의 exe)은 바로 못 지우므로, 잠시 뒤 폴더째 삭제
+
+            // 실행 중인 exe 는 지울 수 없지만 옮길 수는 있다 → 임시 폴더로 옮긴 뒤 설치 폴더를 지운다.
+            // (명령 프롬프트를 띄워 스스로 지우는 방식은 악성코드가 흔히 쓰는 수법이라 쓰지 않는다)
+            bool removed = false;
+            for (int i = 0; i < 20 && !removed; i++)
+            {
+                try
+                {
+                    if (RunningFromInstallDir() && File.Exists(ExePath))
+                        File.Move(ExePath, Path.Combine(Path.GetTempPath(), "YBMNaverAlert-old-" + Guid.NewGuid().ToString("N") + ".exe"));
+                    if (Directory.Exists(Dir)) Directory.Delete(Dir, true);
+                    removed = true;
+                }
+                catch { Thread.Sleep(250); }
+            }
+            if (!quiet)
+                MessageBox.Show(removed ? "YBM 네이버 예약 알림을 제거했습니다." : "YBM 네이버 예약 알림을 제거했습니다.\n\n일부 파일을 지우지 못했습니다. 필요하면 아래 폴더를 직접 지워 주세요.\n" + Dir,
+                    Program.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // 제거할 때 임시 폴더로 옮겨 둔 예전 exe 정리 (실행 중이 아니면 지워진다)
+        static void CleanTempLeftovers()
+        {
             try
             {
-                Process.Start(new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 3 > nul & rmdir /s /q \"" + Dir + "\"")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                });
+                foreach (var f in Directory.GetFiles(Path.GetTempPath(), "YBMNaverAlert-old-*.exe"))
+                    try { File.Delete(f); } catch { }
             }
             catch { }
         }
@@ -153,10 +170,19 @@ namespace YbmNaverAlert
             Signal("Quit");
             for (int i = 0; i < 60 && IsRunning(); i++) Thread.Sleep(100);
             if (!IsRunning()) return;
+            // 신호로 안 끝나면, 설치 폴더의 exe 로 실행 중인 것만 골라 끝낸다 (이름만 같은 다른 프로그램은 건드리지 않음)
             int me = Process.GetCurrentProcess().Id;
             foreach (var p in Process.GetProcessesByName("YBMNaverAlert"))
             {
-                try { if (p.Id != me) { p.Kill(); p.WaitForExit(3000); } } catch { }
+                try
+                {
+                    if (p.Id != me && string.Equals(Path.GetFullPath(p.MainModule.FileName), Path.GetFullPath(ExePath), StringComparison.OrdinalIgnoreCase))
+                    {
+                        p.Kill();
+                        p.WaitForExit(3000);
+                    }
+                }
+                catch { }
             }
         }
 
@@ -236,25 +262,14 @@ namespace YbmNaverAlert
             }
         }
 
-        // 예전에 안내했던 PowerShell 판(naver-alert.ps1)이 있으면 정리 — 알림이 두 번 뜨지 않게
+        // 예전에 안내했던 PowerShell 판(naver-alert.ps1)이 있으면 자동 실행 등록과 파일만 정리 — 알림이 두 번 뜨지 않게.
+        // 다른 프로그램(프로세스)은 건드리지 않는다. 이미 떠 있던 것은 로그오프·재부팅 때 끝난다.
         static void RemoveOldPowerShellVersion()
         {
             try
             {
                 var lnk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "YBM 네이버 예약 알림.lnk");
                 if (File.Exists(lnk)) File.Delete(lnk);
-            }
-            catch { }
-            if (!File.Exists(Path.Combine(Dir, "naver-alert.ps1"))) return;
-            try
-            {
-                using (var q = new ManagementObjectSearcher("SELECT ProcessId, CommandLine FROM Win32_Process WHERE Name = 'powershell.exe'"))
-                    foreach (ManagementObject p in q.Get())
-                    {
-                        var cl = Convert.ToString(p["CommandLine"]);
-                        if (cl != null && cl.IndexOf("naver-alert.ps1", StringComparison.OrdinalIgnoreCase) >= 0)
-                            try { Process.GetProcessById(Convert.ToInt32(p["ProcessId"])).Kill(); } catch { }
-                    }
             }
             catch { }
             foreach (var f in new[] { "naver-alert.ps1", "snap.json" })

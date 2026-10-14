@@ -19,10 +19,11 @@ for s in 16 20 24 32 40 48 64; do RES="$RES -resource:res/icon$s.png,icon$s.png"
 mcs -target:winexe -platform:anycpu -optimize+ -codepage:utf8 -warnaserror+ \
   -nostdlib -noconfig -lib:$API -lib:$API/Facades \
   -r:mscorlib.dll -r:System.dll -r:System.Core.dll -r:System.Drawing.dll -r:System.Windows.Forms.dll \
-  -r:System.Web.Extensions.dll -r:System.Management.dll \
+  -r:System.Web.Extensions.dll \
   -win32res:build/app.res $RES \
   -out:$OUT src/*.cs
 
 mono "$OUT" /selftest
 ls -la "$OUT"
-sha256sum "$OUT"
+# 위변조 확인용 SHA-256 — 관리자 화면 설치 안내에 표시된다
+sha256sum "$OUT" | cut -d' ' -f1 | tee "$OUT.sha256"

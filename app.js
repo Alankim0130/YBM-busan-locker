@@ -1898,7 +1898,13 @@
   function nbStop() { if (nbTimer) { clearInterval(nbTimer); nbTimer = null; } }
   function nbPoll() {
     if (nbLoading) return; nbLoading = true;
-    fetch("/api/naver-booking", { cache: "no-store" }).then(function (r) {
+    // 로그인한 직원만 조회할 수 있다 — 로그인 토큰을 함께 보낸다
+    sb.auth.getSession().then(function (res) {
+      var tok = res && res.data && res.data.session && res.data.session.access_token;
+      if (!tok) throw new Error("로그인이 필요합니다");
+      return fetch("/api/naver-booking", { cache: "no-store", headers: { Authorization: "Bearer " + tok } });
+    }).then(function (r) {
+      if (r.status === 401) throw new Error("로그인이 필요합니다");
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     }).then(function (data) {
@@ -2001,7 +2007,7 @@
     var now = nbNowKst();
     var html = '<div class="nb-grid">';
     nbData.items.forEach(function (it) {
-      html += '<div class="nb-col"><div class="nb-head"><a href="https://m.booking.naver.com/booking/12/bizes/459658/items/' + it.id + '?startDateTime=' + nbDay + 'T00%3A00%3A00%2B09%3A00" target="_blank" rel="noopener">' + esc(it.name) + " ↗</a>";
+      html += '<div class="nb-col"><div class="nb-head"><a href="https://m.booking.naver.com/booking/12/bizes/459658/items/' + encodeURIComponent(it.id) + '?startDateTime=' + encodeURIComponent(nbDay) + 'T00%3A00%3A00%2B09%3A00" target="_blank" rel="noopener noreferrer">' + esc(it.name) + " ↗</a>";
       if (!it.ok) { html += '</div><div class="nb-err">조회 실패<br><small>' + esc(it.error || "") + "</small></div></div>"; return; }
       var slots = it.slots.filter(function (sl) { return sl.t.slice(0, 10) === nbDay && (sl.open || sl.b > 0); }).sort(function (a, b) { return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
       var booked = slots.reduce(function (n, sl) { return n + sl.b; }, 0);
@@ -2019,7 +2025,8 @@
     var evs = nbGet(NB_EVTS, []);
     $("nbEvents").innerHTML = evs.length
       ? '<div class="nb-evlist">' + evs.slice(0, 30).map(function (e) {
-          return '<div class="nb-ev ' + e.kind + '"><span class="log-badge ' + (e.kind === "booked" ? "in" : "discard") + '">' + (e.kind === "booked" ? "예약" : "취소") + "</span>" +
+          var bk = e.kind === "booked";
+          return '<div class="nb-ev ' + (bk ? "booked" : "canceled") + '"><span class="log-badge ' + (bk ? "in" : "discard") + '">' + (bk ? "예약" : "취소") + "</span>" +
             "<b>" + esc(e.name) + "</b><span>" + esc(nbWhen(e.t)) + (e.diff > 1 ? " · " + e.diff + "건" : "") + '</span><span class="nb-at">' + logYmd(e.at).slice(5).replace("-", "/") + " " + logHm(e.at) + " 감지</span></div>";
         }).join("") + "</div>"
       : '<div class="log-empty">아직 감지된 변동이 없습니다. (이 PC에서 확인한 것부터 기록돼요)</div>';
@@ -2039,7 +2046,12 @@
   $("nbBtn").onclick = openBooking;
   $("nbBack").onclick = function () { showView("lockers"); };
   $("nbNotifyBtn").onclick = nbAskNotify;
-  $("nbWinBtn").onclick = function () { var box = $("nbWin"); box.hidden = !box.hidden; };
+  $("nbWinBtn").onclick = function () {
+    var box = $("nbWin"); box.hidden = !box.hidden;
+    if (!box.hidden) fetch("/download/YBM-NaverAlert.exe.sha256", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.text() : ""; })
+      .then(function (t) { t = (t || "").trim(); $("nbHash").textContent = /^[0-9a-f]{64}$/.test(t) ? t : "—"; }, function () {});
+  };
   $("nbRefreshBtn").onclick = function () { $("nbLead").textContent = "확인 중…"; nbPoll(); };
   $("nbPrev").onclick = function () { if (nbData && nbDay > nbData.today) { nbDay = nbAddDay(nbDay, -1); nbRender(); } };
   $("nbNext").onclick = function () { nbDay = nbAddDay(nbDay, 1); nbRender(); };

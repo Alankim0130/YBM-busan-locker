@@ -240,3 +240,30 @@ vercel.json     정적 배포 설정
 naver-alert-win/build.sh        # → download/YBM-NaverAlert.exe (+ 내장 점검 /selftest)
 ```
 강사 목록을 바꾸면 `api/naver-booking.js` 의 `ITEMS` 와 `naver-alert-win/src/Booking.cs` 의 `Items` 를 함께 고치고 다시 빌드합니다.
+
+---
+
+## 보안 설계 (네이버 예약 알림)
+
+**윈도우 프로그램 (`naver-alert-win/`)**
+- **최소 권한**: 일반 사용자 권한으로만 실행(관리자 권한 요청 없음 · 서비스/드라이버 설치 없음). 설치는 현재 사용자 폴더와 HKCU 레지스트리(자동 실행 · 제거 등록)만 씀.
+- **통신 한 곳**: `https://m.booking.naver.com/graphql` 에만 HTTPS로 요청(인증서 검증은 윈도우 기본 그대로). 보내는 것은 업체·상품 번호와 날짜, 받는 것은 시간대별 예약 수뿐. 들어오는 연결(포트 열기) 없음.
+- **비밀·개인정보 없음**: 사물함 DB(Supabase)에 접속하지 않고, 키·비밀번호·학생 정보를 담지 않음. 기록(`%LOCALAPPDATA%\YBMNaverAlert`)도 예약 수·이력·오류뿐.
+- **외부 입력은 믿지 않음**: 네이버 응답은 형식을 엄격히 확인(시각·숫자), 크기 4MB·중첩 깊이 제한, JSON은 객체 생성 없이 해석. 이상하면 그 강사만 '조회 실패'(거짓 알림 방지).
+- **여는 링크 제한**: 브라우저로 여는 주소는 `https://m.booking.naver.com` 만 허용.
+- **자동 업데이트·원격 실행 없음**: 프로그램이 스스로 코드를 내려받지 않음. 새 버전은 사람이 설치 파일을 실행할 때만 바뀜.
+- **깨끗한 제거**: 자동 실행·제거 등록·바로가기·폴더 삭제. 명령 프롬프트로 스스로 지우는 식의 악성코드 흔한 수법은 쓰지 않음. 다른 프로그램(프로세스)을 끄지 않음(설치 폴더의 자기 자신만).
+- **시험용 옵션 제한**: `/endpoint` 는 이 PC 주소(127.0.0.1·localhost)만 허용.
+- **내장 점검**: `YBM-NaverAlert.exe /selftest` (해석·변동 비교·보안 제한 34개 항목).
+- **재현 가능한 빌드**: 같은 소스를 `build.sh` 로 다시 빌드하면 바이트까지 같은 exe 가 나온다(mono 6.8 기준) → 배포 파일이 공개 소스 그대로인지 확인 가능.
+- **한계**: 코드 서명 인증서가 없어 윈도우가 게시자·위변조를 확인해 주지 못함(SmartScreen 경고). 공식 경로(사이트 HTTPS)로 받고, 다른 경로로 받은 파일은 SHA-256 확인값(`download/YBM-NaverAlert.exe.sha256`)과 비교. 인증서를 구하면 `build.sh` 에 서명 단계를 추가.
+
+**웹 (`api/naver-booking.js`)**
+- 로그인한 직원만 호출(Supabase 로그인 토큰 확인), GET만 허용, 공용 캐시 금지.
+- 결과 60초 재사용 · 동시 요청 합치기 → 직원 PC가 늘어도 네이버 호출이 거의 늘지 않음. 로그인 확인과 함께, 외부인이 이 함수로 네이버에 요청을 쏟아붓지 못하게 함.
+- 관리자 화면 출력은 모두 이스케이프.
+
+**운영에서 꼭 확인할 것**
+- **Supabase 가입 막기**: Authentication → Sign In / Providers(예전 화면은 Settings) → *Allow new users to sign up* **끄기**.
+  RLS가 '로그인한 사용자 = 직원'으로 보므로, 켜져 있으면 공개된 anon 키로 누구나 가입해 학생 개인정보(이름·생년월일·전화·계좌)를 볼 수 있음.
+- **저장소 비공개 권장**: 공개 저장소에 학생 실명이 든 파일(`supabase/fix_dahee_name.sql`)이 있음. GitHub → Settings → Danger Zone → *Change visibility* → Private (Vercel 배포는 그대로 동작).

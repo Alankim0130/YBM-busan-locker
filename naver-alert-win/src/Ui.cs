@@ -126,8 +126,17 @@ namespace YbmNaverAlert
             catch { return SystemIcons.Application; }
         }
 
+        // 네이버 예약 페이지(https)만 연다 — 다른 주소·파일·프로그램은 열지 않는다
+        public static bool IsAllowedUrl(string url)
+        {
+            Uri u;
+            return url != null && Uri.TryCreate(url, UriKind.Absolute, out u)
+                && u.Scheme == Uri.UriSchemeHttps && u.Host == "m.booking.naver.com" && u.IsDefaultPort;
+        }
+
         public static void Open(string url)
         {
+            if (!IsAllowedUrl(url)) { Store.Log("허용되지 않은 주소라 열지 않음: " + url); return; }
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
             catch (Exception e) { Store.Log("열기 실패: " + url + " — " + e.Message); }
         }

@@ -94,6 +94,16 @@ namespace YbmNaverAlert
             Ok(next[B.Id + "|2026-10-15 15:00"] == 0, "diff: 조회 실패한 강사는 직전 값 유지");
             Ok(next[A.Id + "|2026-10-15 17:00"] == 1, "diff: 새 칸은 기준선으로 저장");
 
+            // ── 보안: 여는 주소·시험용 옵션 제한
+            Ok(Ui.IsAllowedUrl(Booking.PageUrl("4139011", "2026-10-15")), "url: 네이버 예약 페이지 허용");
+            Ok(!Ui.IsAllowedUrl("http://m.booking.naver.com/booking/12"), "url: http 차단");
+            Ok(!Ui.IsAllowedUrl("https://m.booking.naver.com.evil.com/x"), "url: 비슷한 도메인 차단");
+            Ok(!Ui.IsAllowedUrl("https://m.booking.naver.com:8443/x"), "url: 다른 포트 차단");
+            Ok(!Ui.IsAllowedUrl("file:///C:/Windows/System32/calc.exe") && !Ui.IsAllowedUrl("calc.exe") && !Ui.IsAllowedUrl(null), "url: 파일·프로그램 차단");
+            Ok(Options.Parse(new[] { "/endpoint:https://evil.example/graphql" }).Endpoint == null, "opt: 외부 endpoint 거부");
+            Ok(Options.Parse(new[] { "/endpoint:http://127.0.0.1:8799/graphql" }).Endpoint != null, "opt: 이 PC endpoint 허용(시험용)");
+            Ok(Throws(() => Booking.Parse(new string('[', 200) + new string(']', 200))) != null, "parse: 깊은 중첩 거절");
+
             // ── 날짜 표시
             Ok(Kst.When("2026-10-15 15:00") == "10/15(목) 15:00", "kst: 요일 표시");
             Ok(Kst.Day("2026-10-18") == "10/18(일)", "kst: 일요일");

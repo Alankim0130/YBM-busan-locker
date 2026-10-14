@@ -189,8 +189,21 @@ namespace YbmNaverAlert
             using (res)
             using (var st = res.GetResponseStream())
             using (var rd = new StreamReader(st, Encoding.UTF8))
-                return await rd.ReadToEndAsync().ConfigureAwait(false);
+            {
+                // 정상 응답은 수십 KB — 비정상적으로 큰 응답은 읽다가 끊는다(메모리 보호)
+                var sb = new StringBuilder();
+                var buf = new char[16384];
+                int n;
+                while ((n = await rd.ReadAsync(buf, 0, buf.Length).ConfigureAwait(false)) > 0)
+                {
+                    sb.Append(buf, 0, n);
+                    if (sb.Length > MaxResponseChars) throw new Exception("응답이 너무 큼");
+                }
+                return sb.ToString();
+            }
         }
+
+        const int MaxResponseChars = 4 * 1024 * 1024;
 
         static string Describe(Exception e)
         {
@@ -208,7 +221,7 @@ namespace YbmNaverAlert
         public static List<Slot> Parse(string text)
         {
             object root;
-            try { root = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 64 }.DeserializeObject(text); }
+            try { root = new JavaScriptSerializer { MaxJsonLength = MaxResponseChars, RecursionLimit = 32 }.DeserializeObject(text); }
             catch { throw new Exception("응답이 JSON 이 아님"); }
             var o = root as IDictionary<string, object>;
             if (o == null) throw new Exception("응답이 JSON 객체가 아님");

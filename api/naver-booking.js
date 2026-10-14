@@ -3,9 +3,11 @@
 // ------------------------------------------------------------
 // 브라우저는 네이버에 직접 요청할 수 없어(CORS) 여기서 대신 읽는다.
 // 첫토익·역전토익과 같은 방식: 공개 예약 페이지가 쓰는 GraphQL(hourlySchedule).
-//   - 인증 불필요 · 조회 전용 · 예약자 정보 없음(칸마다 건수·정원뿐)
+//   - 조회 전용 · 예약자 정보 없음(칸마다 건수·정원뿐)
+//   - 로그인한 직원만 호출 가능 (Supabase 로그인 토큰 확인) — 외부인이 이 함수를
+//     이용해 네이버에 요청을 쏟아붓지 못하게
 //   - 강사 목록은 아래 ITEMS 고정 → 임의 주소 중계 불가
-//   - 응답은 60초 CDN 캐시 → 여러 PC가 열어도 네이버 호출은 분당 1회 수준
+//   - 결과는 60초 동안 재사용(동시 요청은 한 번만 조회) → 직원 PC가 여러 대여도 네이버 호출이 늘지 않게
 // 주의(역전토익 실측):
 //   - 날짜는 시간대 표시 없이 보낸다(+09:00 을 붙이면 본문 오류)
 //   - 응답 모양이 이상하면 0으로 메우지 말고 그 강사는 오류로 돌려준다
@@ -92,18 +94,72 @@ async function fetchItem(item, from, to) {
   return parseHourly(await res.json());
 }
 
-module.exports = async function handler(req, res) {
+// 사물함 웹(config.js)과 같은 Supabase 주소·공개(anon) 키 — 공개 전제의 키라 여기 적어도 된다.
+// Vercel 환경 변수(SUPABASE_URL / SUPABASE_ANON_KEY)가 있으면 그 값을 쓴다.
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://jueuulxandnmpladwjto.supabase.co";
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1ZXV1bHhhbmRubXBsYWR3anRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NzQ0MTAsImV4cCI6MjA5NzM1MDQxMH0.nACXq57uGsuf0uyhVM5pUFJdlJ2k9MAK8V_IrKvypDw";
+
+// 로그인한 직원인지 — 브라우저가 보낸 Supabase 로그인 토큰을 Supabase 에 물어 확인
+async function isStaff(req) {
+  const m = String((req.headers && req.headers.authorization) || "").match(/^Bearer ([A-Za-z0-9._-]{20,4096})$/);
+  if (!m) return false;
+  try {
+    const r = await fetch(SUPABASE_URL + "/auth/v1/user", {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + m[1] },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return false;
+    const u = await r.json();
+    return !!(u && u.id && u.aud === "authenticated");
+  } catch (e) {
+    return false;
+  }
+}
+
+async function build() {
   const from = kstDay(0);
   const to = kstDay(DAYS_AHEAD);
   const results = await Promise.all(
     ITEMS.map(function (item) {
       return fetchItem(item, from, to).then(
         function (slots) { return { id: item.id, name: item.name, ok: true, slots: slots }; },
-        function (e) { return { id: item.id, name: item.name, ok: false, error: String((e && e.message) || e) }; }
+        function (e) { return { id: item.id, name: item.name, ok: false, error: String((e && e.message) || e).slice(0, 200) }; }
       );
     })
   );
+  return JSON.stringify({ today: from, fetchedAt: new Date().toISOString(), items: results });
+}
+
+// 60초 재사용 + 동시에 온 요청은 한 번만 조회
+let memo = null;
+let inflight = null;
+function snapshot() {
+  if (memo && Date.now() - memo.at < 60000) return Promise.resolve(memo.body);
+  if (!inflight) {
+    inflight = build().then(
+      function (body) { memo = { at: Date.now(), body: body }; inflight = null; return body; },
+      function (e) { inflight = null; throw e; }
+    );
+  }
+  return inflight;
+}
+
+module.exports = async function handler(req, res) {
+  res.setHeader("Cache-Control", "private, no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=30");
-  res.status(200).send(JSON.stringify({ today: from, fetchedAt: new Date().toISOString(), items: results }));
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    res.status(405).send(JSON.stringify({ error: "GET only" }));
+    return;
+  }
+  if (!(await isStaff(req))) {
+    res.status(401).send(JSON.stringify({ error: "로그인이 필요합니다" }));
+    return;
+  }
+  try {
+    res.status(200).send(await snapshot());
+  } catch (e) {
+    res.status(502).send(JSON.stringify({ error: "조회 실패" }));
+  }
 };
