@@ -19,22 +19,25 @@ namespace YbmNaverAlert
         {
             public int Kind;          // 1 = 예약, -1 = 취소, 0 = 안내
             public string Main, Sub, Day;
+            public string Msg;        // [복사] 로 넣는 카톡 메시지
+            public DateTime CopiedUntil;
         }
 
         sealed class Row
         {
             public Line L;
-            public Rectangle R;
+            public Rectangle R, CopyR;
         }
 
         const int MaxLines = 6;
         readonly List<Line> lines = new List<Line>();
         readonly List<Row> rows = new List<Row>();
-        readonly Button okBtn, openBtn;
+        readonly Button okBtn, openBtn, allBtn;
+        readonly System.Windows.Forms.Timer flash = new System.Windows.Forms.Timer { Interval = 1600 };
         Rectangle closeRect, moreRect;
         int hidden;
 
-        int W { get { return Ui.S(390); } }
+        int W { get { return Ui.S(420); } }
         int HeaderH { get { return Ui.S(42); } }
         int RowH { get { return Ui.S(34); } }
         int FooterH { get { return Ui.S(56); } }
@@ -54,11 +57,47 @@ namespace YbmNaverAlert
             okBtn.Click += (s, e) => Close();
             openBtn = Ui.Btn("예약 현황 보기", false);
             openBtn.Click += (s, e) => { var d = FirstDay(); Close(); onOpen(d); };
+            // 변동이 2건 이상이면 [모두 복사] — 메시지를 한 번에 복사
+            allBtn = Ui.Btn("모두 복사", false);
+            allBtn.Click += (s, e) =>
+            {
+                var all = new List<string>();
+                foreach (var l in lines) if (l.Msg != null) all.Add(l.Msg);
+                if (Msg.Copy(string.Join("\r\n", all)))
+                {
+                    allBtn.Text = "복사됨";
+                    flash.Stop();
+                    flash.Start();
+                }
+            };
             Controls.Add(okBtn);
             Controls.Add(openBtn);
+            Controls.Add(allBtn);
+            flash.Tick += (s, e) => { flash.Stop(); allBtn.Text = "모두 복사"; Invalidate(); };
 
-            MouseClick += (s, e) => { if (closeRect.Contains(e.Location)) Close(); };
-            MouseMove += (s, e) => { Cursor = closeRect.Contains(e.Location) ? Cursors.Hand : Cursors.Default; };
+            MouseClick += (s, e) =>
+            {
+                if (closeRect.Contains(e.Location)) { Close(); return; }
+                foreach (var row in rows)
+                {
+                    if (row.L.Msg == null || !row.CopyR.Contains(e.Location)) continue;
+                    if (Msg.Copy(row.L.Msg))
+                    {
+                        row.L.CopiedUntil = DateTime.UtcNow.AddMilliseconds(1500);
+                        flash.Stop();
+                        flash.Start();
+                        Invalidate();
+                    }
+                    return;
+                }
+            };
+            MouseMove += (s, e) =>
+            {
+                bool hand = closeRect.Contains(e.Location);
+                foreach (var row in rows) if (row.L.Msg != null && row.CopyR.Contains(e.Location)) hand = true;
+                Cursor = hand ? Cursors.Hand : Cursors.Default;
+            };
+            FormClosed += (s, e) => flash.Dispose();
         }
 
         protected override bool ShowWithoutActivation { get { return true; } }
@@ -83,6 +122,7 @@ namespace YbmNaverAlert
         public void AddChanges(IList<Change> cs)
         {
             var add = new List<Line>();
+            string today = Kst.Ymd(Kst.Now);
             foreach (var c in cs)
                 add.Add(new Line
                 {
@@ -90,6 +130,7 @@ namespace YbmNaverAlert
                     Main = c.Name + "   " + Kst.When(c.T) + (c.Diff > 1 ? " · " + c.Diff + "건" : ""),
                     Sub = c.DetectedAt.ToString("HH:mm", Kst.Inv),
                     Day = c.T.Substring(0, 10),
+                    Msg = global::YbmNaverAlert.Msg.Change(c, today),
                 });
             lines.InsertRange(0, add);
             Relayout();
@@ -117,7 +158,8 @@ namespace YbmNaverAlert
             {
                 if (shown == MaxLines) break;
                 int h = l.Kind == 0 ? InfoHeight(l) : RowH;
-                rows.Add(new Row { L = l, R = new Rectangle(Ui.S(14), y, W - Ui.S(28), h) });
+                var r = new Rectangle(Ui.S(14), y, W - Ui.S(28), h);
+                rows.Add(new Row { L = l, R = r, CopyR = new Rectangle(r.Right - Ui.S(48), r.Y + (r.Height - Ui.S(26)) / 2, Ui.S(48), Ui.S(26)) });
                 y += h + Ui.S(4);
                 shown++;
             }
@@ -132,6 +174,10 @@ namespace YbmNaverAlert
 
             okBtn.Location = new Point(W - Ui.S(14) - okBtn.Width, H - FooterH + (FooterH - okBtn.Height) / 2);
             openBtn.Location = new Point(okBtn.Left - Ui.S(8) - openBtn.Width, okBtn.Top);
+            allBtn.Location = new Point(Ui.S(14), okBtn.Top);
+            int msgs = 0;
+            foreach (var l in lines) if (l.Msg != null) msgs++;
+            allBtn.Visible = msgs >= 2;
             closeRect = new Rectangle(W - Ui.S(40), (HeaderH - Ui.S(30)) / 2, Ui.S(30), Ui.S(30));
 
             var wa = Screen.PrimaryScreen.WorkingArea;
@@ -166,9 +212,12 @@ namespace YbmNaverAlert
                 var badge = new Rectangle(r.X, r.Y + (r.Height - Ui.S(24)) / 2, Ui.S(48), Ui.S(24));
                 Ui.FillRound(g, badge, Ui.S(12), booked ? Ui.GreenBg : Ui.RedBg);
                 Ui.Text(g, booked ? "예약" : "취소", Ui.SmallBold, booked ? Ui.Green : Ui.Red, badge, Ui.CenterMid);
-                int subW = Ui.S(48);
-                Ui.Text(g, l.Main, Ui.BodyBold, Ui.Ink, new Rectangle(badge.Right + Ui.S(10), r.Y, r.Width - badge.Width - Ui.S(10) - subW, r.Height), Ui.LeftMid);
-                Ui.Text(g, l.Sub, Ui.Small, Ui.Ink3, new Rectangle(r.Right - subW, r.Y, subW, r.Height), Ui.RightMid);
+                var cr = row.CopyR;
+                Ui.Text(g, l.Main, Ui.BodyBold, Ui.Ink, new Rectangle(badge.Right + Ui.S(10), r.Y, Math.Max(0, cr.Left - Ui.S(6) - badge.Right - Ui.S(10)), r.Height), Ui.LeftMid);
+                bool done = DateTime.UtcNow < l.CopiedUntil;
+                Ui.FillRound(g, cr, Ui.S(7), done ? Ui.GreenBg : Ui.Surface);
+                Ui.DrawRound(g, cr, Ui.S(7), done ? Ui.Green : Ui.LineStrong);
+                Ui.Text(g, done ? "복사됨" : "복사", Ui.SmallBold, done ? Ui.Green : Ui.Ink2, cr, Ui.CenterMid);
             }
 
             if (hidden > 0)

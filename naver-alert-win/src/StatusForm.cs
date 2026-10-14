@@ -20,6 +20,9 @@ namespace YbmNaverAlert
         readonly ListBox events;
         readonly CheckBox autoStart;
         readonly Dictionary<string, Card> cardById = new Dictionary<string, Card>();
+        readonly System.Windows.Forms.Timer evFlash = new System.Windows.Forms.Timer { Interval = 1600 };
+        Change copiedEvent;
+        DateTime copiedEventUntil;
 
         public StatusForm(TrayApp app, string day)
         {
@@ -81,6 +84,31 @@ namespace YbmNaverAlert
                 var c = events.SelectedItem as Change;
                 if (c != null) { this.day = c.T.Substring(0, 10); Render(); }
             };
+            // 줄 오른쪽 [복사] → 강사님께 보낼 메시지 복사
+            events.MouseClick += (s, e) =>
+            {
+                int i = events.IndexFromPoint(e.Location);
+                if (i < 0 || i >= events.Items.Count) return;
+                var r = events.GetItemRectangle(i);
+                if (!EventCopyRect(r).Contains(e.Location)) return;
+                var c = (Change)events.Items[i];
+                if (Msg.Copy(Msg.Change(c, Kst.Ymd(Kst.Now))))
+                {
+                    copiedEvent = c;
+                    copiedEventUntil = DateTime.UtcNow.AddMilliseconds(1500);
+                    evFlash.Stop();
+                    evFlash.Start();
+                    events.Invalidate();
+                }
+            };
+            events.MouseMove += (s, e) =>
+            {
+                int i = events.IndexFromPoint(e.Location);
+                bool over = i >= 0 && i < events.Items.Count && EventCopyRect(events.GetItemRectangle(i)).Contains(e.Location);
+                events.Cursor = over ? Cursors.Hand : Cursors.Default;
+            };
+            evFlash.Tick += (s, e) => { evFlash.Stop(); events.Invalidate(); };
+            FormClosed += (s, e) => evFlash.Dispose();
             evEmpty = new Label
             {
                 Dock = DockStyle.Fill,
@@ -223,21 +251,36 @@ namespace YbmNaverAlert
             var badge = new Rectangle(r.X + Ui.S(2), r.Y + (r.Height - Ui.S(22)) / 2, Ui.S(46), Ui.S(22));
             Ui.FillRound(g, badge, Ui.S(11), c.Booked ? Ui.GreenBg : Ui.RedBg);
             Ui.Text(g, c.Booked ? "예약" : "취소", Ui.SmallBold, c.Booked ? Ui.Green : Ui.Red, badge, Ui.CenterMid);
-            int rightW = Ui.S(120);
+            var cr = EventCopyRect(r);
+            int timeW = Ui.S(112);
             string main = c.Name + "   " + Kst.When(c.T) + (c.Diff > 1 ? " · " + c.Diff + "건" : "");
-            Ui.Text(g, main, Ui.Body, Ui.Ink, new Rectangle(badge.Right + Ui.S(10), r.Y, r.Width - badge.Width - Ui.S(14) - rightW, r.Height), Ui.LeftMid);
-            Ui.Text(g, c.DetectedAt.ToString("M/d HH:mm", Kst.Inv) + " 감지", Ui.Small, Ui.Ink3, new Rectangle(r.Right - rightW, r.Y, rightW - Ui.S(2), r.Height), Ui.RightMid);
+            Ui.Text(g, main, Ui.Body, Ui.Ink, new Rectangle(badge.Right + Ui.S(10), r.Y, Math.Max(0, cr.Left - Ui.S(8) - timeW - badge.Right - Ui.S(10)), r.Height), Ui.LeftMid);
+            Ui.Text(g, c.DetectedAt.ToString("M/d HH:mm", Kst.Inv) + " 감지", Ui.Small, Ui.Ink3, new Rectangle(cr.Left - Ui.S(8) - timeW, r.Y, timeW, r.Height), Ui.RightMid);
+            bool done = ReferenceEquals(c, copiedEvent) && DateTime.UtcNow < copiedEventUntil;
+            Ui.FillRound(g, cr, Ui.S(7), done ? Ui.GreenBg : Ui.Surface);
+            Ui.DrawRound(g, cr, Ui.S(7), done ? Ui.Green : Ui.LineStrong);
+            Ui.Text(g, done ? "복사됨" : "복사", Ui.SmallBold, done ? Ui.Green : Ui.Ink2, cr, Ui.CenterMid);
             using (var p = new Pen(Ui.Line)) g.DrawLine(p, r.X, r.Bottom - 1, r.Right, r.Bottom - 1);
+        }
+
+        Rectangle EventCopyRect(Rectangle r)
+        {
+            return new Rectangle(r.Right - Ui.S(52), r.Y + (r.Height - Ui.S(24)) / 2, Ui.S(48), Ui.S(24));
         }
     }
 
     // 강사 한 명의 그날 시간표 카드 — 누르면 네이버 예약 페이지(그 날짜)가 열린다
+    // 오른쪽 위 [복사] 는 카톡으로 보낼 '상담예약자 명단'을 복사한다
     sealed class Card : Control
     {
         readonly Item item;
         string day, now, error;
         List<Slot> slots;
         readonly ToolTip tip = new ToolTip();
+        readonly System.Windows.Forms.Timer flash = new System.Windows.Forms.Timer { Interval = 1600 };
+        Rectangle copyRect;
+        DateTime copiedUntil;
+        bool overCopy;
 
         int HeaderH { get { return Ui.S(44); } }
         int RowH { get { return Ui.S(31); } }
@@ -251,6 +294,7 @@ namespace YbmNaverAlert
             Cursor = Cursors.Hand;
             tip.SetToolTip(this, "누르면 네이버 예약 페이지가 열립니다");
             Height = HeaderH + RowH + Ui.S(14);
+            flash.Tick += (s, e) => { flash.Stop(); Invalidate(); };
         }
 
         public void SetData(string day, string now, List<Slot> slots, string error)
@@ -266,10 +310,44 @@ namespace YbmNaverAlert
             Invalidate();
         }
 
-        protected override void OnClick(EventArgs e)
+        protected override void OnMouseClick(MouseEventArgs e)
         {
-            base.OnClick(e);
+            base.OnMouseClick(e);
+            if (e.Button != MouseButtons.Left) return;
+            if (slots != null && copyRect.Contains(e.Location))
+            {
+                if (Msg.Copy(Msg.Summary(item.Name, day, Kst.Ymd(Kst.Now), slots)))
+                {
+                    copiedUntil = DateTime.UtcNow.AddMilliseconds(1500);
+                    flash.Stop();
+                    flash.Start();
+                    Invalidate();
+                }
+                return;
+            }
             Ui.Open(Booking.PageUrl(item.Id, day));
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool over = slots != null && copyRect.Contains(e.Location);
+            if (over == overCopy) return;
+            overCopy = over;
+            tip.SetToolTip(this, over ? "카톡으로 보낼 상담예약자 명단 복사" : "누르면 네이버 예약 페이지가 열립니다");
+            Invalidate();
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            if (overCopy) { overCopy = false; Invalidate(); }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { flash.Dispose(); tip.Dispose(); }
+            base.Dispose(disposing);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -280,11 +358,20 @@ namespace YbmNaverAlert
             Ui.FillRound(g, box, Ui.S(12), Ui.Surface);
             Ui.DrawRound(g, box, Ui.S(12), Ui.Line);
 
-            int pad = Ui.S(14);
+            int pad = Ui.S(12);
             int booked = slots == null ? 0 : slots.Sum(s => s.B);
-            Ui.Text(g, item.Name + "  ↗", Ui.Title, Ui.Ink, new Rectangle(pad, 0, Width - pad * 2 - Ui.S(56), HeaderH), Ui.LeftMid);
+            copyRect = new Rectangle(Width - pad - Ui.S(48), (HeaderH - Ui.S(26)) / 2, Ui.S(48), Ui.S(26));
+            int cntW = Ui.S(38);
+            int cntX = copyRect.Left - Ui.S(6) - cntW;
+            Ui.Text(g, item.Name + "  ↗", Ui.Title, Ui.Ink, new Rectangle(pad, 0, Math.Max(0, cntX - pad), HeaderH), Ui.LeftMid);
             if (slots != null)
-                Ui.Text(g, booked + "건", Ui.BodyBold, booked > 0 ? Ui.Green : Ui.Ink3, new Rectangle(Width - pad - Ui.S(60), 0, Ui.S(60), HeaderH), Ui.RightMid);
+            {
+                Ui.Text(g, booked + "건", Ui.BodyBold, booked > 0 ? Ui.Green : Ui.Ink3, new Rectangle(cntX, 0, cntW, HeaderH), Ui.RightMid);
+                bool done = DateTime.UtcNow < copiedUntil;
+                Ui.FillRound(g, copyRect, Ui.S(7), done ? Ui.GreenBg : (overCopy ? Ui.Surface2 : Ui.Surface));
+                Ui.DrawRound(g, copyRect, Ui.S(7), done ? Ui.Green : Ui.LineStrong);
+                Ui.Text(g, done ? "복사됨" : "복사", Ui.SmallBold, done ? Ui.Green : Ui.Ink2, copyRect, Ui.CenterMid);
+            }
             using (var p = new Pen(Ui.Line)) g.DrawLine(p, 1, HeaderH, Width - 2, HeaderH);
 
             int y = HeaderH + Ui.S(6);

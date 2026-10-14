@@ -104,6 +104,18 @@ namespace YbmNaverAlert
             Ok(Options.Parse(new[] { "/endpoint:http://127.0.0.1:8799/graphql" }).Endpoint != null, "opt: 이 PC endpoint 허용(시험용)");
             Ok(Throws(() => Booking.Parse(new string('[', 200) + new string(']', 200))) != null, "parse: 깊은 중첩 거절");
 
+            // ── 카톡 메시지 문구
+            var today = "2026-10-15";
+            var mk = new Func<bool, string, int, Change>((bk, t, d) => new Change { Booked = bk, Name = "첫토익", T = t, Diff = d, B = 1, S = 1 });
+            Ok(Msg.Change(mk(false, "2026-10-15 16:00", 1), today) == "첫토익 16:00 예약자 취소하셨습니다.", "msg: 오늘 취소");
+            Ok(Msg.Change(mk(true, "2026-10-15 16:30", 1), today) == "첫토익 16:30 상담예약 있습니다.", "msg: 오늘 예약");
+            Ok(Msg.Change(mk(true, "2026-10-16 16:30", 2), today) == "첫토익 10/16(금) 16:30 상담예약 2명 있습니다.", "msg: 다른 날 · 2명");
+            Ok(Msg.Change(mk(false, "2026-10-16 16:00", 2), today) == "첫토익 10/16(금) 16:00 예약자 2명 취소하셨습니다.", "msg: 다른 날 취소 2명");
+            var daySlots = new List<Slot> { Sl("2026-10-15 16:30", 2), Sl("2026-10-15 16:00", 1), Sl("2026-10-15 17:00", 0), Sl("2026-10-16 10:00", 1) };
+            Ok(Msg.Summary("첫토익", today, today, daySlots) == "<첫토익 상담예약자 명단>\r\n16:00 1명\r\n16:30 2명", "msg: 오늘 명단(시각순·빈 칸 제외)");
+            Ok(Msg.Summary("첫토익", "2026-10-16", today, daySlots) == "<첫토익 10/16(금) 상담예약자 명단>\r\n10:00 1명", "msg: 다른 날 명단");
+            Ok(Msg.Summary("벨라토익", today, today, new List<Slot>()) == "<벨라토익 상담예약자 명단>\r\n예약 없음", "msg: 예약 없음");
+
             // ── 날짜 표시
             Ok(Kst.When("2026-10-15 15:00") == "10/15(목) 15:00", "kst: 요일 표시");
             Ok(Kst.Day("2026-10-18") == "10/18(일)", "kst: 일요일");

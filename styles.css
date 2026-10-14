@@ -620,7 +620,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 /* ===== 네이버 예약 ===== */
 .nb-date{min-width:110px;}
 .nb-sub{font-size:14px;font-weight:700;margin:26px 0 10px;color:var(--ink-2);}
-.nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;}
+.nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;}
 .nb-col{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;}
 .nb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);}
 .nb-head a{font-weight:700;font-size:14px;color:var(--ink);text-decoration:none;}
@@ -646,3 +646,9 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .nb-dl{display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin:6px 0 4px;}
 .nb-note code{background:var(--surface-2);padding:1px 5px;border-radius:4px;}
 .nb-one{margin:10px 0 2px;font-size:14px;color:var(--ink);}
+.nb-copy{border:1px solid var(--line-strong);background:var(--surface);border-radius:7px;padding:3px 9px;font:inherit;font-size:12px;font-weight:700;color:var(--ink-2);cursor:pointer;margin-left:6px;}
+.nb-copy:hover{background:var(--surface-2);}
+.nb-copy.done{background:#e3f3ec;border-color:#1d7a54;color:#1d7a54;}
+.nb-head .nb-tot{margin-left:auto;}
+.nb-head a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nb-head .nb-tot,.nb-copy{white-space:nowrap;flex:none;}

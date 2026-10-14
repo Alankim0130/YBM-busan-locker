@@ -1995,6 +1995,29 @@
     nbSyncNotifyBtn();
     if (nbData) nbRender(); else nbPoll();
   }
+  // 강사님께 보내는 카톡 메시지 (윈도우 프로그램 naver-alert-win/src/Messages.cs 와 같은 문구)
+  function nbWhenFor(t, today) { return t.slice(0, 10) === today ? t.slice(11, 16) : nbWhen(t); }
+  function nbChangeText(e, today) {
+    var n = e.diff > 1 ? e.diff + "명 " : "";
+    return e.kind === "booked"
+      ? e.name + " " + nbWhenFor(e.t, today) + " 상담예약 " + n + "있습니다."
+      : e.name + " " + nbWhenFor(e.t, today) + " 예약자 " + n + "취소하셨습니다.";
+  }
+  function nbSummaryText(it, day, today) {
+    var rows = (it.slots || []).filter(function (sl) { return sl.b > 0 && sl.t.slice(0, 10) === day; })
+      .sort(function (a, b) { return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; })
+      .map(function (sl) { return sl.t.slice(11, 16) + " " + sl.b + "명"; });
+    return "<" + it.name + (day === today ? "" : " " + nbDayLabel(day)) + " 상담예약자 명단>\n" + (rows.length ? rows.join("\n") : "예약 없음");
+  }
+  function nbCopy(text, btn) {
+    function ok() {
+      toast("복사했어요 — 카카오톡에 붙여넣으세요");
+      if (btn) { btn.textContent = "복사됨"; btn.classList.add("done"); setTimeout(function () { btn.textContent = "복사"; btn.classList.remove("done"); }, 1500); }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () { fallbackCopy(text, ok); });
+    else fallbackCopy(text, ok);
+  }
+
   function nbRender() {
     if (!nbData) return;
     var today = nbData.today;
@@ -2011,7 +2034,7 @@
       if (!it.ok) { html += '</div><div class="nb-err">조회 실패<br><small>' + esc(it.error || "") + "</small></div></div>"; return; }
       var slots = it.slots.filter(function (sl) { return sl.t.slice(0, 10) === nbDay && (sl.open || sl.b > 0); }).sort(function (a, b) { return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
       var booked = slots.reduce(function (n, sl) { return n + sl.b; }, 0);
-      html += '<span class="nb-tot' + (booked ? " has" : "") + '">' + booked + "건</span></div>";
+      html += '<span class="nb-tot' + (booked ? " has" : "") + '">' + booked + '건</span><button class="nb-copy" type="button" data-id="' + esc(it.id) + '" title="카톡으로 보낼 상담예약자 명단 복사">복사</button></div>';
       if (!slots.length) { html += '<div class="nb-none">예약 가능한 시간 없음</div></div>'; return; }
       html += '<div class="nb-slots">';
       slots.forEach(function (sl) {
@@ -2022,14 +2045,25 @@
     });
     html += "</div>";
     $("nbArea").innerHTML = html;
-    var evs = nbGet(NB_EVTS, []);
+    $("nbArea").querySelectorAll(".nb-copy").forEach(function (b) {
+      b.onclick = function () {
+        var id = b.getAttribute("data-id");
+        var it = nbData.items.filter(function (x) { return x.id === id; })[0];
+        if (it && it.ok) nbCopy(nbSummaryText(it, nbDay, nbData.today), b);
+      };
+    });
+    var evs = nbGet(NB_EVTS, []).slice(0, 30);
     $("nbEvents").innerHTML = evs.length
-      ? '<div class="nb-evlist">' + evs.slice(0, 30).map(function (e) {
+      ? '<div class="nb-evlist">' + evs.map(function (e, i) {
           var bk = e.kind === "booked";
           return '<div class="nb-ev ' + (bk ? "booked" : "canceled") + '"><span class="log-badge ' + (bk ? "in" : "discard") + '">' + (bk ? "예약" : "취소") + "</span>" +
-            "<b>" + esc(e.name) + "</b><span>" + esc(nbWhen(e.t)) + (e.diff > 1 ? " · " + e.diff + "건" : "") + '</span><span class="nb-at">' + logYmd(e.at).slice(5).replace("-", "/") + " " + logHm(e.at) + " 감지</span></div>";
+            "<b>" + esc(e.name) + "</b><span>" + esc(nbWhen(e.t)) + (e.diff > 1 ? " · " + e.diff + "건" : "") + '</span><span class="nb-at">' + logYmd(e.at).slice(5).replace("-", "/") + " " + logHm(e.at) + " 감지</span>" +
+            '<button class="nb-copy" type="button" data-i="' + i + '" title="강사님께 보낼 메시지 복사">복사</button></div>';
         }).join("") + "</div>"
       : '<div class="log-empty">아직 감지된 변동이 없습니다. (이 PC에서 확인한 것부터 기록돼요)</div>';
+    $("nbEvents").querySelectorAll(".nb-copy").forEach(function (b) {
+      b.onclick = function () { var e = evs[+b.getAttribute("data-i")]; if (e) nbCopy(nbChangeText(e, nbData.today), b); };
+    });
   }
 
   /* ---------- 이벤트 바인딩 ---------- */
