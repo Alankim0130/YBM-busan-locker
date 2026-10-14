@@ -2046,6 +2046,12 @@
   $("nbBtn").onclick = openBooking;
   $("nbBack").onclick = function () { showView("lockers"); };
   $("nbNotifyBtn").onclick = nbAskNotify;
+  $("nbShareLink").onclick = function () {
+    var url = location.origin + "/naver-alert";
+    function ok() { toast("설치 링크를 복사했어요 — 카카오톡에 붙여넣으세요: " + url); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, function () { fallbackCopy(url, ok); });
+    else fallbackCopy(url, ok);
+  };
   $("nbWinBtn").onclick = function () {
     var box = $("nbWin"); box.hidden = !box.hidden;
     if (!box.hidden) fetch("/download/YBM-NaverAlert.exe.sha256", { cache: "no-store" })
