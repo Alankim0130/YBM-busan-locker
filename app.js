@@ -1457,11 +1457,12 @@
 
   /* ---------- 신청 기록 (같은 화면 내 전환) ---------- */
   function showView(v) {
-    var logs = v === "logs";
+    var logs = v === "logs", nb = v === "booking", other = logs || nb;
     $("logsPane").hidden = !logs;
-    $("stageTop").hidden = logs;
-    $("stageWrap").hidden = logs;
-    if (logs) { closeDrawer(); if (moveSourceKey) cancelMove(); $("moveBanner").hidden = true; }
+    $("nbPane").hidden = !nb;
+    $("stageTop").hidden = other;
+    $("stageWrap").hidden = other;
+    if (other) { closeDrawer(); if (moveSourceKey) cancelMove(); $("moveBanner").hidden = true; }
   }
   var logEdit = false, LOGROWS = [], logY = 0, logM = 0, logFilter = "all", logSel = {};
   var LOGFILTERS = [["all", "전체"], ["rent", "입금"], ["return", "반납"], ["extend", "연장"], ["move", "이동"], ["discard", "폐기"]];
@@ -1871,6 +1872,157 @@
       toast("초기 로드 실패: " + (e.message || e) + " — 스키마/시드 실행 여부를 확인하세요.");
     });
     subscribeRealtime();
+    nbStart();
+  }
+
+
+  /* ---------- 네이버 예약 (강사 상담 현황 · 예약/취소 윈도우 알림) ---------- */
+  // api/naver-booking 이 6개 강사 상담의 60일치 칸(시각·예약수·정원)을 돌려준다.
+  // 2분마다 다시 읽어 직전 값과 비교 → 늘면 '예약', 줄면 '취소' 알림.
+  // 직전 값은 이 PC 브라우저(localStorage)에 저장 → 새로고침·재접속 사이 변동도 잡힌다.
+  // 처음 보는 칸은 기준선으로만 저장(알림 없음). 강사별로 조회 실패 시 그 강사는 비교하지 않는다.
+  var NB_POLL_MS = 120000, NB_SNAP = "nb_snap_v1", NB_EVTS = "nb_events_v1";
+  var nbData = null, nbTimer = null, nbDay = "", nbLoading = false;
+  var nbWeek = ["일", "월", "화", "수", "목", "금", "토"];
+  function nbGet(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
+  function nbSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function nbNowKst() { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 16).replace("T", " "); }
+  function nbDayLabel(ymd) {
+    var d = new Date(ymd + "T00:00:00Z");
+    return (d.getUTCMonth() + 1) + "/" + d.getUTCDate() + "(" + nbWeek[d.getUTCDay()] + ")";
+  }
+  function nbAddDay(ymd, n) { var d = new Date(ymd + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function nbWhen(t) { return nbDayLabel(t.slice(0, 10)) + " " + t.slice(11, 16); }
+
+  function nbStart() { nbStop(); nbPoll(); nbTimer = setInterval(nbPoll, NB_POLL_MS); }
+  function nbStop() { if (nbTimer) { clearInterval(nbTimer); nbTimer = null; } }
+  function nbPoll() {
+    if (nbLoading) return; nbLoading = true;
+    fetch("/api/naver-booking", { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (data) {
+      nbLoading = false;
+      if (!data || !Array.isArray(data.items)) throw new Error("응답 형식 오류");
+      nbDiff(data);
+      nbData = data;
+      if (!nbDay || nbDay < data.today) nbDay = data.today;
+      nbUpdateCount();
+      if (!$("nbPane").hidden) nbRender();
+    }).catch(function (e) {
+      nbLoading = false;
+      $("nbCount").textContent = "!";
+      if (!$("nbPane").hidden) $("nbLead").textContent = "불러오기 실패: " + (e.message || e) + " · 2분 뒤 다시 시도";
+    });
+  }
+  function nbDiff(data) {
+    var prev = nbGet(NB_SNAP, null);
+    var next = {}, events = [], now = nbNowKst();
+    data.items.forEach(function (it) {
+      if (!it.ok) {   // 조회 실패한 강사는 직전 값을 그대로 유지
+        if (prev) Object.keys(prev).forEach(function (k) { if (k.indexOf(it.id + "|") === 0) next[k] = prev[k]; });
+        return;
+      }
+      it.slots.forEach(function (sl) {
+        var k = it.id + "|" + sl.t;
+        next[k] = sl.b;
+        if (!prev || !(k in prev) || prev[k] === sl.b || sl.t < now) return;
+        events.push({ name: it.name, t: sl.t, kind: sl.b > prev[k] ? "booked" : "canceled", diff: Math.abs(sl.b - prev[k]), b: sl.b, s: sl.s, at: new Date().toISOString() });
+      });
+    });
+    nbSet(NB_SNAP, next);
+    if (!events.length) return;
+    var log = events.concat(nbGet(NB_EVTS, [])).slice(0, 100);
+    nbSet(NB_EVTS, log);
+    nbNotify(events);
+  }
+  function nbNotify(events) {
+    var lines = events.map(function (e) { return e.name + " " + nbWhen(e.t) + " " + (e.kind === "booked" ? "예약" : "취소") + (e.diff > 1 ? " " + e.diff + "건" : ""); });
+    toast("📅 네이버 예약 변동 · " + lines[0] + (lines.length > 1 ? " 외 " + (lines.length - 1) + "건" : ""));
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    // 변동이 많으면 한 번에 묶어서 알림
+    var groups = events.length > 4
+      ? [{ title: "네이버 예약 변동 " + events.length + "건", body: lines.slice(0, 6).join("\n") + (lines.length > 6 ? "\n…" : ""), tag: "nb-many-" + Date.now() }]
+      : events.map(function (e, i) {
+          return {
+            title: (e.kind === "booked" ? "📅 새 예약 · " : "❌ 예약 취소 · ") + e.name,
+            body: nbWhen(e.t) + (e.diff > 1 ? " · " + e.diff + "건" : "") + " (현재 " + e.b + "/" + e.s + ")",
+            tag: "nb-" + e.name + "-" + e.t + "-" + e.b   // 같은 PC에서 탭이 여러 개여도 한 번만
+          };
+        });
+    groups.forEach(function (g) {
+      try {
+        var n = new Notification(g.title, { body: g.body, tag: g.tag, requireInteraction: true });
+        n.onclick = function () { window.focus(); openBooking(); n.close(); };
+      } catch (e) {}
+    });
+  }
+  function nbUpdateCount() {
+    if (!nbData) return;
+    var total = 0;
+    nbData.items.forEach(function (it) { if (it.ok) it.slots.forEach(function (sl) { if (sl.t.slice(0, 10) === nbData.today) total += sl.b; }); });
+    $("nbCount").textContent = total;
+    $("nbCount").title = "오늘 예약 " + total + "건";
+  }
+  function nbSyncNotifyBtn() {
+    var b = $("nbNotifyBtn");
+    if (!("Notification" in window)) { b.textContent = "알림 미지원 브라우저"; b.disabled = true; return; }
+    var p = Notification.permission;
+    b.textContent = p === "granted" ? "🔔 윈도우 알림 켜짐" : p === "denied" ? "🔕 알림 차단됨" : "🔔 윈도우 알림 켜기";
+    b.classList.toggle("primary", p !== "granted" && p !== "denied");
+    b.title = p === "denied" ? "주소창 왼쪽 자물쇠 → 알림 → 허용으로 바꾼 뒤 새로고침하세요." : "";
+  }
+  function nbAskNotify() {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "denied") { toast("알림이 차단돼 있어요. 주소창 왼쪽 자물쇠 → 알림 → 허용 후 새로고침하세요."); return; }
+    if (Notification.permission === "granted") {
+      try { new Notification("네이버 예약 알림 테스트", { body: "예약이 추가·취소되면 이렇게 알려드려요.", tag: "nb-test" }); } catch (e) {}
+      return;
+    }
+    Notification.requestPermission().then(function (p) {
+      nbSyncNotifyBtn();
+      if (p === "granted") { try { new Notification("네이버 예약 알림 켜짐", { body: "이 창이 열려 있는 동안 예약 추가·취소를 알려드려요.", tag: "nb-test" }); } catch (e) {} }
+    });
+  }
+  function openBooking() {
+    showView("booking");
+    nbSyncNotifyBtn();
+    if (nbData) nbRender(); else nbPoll();
+  }
+  function nbRender() {
+    if (!nbData) return;
+    var today = nbData.today;
+    if (!nbDay) nbDay = today;
+    $("nbDate").textContent = nbDayLabel(nbDay) + (nbDay === today ? " 오늘" : "");
+    $("nbPrev").disabled = nbDay <= today;
+    var fetched = new Date(nbData.fetchedAt);
+    var failed = nbData.items.filter(function (it) { return !it.ok; });
+    $("nbLead").textContent = "마지막 확인 " + logHm(fetched) + " · 2분마다 자동 확인" + (failed.length ? " · ⚠ " + failed.map(function (f) { return f.name; }).join(", ") + " 조회 실패" : "");
+    var now = nbNowKst();
+    var html = '<div class="nb-grid">';
+    nbData.items.forEach(function (it) {
+      html += '<div class="nb-col"><div class="nb-head"><a href="https://m.booking.naver.com/booking/12/bizes/459658/items/' + it.id + '?startDateTime=' + nbDay + 'T00%3A00%3A00%2B09%3A00" target="_blank" rel="noopener">' + esc(it.name) + " ↗</a>";
+      if (!it.ok) { html += '</div><div class="nb-err">조회 실패<br><small>' + esc(it.error || "") + "</small></div></div>"; return; }
+      var slots = it.slots.filter(function (sl) { return sl.t.slice(0, 10) === nbDay && (sl.open || sl.b > 0); }).sort(function (a, b) { return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
+      var booked = slots.reduce(function (n, sl) { return n + sl.b; }, 0);
+      html += '<span class="nb-tot' + (booked ? " has" : "") + '">' + booked + "건</span></div>";
+      if (!slots.length) { html += '<div class="nb-none">예약 가능한 시간 없음</div></div>'; return; }
+      html += '<div class="nb-slots">';
+      slots.forEach(function (sl) {
+        var cls = "nb-slot" + (sl.b > 0 ? " booked" : "") + (sl.b >= sl.s && sl.s > 0 ? " full" : "") + (sl.t < now ? " past" : "");
+        html += '<div class="' + cls + '"><span class="nb-t">' + sl.t.slice(11, 16) + '</span><span class="nb-n">' + (sl.b > 0 ? "예약 " + sl.b + (sl.s > 1 ? "/" + sl.s : "") : "비어있음") + "</span></div>";
+      });
+      html += "</div></div>";
+    });
+    html += "</div>";
+    $("nbArea").innerHTML = html;
+    var evs = nbGet(NB_EVTS, []);
+    $("nbEvents").innerHTML = evs.length
+      ? '<div class="nb-evlist">' + evs.slice(0, 30).map(function (e) {
+          return '<div class="nb-ev ' + e.kind + '"><span class="log-badge ' + (e.kind === "booked" ? "in" : "discard") + '">' + (e.kind === "booked" ? "예약" : "취소") + "</span>" +
+            "<b>" + esc(e.name) + "</b><span>" + esc(nbWhen(e.t)) + (e.diff > 1 ? " · " + e.diff + "건" : "") + '</span><span class="nb-at">' + logYmd(e.at).slice(5).replace("-", "/") + " " + logHm(e.at) + " 감지</span></div>";
+        }).join("") + "</div>"
+      : '<div class="log-empty">아직 감지된 변동이 없습니다. (이 PC에서 확인한 것부터 기록돼요)</div>';
   }
 
   /* ---------- 이벤트 바인딩 ---------- */
@@ -1884,6 +2036,13 @@
   $("classEditBtn").onclick = toggleClassEdit;
   $("logBtn").onclick = openLogs;
   $("logBack").onclick = function () { showView("lockers"); };
+  $("nbBtn").onclick = openBooking;
+  $("nbBack").onclick = function () { showView("lockers"); };
+  $("nbNotifyBtn").onclick = nbAskNotify;
+  $("nbRefreshBtn").onclick = function () { $("nbLead").textContent = "확인 중…"; nbPoll(); };
+  $("nbPrev").onclick = function () { if (nbData && nbDay > nbData.today) { nbDay = nbAddDay(nbDay, -1); nbRender(); } };
+  $("nbNext").onclick = function () { nbDay = nbAddDay(nbDay, 1); nbRender(); };
+  $("nbToday").onclick = function () { if (nbData) { nbDay = nbData.today; nbRender(); } };
   $("logReportBtn").onclick = logBuildReport;
   $("logEditBtn").onclick = function () { logEdit = !logEdit; $("logEditBtn").textContent = logEdit ? "완료" : "편집"; $("logEditBtn").classList.toggle("primary", logEdit); logRender(); };
   $("logPrevY").onclick = function () { logY--; logRender(); };
@@ -1969,6 +2128,6 @@
   });
   sb.auth.onAuthStateChange(function (event, session) {
     if (session) { enterApp(session); }
-    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); showView("lockers"); closeDrawer(); closeDash(); closeResetList(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); closeReq(); cancelMove(); NOTICES = []; REQUESTS = []; noticeIdx = 0; showLogin(); }
+    else { entered = false; unsubscribeRealtime(); stopNoticeRot(); nbStop(); showView("lockers"); closeDrawer(); closeDash(); closeResetList(); closeClasses(); closeCalendar(); closeNotice(); closeNoticeAll(); closeGuide(); closeSearch(); closeReq(); cancelMove(); NOTICES = []; REQUESTS = []; noticeIdx = 0; showLogin(); }
   });
 })();

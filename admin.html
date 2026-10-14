@@ -40,6 +40,12 @@
         </div>
       </div>
       <div>
+        <p class="rail-label">강사 상담</p>
+        <div class="rail-group">
+          <button class="rail-btn" id="nbBtn"><span>📅 네이버 예약</span><span class="rb-count" id="nbCount">–</span></button>
+        </div>
+      </div>
+      <div>
         <p class="rail-label">마감 관리</p>
         <div class="rail-group">
           <button class="rail-btn" id="dashBtn">
@@ -105,6 +111,30 @@
         <div class="month-bar" id="logMonthBar"></div>
         <div class="log-filter" id="logFilter"></div>
         <div id="logTableArea"></div>
+      </div>
+
+      <!-- 네이버 예약 (강사 상담 현황 · 변동 알림) -->
+      <div class="logs-pane" id="nbPane" hidden>
+        <div class="logs-pane-top">
+          <div class="lt-left">
+            <button class="log-back" id="nbBack">← 사물함</button>
+            <h2>네이버 예약</h2>
+          </div>
+          <div class="lt-actions">
+            <button class="btn" id="nbNotifyBtn">🔔 윈도우 알림 켜기</button>
+            <button class="btn" id="nbRefreshBtn">새로고침</button>
+          </div>
+        </div>
+        <div class="ym-bar">
+          <button class="ym-nav" id="nbPrev" aria-label="이전 날">‹</button>
+          <span class="ym-year nb-date" id="nbDate">—</span>
+          <button class="ym-nav" id="nbNext" aria-label="다음 날">›</button>
+          <button class="btn small" id="nbToday">오늘</button>
+          <span class="ym-info" id="nbLead"></span>
+        </div>
+        <div id="nbArea"><div class="log-empty">불러오는 중…</div></div>
+        <h3 class="nb-sub">최근 변동</h3>
+        <div id="nbEvents"></div>
       </div>
 
       <div class="drawer" id="drawer">

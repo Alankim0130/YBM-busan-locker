@@ -616,3 +616,25 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 }
 
 @media (prefers-reduced-motion:reduce){.drawer,.locker,.toast,.overlay,.card{transition:none;animation:none;}.locker.movable{animation:none;}}
+
+/* ===== 네이버 예약 ===== */
+.nb-date{min-width:110px;}
+.nb-sub{font-size:14px;font-weight:700;margin:26px 0 10px;color:var(--ink-2);}
+.nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;}
+.nb-col{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden;}
+.nb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);}
+.nb-head a{font-weight:700;font-size:14px;color:var(--ink);text-decoration:none;}
+.nb-head a:hover{text-decoration:underline;}
+.nb-tot{font-size:12px;font-weight:700;color:var(--ink-3);}
+.nb-tot.has{color:#1d7a54;}
+.nb-slots{display:flex;flex-direction:column;padding:6px;gap:4px;}
+.nb-slot{display:flex;justify-content:space-between;align-items:center;padding:6px 9px;border-radius:7px;font-size:13px;color:var(--ink-3);}
+.nb-slot .nb-t{font-family:"Space Grotesk";font-weight:600;}
+.nb-slot .nb-n{font-size:12px;}
+.nb-slot.booked{background:#e3f3ec;color:#1d7a54;font-weight:700;}
+.nb-slot.past{opacity:.45;}
+.nb-none,.nb-err{padding:16px 12px;font-size:12.5px;color:var(--ink-3);}
+.nb-err{color:#b23a22;}
+.nb-evlist{display:flex;flex-direction:column;gap:6px;}
+.nb-ev{display:flex;align-items:center;gap:10px;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);flex-wrap:wrap;}
+.nb-ev .nb-at{margin-left:auto;color:var(--ink-3);font-size:12px;}
