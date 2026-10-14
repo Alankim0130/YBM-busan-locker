@@ -47,15 +47,21 @@ function parseHourly(body) {
   const hourly = body.data && body.data.schedule && body.data.schedule.bizItemSchedule && body.data.schedule.bizItemSchedule.hourly;
   if (!Array.isArray(hourly)) throw new Error("hourly 목록 없음(응답 모양 변경 가능성)");
   const out = [];
+  const byTime = {};
   hourly.forEach(function (h, i) {
     if (!h || typeof h !== "object") throw new Error(i + "번째 칸이 객체가 아님");
     const m = typeof h.unitStartTime === "string" && h.unitStartTime.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
     if (!m) throw new Error(i + "번째 칸 시각 오류");
     if (!isCount(h.bookingCount)) throw new Error(i + "번째 칸 bookingCount 오류");
     if (!isCount(h.stock)) throw new Error(i + "번째 칸 stock 오류");
-    // 시각은 한국 벽시계 "YYYY-MM-DD HH:MM" 그대로 전달
-    out.push({ t: m[1] + " " + m[2], b: h.bookingCount, s: h.stock, open: h.isUnitSaleDay !== false && h.isUnitBusinessDay !== false });
+    // 시각은 한국 벽시계 "YYYY-MM-DD HH:MM" 그대로 전달 · 같은 시각이 또 오면 합친다
+    const t = m[1] + " " + m[2];
+    const open = h.isUnitSaleDay !== false && h.isUnitBusinessDay !== false;
+    if (byTime[t]) { byTime[t].b += h.bookingCount; byTime[t].s += h.stock; byTime[t].open = byTime[t].open || open; return; }
+    byTime[t] = { t: t, b: h.bookingCount, s: h.stock, open: open };
+    out.push(byTime[t]);
   });
+  out.sort(function (a, b) { return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
   return out;
 }
 

@@ -1,0 +1,32 @@
+#pragma code_page(65001)
+1 ICON "res/app.ico"
+1 24 "res/app.manifest"
+
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK 0x3f
+FILEFLAGS 0x0
+FILEOS 0x40004
+FILETYPE 0x1
+FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "041204b0"
+    BEGIN
+      VALUE "CompanyName", "서면 YBM"
+      VALUE "FileDescription", "YBM 네이버 예약 알림"
+      VALUE "FileVersion", "1.0.0"
+      VALUE "InternalName", "YBMNaverAlert"
+      VALUE "LegalCopyright", "서면 YBM"
+      VALUE "OriginalFilename", "YBMNaverAlert.exe"
+      VALUE "ProductName", "YBM 네이버 예약 알림"
+      VALUE "ProductVersion", "1.0.0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x412, 1200
+  END
+END

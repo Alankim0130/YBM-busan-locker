@@ -219,8 +219,20 @@ vercel.json     정적 배포 설정
 - 강사 추가/변경: `api/naver-booking.js` 의 `ITEMS` 에 예약 주소의 `items/숫자` 와 이름을 적습니다.
 
 ### 윈도우 알림 프로그램 (페이지를 열어 두지 않아도 알림)
-`windows/` 폴더 — 윈도우 시작 시 자동 실행되는 PowerShell 알림 프로그램.
-관리자 화면 **네이버 예약 → 💻 윈도우 프로그램 설치** 에서 설치 명령을 복사해 PowerShell 에 붙여넣으면 됩니다.
-- 설치 위치: `%LOCALAPPDATA%\YBMNaverAlert` (기록 `log.txt`), 시작프로그램에 바로가기 등록
-- 알림 앱 이름은 'Windows PowerShell' 로 표시됩니다.
-- 제거: 같은 화면의 제거 명령 실행
+설치 파일 하나(`download/YBM-NaverAlert.exe`, 약 100KB)로 설치까지 끝나는 윈도우 프로그램.
+관리자 화면 **네이버 예약 → 💻 윈도우 프로그램 설치 → 설치 파일 받기**, 또는 파일을 직원 PC에 그대로 전달해 실행.
+
+- 받은 exe 실행 → (‘Windows의 PC 보호’ 창이 뜨면 *추가 정보 → 실행*) → ‘설치할까요?’ 확인 → 끝. 관리자 권한 불필요.
+- 설치 위치 `%LOCALAPPDATA%\YBMNaverAlert` · 윈도우 시작 시 자동 실행 · 시작 메뉴 바로가기 · ‘설정 → 앱’에서 제거 가능.
+- 작업 표시줄 오른쪽 아래 달력 아이콘으로 상주. 2분마다 네이버를 **직접** 확인(사이트 배포와 무관)하고,
+  예약 추가·취소 시 화면 오른쪽 아래 알림창(확인을 누를 때까지 유지, 발표·전체 화면 중에는 끝난 뒤 표시).
+- 아이콘을 누르면 날짜별 시간표·최근 변동 창. 기록은 설치 폴더의 `snap.txt`·`events.txt`·`log.txt`.
+- 서명되지 않은 프로그램이라 처음 실행 시 SmartScreen 경고가 뜹니다(위 *추가 정보 → 실행*).
+
+**소스·빌드** — `naver-alert-win/` (C#, .NET Framework 4.7.2 = 윈도우 10/11 기본 탑재)
+```bash
+# Ubuntu: apt-get install mono-devel libmono-system-windows-forms4.0-cil libmono-system-web-extensions4.0-cil \
+#                         libmono-system-management4.0-cil binutils-mingw-w64-x86-64
+naver-alert-win/build.sh        # → download/YBM-NaverAlert.exe (+ 내장 점검 /selftest)
+```
+강사 목록을 바꾸면 `api/naver-booking.js` 의 `ITEMS` 와 `naver-alert-win/src/Booking.cs` 의 `Items` 를 함께 고치고 다시 빌드합니다.

@@ -128,16 +128,16 @@
         </div>
         <div class="nb-win" id="nbWin" hidden>
           <b>💻 페이지를 열어 두지 않아도 알림 받기 (윈도우 PC)</b>
-          <p>윈도우가 켜지면 자동으로 실행되는 작은 알림 프로그램을 설치합니다. 2분마다 확인해 예약 추가·취소 시 오른쪽 아래에 알림이 뜹니다.</p>
+          <p>설치 파일 하나로 끝납니다. 윈도우를 켜면 자동으로 실행되고, 강사 상담 예약이 추가·취소되면 화면 오른쪽 아래에 알림창이 뜹니다. (확인을 누를 때까지 남아 있어요)</p>
+          <a class="btn primary nb-dl" href="/download/YBM-NaverAlert.exe" download="YBM 네이버예약 알림.exe">⬇ 설치 파일 받기 (.exe)</a>
           <ol>
-            <li>키보드 <kbd>Win</kbd> + <kbd>R</kbd> → <code>powershell</code> 입력 → Enter</li>
-            <li>아래 <b>복사</b>를 누르고, 파란 창에 마우스 오른쪽 클릭(붙여넣기) → Enter</li>
-            <li>“✔ 설치 완료!”와 테스트 알림이 뜨면 끝 · 창은 닫아도 됩니다</li>
+            <li>받은 파일을 실행 → ‘Windows의 PC 보호’ 창이 뜨면 <b>추가 정보 → 실행</b></li>
+            <li>‘설치할까요?’에서 <b>확인</b> → 끝 (관리자 권한 필요 없음)</li>
+            <li>작업 표시줄 오른쪽 아래 <b>달력 아이콘</b>을 누르면 예약 현황이 보입니다 (안 보이면 <b>^</b> 안에 있어요)</li>
           </ol>
-          <div class="nb-cmd"><code id="nbInstallCmd"></code><button class="btn small primary" id="nbCopyInstall">복사</button></div>
-          <p class="nb-note">· 프로그램을 설치한 PC에서는 위 ‘🔔 윈도우 알림’은 켜지 않아도 됩니다(알림이 두 번 뜰 수 있어요).<br>
-          · 알림이 안 보이면: 설정 → 시스템 → 알림 → 켬, ‘방해 금지’ 끔.<br>
-          · 제거: 같은 방법으로 <code id="nbUninstallCmd"></code> <button class="btn small" id="nbCopyUninstall">복사</button></p>
+          <p class="nb-note">· 설치 파일은 다른 직원 PC에 그대로 전달해 설치해도 됩니다.<br>
+          · 프로그램을 설치한 PC에서는 위 ‘🔔 윈도우 알림’은 켜지 않아도 됩니다(알림이 두 번 뜰 수 있어요).<br>
+          · 제거: 설정 → 앱 → 설치된 앱 → ‘YBM 네이버 예약 알림’ → 제거</p>
         </div>
         <div class="ym-bar">
           <button class="ym-nav" id="nbPrev" aria-label="이전 날">‹</button>

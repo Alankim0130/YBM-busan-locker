@@ -2039,13 +2039,7 @@
   $("nbBtn").onclick = openBooking;
   $("nbBack").onclick = function () { showView("lockers"); };
   $("nbNotifyBtn").onclick = nbAskNotify;
-  $("nbWinBtn").onclick = function () {
-    var box = $("nbWin"); box.hidden = !box.hidden;
-    $("nbInstallCmd").textContent = "$b='" + location.origin + "'; irm \"$b/windows/install.ps1\" | iex";
-    $("nbUninstallCmd").textContent = "irm \"" + location.origin + "/windows/uninstall.ps1\" | iex";
-  };
-  $("nbCopyInstall").onclick = function () { copyText($("nbInstallCmd").textContent); };
-  $("nbCopyUninstall").onclick = function () { copyText($("nbUninstallCmd").textContent); };
+  $("nbWinBtn").onclick = function () { var box = $("nbWin"); box.hidden = !box.hidden; };
   $("nbRefreshBtn").onclick = function () { $("nbLead").textContent = "확인 중…"; nbPoll(); };
   $("nbPrev").onclick = function () { if (nbData && nbDay > nbData.today) { nbDay = nbAddDay(nbDay, -1); nbRender(); } };
   $("nbNext").onclick = function () { nbDay = nbAddDay(nbDay, 1); nbRender(); };

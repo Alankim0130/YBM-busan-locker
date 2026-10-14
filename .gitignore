@@ -4,3 +4,6 @@ node_modules/
 *.log
 .env
 .env.*
+
+# 윈도우 알림 프로그램 빌드 중간 파일
+naver-alert-win/build/
