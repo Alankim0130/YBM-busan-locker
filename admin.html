@@ -121,9 +121,23 @@
             <h2>네이버 예약</h2>
           </div>
           <div class="lt-actions">
+            <button class="btn" id="nbWinBtn">💻 윈도우 프로그램 설치</button>
             <button class="btn" id="nbNotifyBtn">🔔 윈도우 알림 켜기</button>
             <button class="btn" id="nbRefreshBtn">새로고침</button>
           </div>
+        </div>
+        <div class="nb-win" id="nbWin" hidden>
+          <b>💻 페이지를 열어 두지 않아도 알림 받기 (윈도우 PC)</b>
+          <p>윈도우가 켜지면 자동으로 실행되는 작은 알림 프로그램을 설치합니다. 2분마다 확인해 예약 추가·취소 시 오른쪽 아래에 알림이 뜹니다.</p>
+          <ol>
+            <li>키보드 <kbd>Win</kbd> + <kbd>R</kbd> → <code>powershell</code> 입력 → Enter</li>
+            <li>아래 <b>복사</b>를 누르고, 파란 창에 마우스 오른쪽 클릭(붙여넣기) → Enter</li>
+            <li>“✔ 설치 완료!”와 테스트 알림이 뜨면 끝 · 창은 닫아도 됩니다</li>
+          </ol>
+          <div class="nb-cmd"><code id="nbInstallCmd"></code><button class="btn small primary" id="nbCopyInstall">복사</button></div>
+          <p class="nb-note">· 프로그램을 설치한 PC에서는 위 ‘🔔 윈도우 알림’은 켜지 않아도 됩니다(알림이 두 번 뜰 수 있어요).<br>
+          · 알림이 안 보이면: 설정 → 시스템 → 알림 → 켬, ‘방해 금지’ 끔.<br>
+          · 제거: 같은 방법으로 <code id="nbUninstallCmd"></code> <button class="btn small" id="nbCopyUninstall">복사</button></p>
         </div>
         <div class="ym-bar">
           <button class="ym-nav" id="nbPrev" aria-label="이전 날">‹</button>
