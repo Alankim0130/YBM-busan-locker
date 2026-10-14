@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -88,6 +87,11 @@ namespace YbmNaverAlert
                 m.Items.Add(new ToolStripMenuItem("프로그램 제거…", null, (s, e) => UninstallFromUi()));
                 m.Items.Add(new ToolStripSeparator());
             }
+            m.Items.Add(new ToolStripMenuItem("기록 폴더 열기", null, (s, e) =>
+            {
+                try { Process.Start("explorer.exe", "\"" + Store.Dir + "\""); }
+                catch (Exception ex) { Store.Log("기록 폴더 열기 실패: " + ex.Message); }
+            }));
             m.Items.Add(new ToolStripMenuItem("종료", null, (s, e) => ConfirmExit()));
             m.Opening += (s, e) => { if (autoItem != null) autoItem.Checked = Installer.IsAutoStart(); };
             return m;
@@ -136,8 +140,18 @@ namespace YbmNaverAlert
             });
         }
 
+        int checkGen;
+        DateTime checkStarted, lastBeat;
+        int okSinceBeat;
+
         public async void CheckNow()
         {
+            // 이전 확인이 3분 넘게 끝나지 않으면(네트워크가 멈춘 경우 등) 새로 시작한다
+            if (Checking && (DateTime.UtcNow - checkStarted).TotalMinutes > 3)
+            {
+                Store.Log("이전 확인이 끝나지 않아 다시 시작");
+                Checking = false;
+            }
             try { await CheckAsync(); }
             catch (Exception e) { Store.Log("확인 오류: " + e); }
         }
@@ -146,12 +160,16 @@ namespace YbmNaverAlert
         {
             if (Checking) return;
             Checking = true;
+            int gen = ++checkGen;
+            checkStarted = DateTime.UtcNow;
             RefreshViews();
             try
             {
                 var now = Kst.Now;
                 string from = Kst.Ymd(now), to = Kst.Ymd(now.AddDays(Booking.DaysAhead));
-                var results = await Task.WhenAll(Booking.Items.Select(it => Booking.FetchAsync(it, from, to)));
+                // 조회는 화면 스레드 밖에서 (프록시·DNS 확인이 길어져도 화면이 멈추지 않게)
+                var results = await Task.Run(() => Task.WhenAll(Booking.Items.Select(it => Booking.FetchAsync(it, from, to))));
+                if (gen != checkGen) return;   // 그 사이 새 확인이 시작됐으면 이 결과는 버린다
 
                 var prev = Store.LoadSnap();
                 var next = new Dictionary<string, int>();
@@ -181,6 +199,13 @@ namespace YbmNaverAlert
                     if (failAlerted) Info("다시 확인하고 있어요", "네이버 예약 확인이 정상으로 돌아왔습니다.", false);
                     fails = 0;
                     failAlerted = false;
+                    okSinceBeat++;
+                    if ((DateTime.UtcNow - lastBeat).TotalMinutes >= 60)
+                    {
+                        Store.Log("정상 확인 중 (" + okSinceBeat + "회)");
+                        okSinceBeat = 0;
+                        lastBeat = DateTime.UtcNow;
+                    }
                 }
 
                 if (changes.Count > 0)
@@ -195,9 +220,12 @@ namespace YbmNaverAlert
             }
             finally
             {
-                Checking = false;
-                UpdateTrayText();
-                RefreshViews();
+                if (gen == checkGen)
+                {
+                    Checking = false;
+                    UpdateTrayText();
+                    RefreshViews();
+                }
             }
         }
 
@@ -228,53 +256,8 @@ namespace YbmNaverAlert
             return alert;
         }
 
-        [DllImport("shell32.dll")]
-        static extern int SHQueryUserNotificationState(out int state);
-
-        // 발표(슬라이드 쇼)·전체 화면 중인지 — 그동안은 알림창을 미룬다
-        static bool UserBusy()
-        {
-            if (!Program.IsWindows) return false;
-            try
-            {
-                int st;
-                if (SHQueryUserNotificationState(out st) == 0) return st == 2 || st == 3 || st == 4;  // BUSY · D3D 전체 화면 · 프레젠테이션 모드
-            }
-            catch { }
-            return false;
-        }
-
-        bool pending, pendingSound;
-        DateTime pendingSince;
-        System.Windows.Forms.Timer busyTimer;
-
+        // 알림창은 항상 바로 띄운다 (창이 닫혀 있어도, 다른 프로그램을 쓰는 중이어도)
         void ShowAlert(bool sound)
-        {
-            if (UserBusy())
-            {
-                if (!pending) { pending = true; pendingSince = DateTime.UtcNow; }
-                pendingSound |= sound;
-                if (busyTimer == null)
-                {
-                    busyTimer = new System.Windows.Forms.Timer { Interval = 15000 };
-                    busyTimer.Tick += (s, e) =>
-                    {
-                        // 전체 화면이 끝나거나 30분이 지나면 보여 준다
-                        if (!pending) { busyTimer.Stop(); return; }
-                        if (UserBusy() && (DateTime.UtcNow - pendingSince).TotalMinutes < 30) return;
-                        busyTimer.Stop();
-                        pending = false;
-                        Reveal(pendingSound);
-                        pendingSound = false;
-                    };
-                }
-                busyTimer.Start();
-                return;
-            }
-            Reveal(sound);
-        }
-
-        void Reveal(bool sound)
         {
             if (alert == null || alert.IsDisposed) return;
             if (!alert.Visible) alert.Show();
@@ -323,7 +306,6 @@ namespace YbmNaverAlert
             try { SystemEvents.PowerModeChanged -= OnPower; } catch { }
             timer.Stop();
             if (resumeTimer != null) resumeTimer.Stop();
-            if (busyTimer != null) busyTimer.Stop();
             try { tray.Visible = false; tray.Dispose(); } catch { }
             if (alert != null && !alert.IsDisposed) alert.Close();
             if (status != null && !status.IsDisposed) status.Close();
