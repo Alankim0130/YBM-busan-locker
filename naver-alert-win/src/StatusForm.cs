@@ -31,6 +31,7 @@ namespace YbmNaverAlert
             BackColor = Ui.Bg;
             AutoScaleMode = AutoScaleMode.None;
             StartPosition = FormStartPosition.CenterScreen;
+            ShowInTaskbar = false;   // 작업 표시줄 아래쪽에는 안 나오고, 오른쪽 아래(^) 아이콘으로만 연다
             var wa = Screen.PrimaryScreen.WorkingArea;
             ClientSize = new Size(Math.Min(Ui.S(808), wa.Width - Ui.S(40)), Math.Min(Ui.S(700), wa.Height - Ui.S(60)));
             MinimumSize = new Size(Ui.S(520), Ui.S(460));
@@ -122,6 +123,9 @@ namespace YbmNaverAlert
             Controls.Add(evPanel);
             Controls.Add(bottom);
             Controls.Add(top);
+
+            // 최소화하면 숨긴다 → 다시 볼 때는 오른쪽 아래(^) 달력 아이콘
+            Resize += (s, e) => { if (WindowState == FormWindowState.Minimized) Hide(); };
 
             KeyPreview = true;
             KeyDown += (s, e) =>

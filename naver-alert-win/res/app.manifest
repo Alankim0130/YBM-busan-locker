@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity version="1.0.1.0" name="YBM.NaverAlert" type="win32"/>
+  <assemblyIdentity version="1.0.2.0" name="YBM.NaverAlert" type="win32"/>
   <description>YBM Naver booking alert</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
