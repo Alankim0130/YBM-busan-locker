@@ -79,20 +79,45 @@ namespace YbmNaverAlert
                 { A.Id + "|2026-10-15 15:00", 0 },
                 { A.Id + "|2026-10-15 16:00", 1 },
                 { A.Id + "|2026-10-15 09:00", 1 },  // 지난 칸
+                { A.Id + "|2026-10-16 10:00", 0 },  // 내일 칸
                 { B.Id + "|2026-10-15 15:00", 0 },
+                { "?" + B.Id + "|2026-10-15 18:00", 1 },  // 보류 중인 사라진 칸
             };
             var next = new Dictionary<string, int>();
             var results = new List<ItemResult>
             {
-                R(A, Sl("2026-10-15 09:00", 0), Sl("2026-10-15 15:00", 1), Sl("2026-10-15 16:00", 0), Sl("2026-10-15 17:00", 1)),
+                R(A, Sl("2026-10-15 09:00", 0), Sl("2026-10-15 15:00", 1), Sl("2026-10-15 16:00", 0), Sl("2026-10-15 17:00", 1), Sl("2026-10-16 10:00", 1)),
                 new ItemResult { Item = B, Ok = false, Error = "x" },
             };
             var ch = Booking.Diff(prev, results, now, next, at);
-            Ok(ch.Count == 2, "diff: 변동 2건 (지난 칸·새 칸 제외)");
+            Ok(ch.Count == 3, "diff: 오늘 변동 3건 (지난 칸·내일 칸 제외)");
             Ok(ch.Any(c => c.Booked && c.T == "2026-10-15 15:00" && c.Name == A.Name && c.Diff == 1), "diff: 예약 감지");
             Ok(ch.Any(c => !c.Booked && c.T == "2026-10-15 16:00"), "diff: 취소 감지");
-            Ok(next[B.Id + "|2026-10-15 15:00"] == 0, "diff: 조회 실패한 강사는 직전 값 유지");
-            Ok(next[A.Id + "|2026-10-15 17:00"] == 1, "diff: 새 칸은 기준선으로 저장");
+            Ok(ch.Any(c => c.Booked && c.T == "2026-10-15 17:00" && c.Diff == 1), "diff: 목록에 없던 칸이 예약된 채 나타나면 예약");
+            Ok(!ch.Any(c => c.T.StartsWith("2026-10-16")) && next[A.Id + "|2026-10-16 10:00"] == 1, "diff: 내일 칸은 기록만, 알림 없음");
+            Ok(next[B.Id + "|2026-10-15 15:00"] == 0 && next["?" + B.Id + "|2026-10-15 18:00"] == 1, "diff: 조회 실패한 강사는 직전 값(보류 포함) 유지");
+
+            // 사라진 칸 → 한 번 보류 → 다음에도 없으면 취소
+            var C = Booking.Items[2];
+            var p1 = new Dictionary<string, int> { { C.Id + "|2026-10-15 18:00", 1 }, { C.Id + "|2026-10-15 19:00", 0 }, { C.Id + "|2026-10-15 12:30", 1 }, { C.Id + "|2026-10-16 18:00", 1 } };
+            var n1 = new Dictionary<string, int>();
+            var c1 = Booking.Diff(p1, new[] { R(C, Sl("2026-10-15 20:00", 0)) }, now, n1, at);
+            Ok(c1.Count == 0 && n1.ContainsKey("?" + C.Id + "|2026-10-15 18:00"), "vanish: 처음 사라지면 보류(알림 없음)");
+            Ok(!n1.ContainsKey("?" + C.Id + "|2026-10-15 19:00"), "vanish: 예약 없던 칸이 사라지면 무시");
+            Ok(!n1.ContainsKey("?" + C.Id + "|2026-10-15 12:30"), "vanish: 시작 1시간 안 남은 칸은 무시");
+            Ok(!n1.ContainsKey("?" + C.Id + "|2026-10-16 18:00"), "vanish: 내일 칸은 무시");
+            var n2 = new Dictionary<string, int>();
+            var c2 = Booking.Diff(n1, new[] { R(C, Sl("2026-10-15 20:00", 0)) }, "2026-10-15 12:02", n2, at);
+            Ok(c2.Count == 1 && !c2[0].Booked && c2[0].T == "2026-10-15 18:00" && c2[0].Diff == 1 && !n2.ContainsKey("?" + C.Id + "|2026-10-15 18:00"), "vanish: 두 번 연속 없으면 취소");
+            var n3 = new Dictionary<string, int>();
+            var c3 = Booking.Diff(n1, new[] { R(C, Sl("2026-10-15 18:00", 1), Sl("2026-10-15 20:00", 0)) }, "2026-10-15 12:02", n3, at);
+            Ok(c3.Count == 0 && n3[C.Id + "|2026-10-15 18:00"] == 1 && !n3.ContainsKey("?" + C.Id + "|2026-10-15 18:00"), "vanish: 다시 나타나면 보류 해제(알림 없음)");
+            var n4 = new Dictionary<string, int>();
+            var c4 = Booking.Diff(n1, new[] { R(C, Sl("2026-10-15 18:00", 0)) }, "2026-10-15 12:02", n4, at);
+            Ok(c4.Count == 1 && !c4[0].Booked && c4[0].T == "2026-10-15 18:00", "vanish: 0명으로 다시 나타나면 취소");
+            var n5 = new Dictionary<string, int>();
+            var c5 = Booking.Diff(new Dictionary<string, int> { { A.Id + "|2026-10-15 15:00", 0 } }, new[] { R(C, Sl("2026-10-15 18:00", 1)) }, now, n5, at);
+            Ok(c5.Count == 0, "diff: 처음 보는 강사의 예약은 기준선(알림 없음)");
 
             // ── 보안: 여는 주소·시험용 옵션 제한
             Ok(Ui.IsAllowedUrl(Booking.PageUrl("4139011", "2026-10-15")), "url: 네이버 예약 페이지 허용");
@@ -133,7 +158,7 @@ namespace YbmNaverAlert
                 Ok(back != null && back.Count == next.Count && back.All(kv => next[kv.Key] == kv.Value), "store: snap 왕복");
                 Store.SaveEvents(ch);
                 var evs = Store.LoadEvents();
-                Ok(evs.Count == 2 && evs[0].Name == ch[0].Name && evs[0].T == ch[0].T && evs[0].Booked == ch[0].Booked && evs[0].DetectedAt == at, "store: 이력 왕복");
+                Ok(evs.Count == ch.Count && evs[0].Name == ch[0].Name && evs[0].T == ch[0].T && evs[0].Booked == ch[0].Booked && evs[0].DetectedAt == at, "store: 이력 왕복");
             }
             finally
             {

@@ -279,45 +279,79 @@ namespace YbmNaverAlert
             return n >= 0 && n < 10000;
         }
 
-        // 직전 기록(prev)과 비교해 변동 목록을 만들고, 다음 기록을 next 에 채운다.
+        // 사라진 칸을 취소로 보지 않는 '곧 시작할 칸' 범위 — 네이버는 시작이 가까운 칸을 예약이 있어도 먼저 닫는다
+        public const int VanishGuardMinutes = 60;
+
+        // 직전 기록(prev)과 비교해 변동 목록을 만들고, 다음 기록을 next 에 채운다. **오늘 칸만** 알린다.
         //   - prev == null(첫 실행): 기준선만 저장, 알림 없음
-        //   - 처음 보는 칸: 기준선만 저장
-        //   - 지나간 칸: 비교하지 않음
+        //   - 오늘이 아닌 칸 · 지나간 칸: 기록만 하고 알리지 않음
+        //   - 예약 수가 늘거나 줄면: 예약 / 취소
+        //   - 목록에 없던 칸이 예약된 채 나타나면: 예약 (예약을 더 받지 않는 시간대는 비어 있으면 목록에 안 나온다)
+        //   - 예약이 있던 칸이 목록에서 사라지면: 한 번 더 확인해서(2분 뒤) 그래도 없으면 취소
+        //     (기록에 "?" 를 붙여 한 번 보류 — 네이버가 잠깐 이상한 목록을 줘도 거짓 취소를 내지 않게)
+        //     시작까지 1시간이 안 남은 칸은 네이버가 먼저 닫을 수 있어 취소로 보지 않는다
         //   - 조회 실패한 강사: 직전 값을 그대로 넘기고 비교하지 않음
         public static List<Change> Diff(Dictionary<string, int> prev, IList<ItemResult> results, string nowKst, Dictionary<string, int> next, DateTime detectedAt)
         {
             var changes = new List<Change>();
+            string today = nowKst.Substring(0, 10);
+            string soon = Kst.Stamp(DateTime.ParseExact(nowKst, "yyyy-MM-dd HH:mm", Kst.Inv).AddMinutes(VanishGuardMinutes));
             foreach (var r in results)
             {
                 string prefix = r.Item.Id + "|";
+                string pendingPrefix = "?" + prefix;
                 if (!r.Ok)
                 {
                     if (prev != null)
                         foreach (var kv in prev)
-                            if (kv.Key.StartsWith(prefix, StringComparison.Ordinal)) next[kv.Key] = kv.Value;
+                            if (kv.Key.StartsWith(prefix, StringComparison.Ordinal) || kv.Key.StartsWith(pendingPrefix, StringComparison.Ordinal))
+                                next[kv.Key] = kv.Value;
                     continue;
                 }
+
+                bool seenBefore = false;
+                if (prev != null)
+                    foreach (var key in prev.Keys)
+                        if (key.StartsWith(prefix, StringComparison.Ordinal) || key.StartsWith(pendingPrefix, StringComparison.Ordinal)) { seenBefore = true; break; }
+
+                var present = new HashSet<string>();
                 foreach (var s in r.Slots)
                 {
                     string k = prefix + s.T;
+                    present.Add(k);
                     next[k] = s.B;
+                    if (prev == null) continue;
+                    if (!s.T.StartsWith(today, StringComparison.Ordinal) || string.CompareOrdinal(s.T, nowKst) < 0) continue;   // 오늘 · 아직 안 지난 칸만
                     int old;
-                    if (prev == null || !prev.TryGetValue(k, out old) || old == s.B) continue;
-                    if (string.CompareOrdinal(s.T, nowKst) < 0) continue;
-                    changes.Add(new Change
+                    if (prev.TryGetValue(k, out old) || prev.TryGetValue("?" + k, out old))
                     {
-                        DetectedAt = detectedAt,
-                        Booked = s.B > old,
-                        ItemId = r.Item.Id,
-                        Name = r.Item.Name,
-                        T = s.T,
-                        Diff = Math.Abs(s.B - old),
-                        B = s.B,
-                        S = s.S,
-                    });
+                        if (old != s.B) changes.Add(MakeChange(r.Item, s.T, s.B > old, Math.Abs(s.B - old), s.B, s.S, detectedAt));
+                    }
+                    else if (seenBefore && s.B > 0)
+                    {
+                        changes.Add(MakeChange(r.Item, s.T, true, s.B, s.B, s.S, detectedAt));
+                    }
+                }
+
+                if (prev == null) continue;
+                foreach (var kv in prev)
+                {
+                    bool pending = kv.Key.StartsWith(pendingPrefix, StringComparison.Ordinal);
+                    if (!pending && !kv.Key.StartsWith(prefix, StringComparison.Ordinal)) continue;
+                    string k = pending ? kv.Key.Substring(1) : kv.Key;
+                    if (present.Contains(k) || kv.Value <= 0) continue;
+                    string t = k.Substring(prefix.Length);
+                    if (!t.StartsWith(today, StringComparison.Ordinal) || string.CompareOrdinal(t, soon) <= 0) continue;   // 오늘 · 1시간 넘게 남은 칸만
+                    if (!pending) next["?" + k] = kv.Value;                                              // 처음 사라짐 → 보류
+                    else changes.Add(MakeChange(r.Item, t, false, kv.Value, 0, 0, detectedAt));          // 두 번 연속 없음 → 취소
                 }
             }
             return changes;
+        }
+
+        static Change MakeChange(Item it, string t, bool booked, int diff, int b, int s, DateTime at)
+        {
+            return new Change { DetectedAt = at, Booked = booked, ItemId = it.Id, Name = it.Name, T = t, Diff = diff, B = b, S = s };
         }
     }
 }

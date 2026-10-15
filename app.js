@@ -1921,19 +1921,43 @@
       if (!$("nbPane").hidden) $("nbLead").textContent = "불러오기 실패: " + (e.message || e) + " · 2분 뒤 다시 시도";
     });
   }
+  // 오늘 칸만 알린다 (윈도우 프로그램 Booking.Diff 와 같은 규칙)
+  //  - 예약 수 증감 → 예약/취소, 목록에 없던 칸이 예약된 채 나타나면 → 예약
+  //  - 예약이 있던 칸이 목록에서 사라지면 → "?" 를 붙여 한 번 보류, 다음 확인에도 없으면 → 취소
+  //    (시작 1시간 안 남은 칸은 네이버가 먼저 닫을 수 있어 제외)
   function nbDiff(data) {
     var prev = nbGet(NB_SNAP, null);
-    var next = {}, events = [], now = nbNowKst();
+    var next = {}, events = [], now = nbNowKst(), today = now.slice(0, 10);
+    var soon = new Date(Date.now() + 9 * 3600000 + 60 * 60000).toISOString().slice(0, 16).replace("T", " ");
+    var at = new Date().toISOString();
+    function ev(it, t, booked, diff, b, s) { return { name: it.name, t: t, kind: booked ? "booked" : "canceled", diff: diff, b: b, s: s, at: at }; }
     data.items.forEach(function (it) {
-      if (!it.ok) {   // 조회 실패한 강사는 직전 값을 그대로 유지
-        if (prev) Object.keys(prev).forEach(function (k) { if (k.indexOf(it.id + "|") === 0) next[k] = prev[k]; });
+      var prefix = it.id + "|", pprefix = "?" + prefix;
+      if (!it.ok) {   // 조회 실패한 강사는 직전 값(보류 포함)을 그대로 유지
+        if (prev) Object.keys(prev).forEach(function (k) { if (k.indexOf(prefix) === 0 || k.indexOf(pprefix) === 0) next[k] = prev[k]; });
         return;
       }
+      var seen = !!prev && Object.keys(prev).some(function (k) { return k.indexOf(prefix) === 0 || k.indexOf(pprefix) === 0; });
+      var present = {};
       it.slots.forEach(function (sl) {
-        var k = it.id + "|" + sl.t;
+        var k = prefix + sl.t;
+        present[k] = true;
         next[k] = sl.b;
-        if (!prev || !(k in prev) || prev[k] === sl.b || sl.t < now) return;
-        events.push({ name: it.name, t: sl.t, kind: sl.b > prev[k] ? "booked" : "canceled", diff: Math.abs(sl.b - prev[k]), b: sl.b, s: sl.s, at: new Date().toISOString() });
+        if (!prev || sl.t.slice(0, 10) !== today || sl.t < now) return;   // 오늘 · 아직 안 지난 칸만
+        var old = (k in prev) ? prev[k] : (("?" + k) in prev ? prev["?" + k] : undefined);
+        if (old !== undefined) { if (old !== sl.b) events.push(ev(it, sl.t, sl.b > old, Math.abs(sl.b - old), sl.b, sl.s)); }
+        else if (seen && sl.b > 0) events.push(ev(it, sl.t, true, sl.b, sl.b, sl.s));
+      });
+      if (!prev) return;
+      Object.keys(prev).forEach(function (key) {
+        var pending = key.indexOf(pprefix) === 0;
+        if (!pending && key.indexOf(prefix) !== 0) return;
+        var k = pending ? key.slice(1) : key;
+        if (present[k] || !(prev[key] > 0)) return;
+        var t = k.slice(prefix.length);
+        if (t.slice(0, 10) !== today || t <= soon) return;   // 오늘 · 1시간 넘게 남은 칸만
+        if (!pending) next["?" + k] = prev[key];             // 처음 사라짐 → 보류
+        else events.push(ev(it, t, false, prev[key], 0, 0)); // 두 번 연속 없음 → 취소
       });
     });
     nbSet(NB_SNAP, next);
@@ -1952,7 +1976,7 @@
       : events.map(function (e, i) {
           return {
             title: (e.kind === "booked" ? "📅 새 예약 · " : "❌ 예약 취소 · ") + e.name,
-            body: nbWhen(e.t) + (e.diff > 1 ? " · " + e.diff + "건" : "") + " (현재 " + e.b + "/" + e.s + ")",
+            body: nbWhen(e.t) + (e.diff > 1 ? " · " + e.diff + "건" : "") + (e.s ? " (현재 " + e.b + "/" + e.s + ")" : ""),
             tag: "nb-" + e.name + "-" + e.t + "-" + e.b   // 같은 PC에서 탭이 여러 개여도 한 번만
           };
         });
@@ -2052,7 +2076,7 @@
         if (it && it.ok) nbCopy(nbSummaryText(it, nbDay, nbData.today), b);
       };
     });
-    var evs = nbGet(NB_EVTS, []).slice(0, 30);
+    var evs = nbGet(NB_EVTS, []).filter(function (e) { return e.t && e.t.slice(0, 10) === nbData.today; }).slice(0, 30);
     $("nbEvents").innerHTML = evs.length
       ? '<div class="nb-evlist">' + evs.map(function (e, i) {
           var bk = e.kind === "booked";
@@ -2060,7 +2084,7 @@
             "<b>" + esc(e.name) + "</b><span>" + esc(nbWhen(e.t)) + (e.diff > 1 ? " · " + e.diff + "건" : "") + '</span><span class="nb-at">' + logYmd(e.at).slice(5).replace("-", "/") + " " + logHm(e.at) + " 감지</span>" +
             '<button class="nb-copy" type="button" data-i="' + i + '" title="강사님께 보낼 메시지 복사">복사</button></div>';
         }).join("") + "</div>"
-      : '<div class="log-empty">아직 감지된 변동이 없습니다. (이 PC에서 확인한 것부터 기록돼요)</div>';
+      : '<div class="log-empty">오늘 감지된 예약·취소가 없습니다.</div>';
     $("nbEvents").querySelectorAll(".nb-copy").forEach(function (b) {
       b.onclick = function () { var e = evs[+b.getAttribute("data-i")]; if (e) nbCopy(nbChangeText(e, nbData.today), b); };
     });

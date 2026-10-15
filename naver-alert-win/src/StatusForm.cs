@@ -67,7 +67,7 @@ namespace YbmNaverAlert
             // ── 아래: 최근 변동
             var evPanel = new Panel { Dock = DockStyle.Bottom, Height = Ui.S(196), BackColor = Ui.Surface, Padding = new Padding(Ui.S(16), Ui.S(6), Ui.S(16), Ui.S(6)) };
             evPanel.Paint += (s, e) => { using (var p = new Pen(Ui.Line)) e.Graphics.DrawLine(p, 0, 0, evPanel.Width, 0); };
-            var evTitle = new Label { Dock = DockStyle.Top, Height = Ui.S(32), Text = "최근 변동  (이 PC에서 감지한 예약·취소)", Font = Ui.BodyBold, ForeColor = Ui.Ink2, TextAlign = ContentAlignment.MiddleLeft };
+            var evTitle = new Label { Dock = DockStyle.Top, Height = Ui.S(32), Text = "오늘 변동  (이 PC에서 감지한 오늘 예약·취소)", Font = Ui.BodyBold, ForeColor = Ui.Ink2, TextAlign = ContentAlignment.MiddleLeft };
             events = new ListBox
             {
                 Dock = DockStyle.Fill,
@@ -112,7 +112,7 @@ namespace YbmNaverAlert
             evEmpty = new Label
             {
                 Dock = DockStyle.Fill,
-                Text = "아직 감지된 변동이 없습니다.\n프로그램을 설치한 뒤부터 생긴 예약·취소가 여기에 쌓입니다.",
+                Text = "오늘 감지된 예약·취소가 없습니다.",
                 ForeColor = Ui.Ink3,
                 Font = Ui.Body,
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -234,7 +234,8 @@ namespace YbmNaverAlert
 
             events.BeginUpdate();
             events.Items.Clear();
-            foreach (var c in app.History.Take(100)) events.Items.Add(c);
+            string todayYmd = Kst.Ymd(Kst.Now);
+            foreach (var c in app.History.Where(x => x.T.StartsWith(todayYmd, StringComparison.Ordinal)).Take(100)) events.Items.Add(c);
             events.EndUpdate();
             events.Visible = events.Items.Count > 0;
             evEmpty.Visible = !events.Visible;

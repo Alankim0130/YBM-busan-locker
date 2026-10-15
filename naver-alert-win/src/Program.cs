@@ -26,8 +26,8 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("서면 YBM 네이버 예약(강사 상담) 알림")]
 [assembly: AssemblyCompany("서면 YBM")]
 [assembly: AssemblyProduct("YBM 네이버 예약 알림")]
-[assembly: AssemblyVersion("1.0.4.0")]
-[assembly: AssemblyFileVersion("1.0.4.0")]
+[assembly: AssemblyVersion("1.0.5.0")]
+[assembly: AssemblyFileVersion("1.0.5.0")]
 [assembly: TargetFramework(".NETFramework,Version=v4.7.2", FrameworkDisplayName = ".NET Framework 4.7.2")]
 
 namespace YbmNaverAlert
@@ -85,7 +85,7 @@ namespace YbmNaverAlert
     static class Program
     {
         public const string AppName = "YBM 네이버 예약 알림";
-        public const string Version = "1.0.4";
+        public const string Version = "1.0.5";
 
         public static bool IsWindows { get { return Environment.OSVersion.Platform == PlatformID.Win32NT; } }
 

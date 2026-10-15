@@ -213,7 +213,8 @@ namespace YbmNaverAlert
                     History.InsertRange(0, changes);
                     if (History.Count > 200) History.RemoveRange(200, History.Count - 200);
                     Store.SaveEvents(History);
-                    foreach (var c in changes) Store.Log((c.Booked ? "예약 " : "취소 ") + c.Name + " " + c.T + " → " + c.B + "/" + c.S);
+                    foreach (var c in changes)
+                        Store.Log((c.Booked ? "예약 " : "취소 ") + c.Name + " " + c.T + (!c.Booked && c.S == 0 ? " (목록에서 사라짐)" : " → " + c.B + "/" + c.S));
                     Alert().AddChanges(changes);
                     ShowAlert(true);
                 }
