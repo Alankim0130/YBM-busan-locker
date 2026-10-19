@@ -50,6 +50,7 @@ namespace YbmNaverAlert
         public bool Booked;           // true = 예약이 늘어남, false = 줄어듦(취소)
         public string ItemId, Name, T;
         public int Diff, B, S;
+        public DateTime? SentAt;      // [복사] 로 강사님께 보낸 시각 — '이미 전송됨' 표시 (이 PC 기준)
     }
 
     static class Kst

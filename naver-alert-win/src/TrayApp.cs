@@ -29,6 +29,7 @@ namespace YbmNaverAlert
         public readonly Dictionary<string, ItemResult> Latest = new Dictionary<string, ItemResult>();
         public readonly Dictionary<string, List<Slot>> LastGood = new Dictionary<string, List<Slot>>();
         public readonly List<Change> History;
+        HashSet<string> rosterSent;   // 아침 명단을 보낸 강사 "yyyy-MM-dd|강사번호" (오늘 것만)
         public DateTime? CheckedAt;
         public bool Checking;
 
@@ -36,6 +37,7 @@ namespace YbmNaverAlert
         {
             installed = Installer.RunningFromInstallDir();
             History = Store.LoadEvents();
+            rosterSent = Store.LoadRosterSent(Kst.Ymd(Kst.Now));
             FormIcon = Ui.MakeIcon(Ui.S(32));
 
             ui = new Control();
@@ -251,7 +253,7 @@ namespace YbmNaverAlert
         {
             if (alert == null || alert.IsDisposed)
             {
-                alert = new AlertForm(day => ShowStatus(day));
+                alert = new AlertForm(day => ShowStatus(day), MarkSent);
                 alert.FormClosed += (s, e) => alert = null;
             }
             return alert;
@@ -270,6 +272,32 @@ namespace YbmNaverAlert
         {
             Alert().AddInfo(title, message);
             ShowAlert(sound);
+        }
+
+        // [복사] 를 누르면 '이미 전송됨' 으로 남긴다 (이 PC 기준, 다시 눌러도 복사는 된다)
+        public void MarkSent(Change c)
+        {
+            if (c == null) return;
+            if (!c.SentAt.HasValue)
+            {
+                c.SentAt = Kst.Now;
+                Store.SaveEvents(History);
+            }
+            if (alert != null && !alert.IsDisposed) alert.RefreshSent();
+            RefreshViews();
+        }
+
+        public bool IsRosterSent(string day, string itemId)
+        {
+            return day != null && rosterSent.Contains(day + "|" + itemId);
+        }
+
+        public void MarkRosterSent(string day, string itemId)
+        {
+            string today = Kst.Ymd(Kst.Now);
+            if (day != today) return;   // 아침 명단은 오늘 것만 '전송됨'으로 남긴다
+            rosterSent.RemoveWhere(k => !k.StartsWith(today + "|", StringComparison.Ordinal));   // 날이 바뀌면 어제 표시는 지운다
+            if (rosterSent.Add(today + "|" + itemId)) Store.SaveRosterSent(rosterSent, today);
         }
 
         public void ShowStatus(string day)

@@ -20,7 +20,7 @@ namespace YbmNaverAlert
             public int Kind;          // 1 = 예약, -1 = 취소, 0 = 안내
             public string Main, Sub, Day;
             public string Msg;        // [복사] 로 넣는 카톡 메시지
-            public DateTime CopiedUntil;
+            public Change C;          // 변동 (안내 줄은 null) — 보낸 표시는 여기에 남긴다
         }
 
         sealed class Row
@@ -33,7 +33,6 @@ namespace YbmNaverAlert
         readonly List<Line> lines = new List<Line>();
         readonly List<Row> rows = new List<Row>();
         readonly Button okBtn, openBtn, allBtn;
-        readonly System.Windows.Forms.Timer flash = new System.Windows.Forms.Timer { Interval = 1600 };
         Rectangle closeRect, moreRect;
         int hidden;
 
@@ -42,7 +41,7 @@ namespace YbmNaverAlert
         int RowH { get { return Ui.S(34); } }
         int FooterH { get { return Ui.S(56); } }
 
-        public AlertForm(Action<string> onOpen)
+        public AlertForm(Action<string> onOpen, Action<Change> onSent)
         {
             Text = Program.AppName;
             FormBorderStyle = FormBorderStyle.None;
@@ -65,15 +64,13 @@ namespace YbmNaverAlert
                 foreach (var l in lines) if (l.Msg != null) all.Add(l.Msg);
                 if (Msg.Copy(string.Join("\r\n", all)))
                 {
-                    allBtn.Text = "복사됨";
-                    flash.Stop();
-                    flash.Start();
+                    foreach (var l in lines) if (l.C != null) onSent(l.C);
+                    Relayout();
                 }
             };
             Controls.Add(okBtn);
             Controls.Add(openBtn);
             Controls.Add(allBtn);
-            flash.Tick += (s, e) => { flash.Stop(); allBtn.Text = "모두 복사"; Invalidate(); };
 
             MouseClick += (s, e) =>
             {
@@ -83,10 +80,8 @@ namespace YbmNaverAlert
                     if (row.L.Msg == null || !row.CopyR.Contains(e.Location)) continue;
                     if (Msg.Copy(row.L.Msg))
                     {
-                        row.L.CopiedUntil = DateTime.UtcNow.AddMilliseconds(1500);
-                        flash.Stop();
-                        flash.Start();
-                        Invalidate();
+                        if (row.L.C != null) onSent(row.L.C);
+                        Relayout();
                     }
                     return;
                 }
@@ -97,8 +92,12 @@ namespace YbmNaverAlert
                 foreach (var row in rows) if (row.L.Msg != null && row.CopyR.Contains(e.Location)) hand = true;
                 Cursor = hand ? Cursors.Hand : Cursors.Default;
             };
-            FormClosed += (s, e) => flash.Dispose();
         }
+
+        static bool Sent(Line l) { return l.C != null && l.C.SentAt.HasValue; }
+
+        // 다른 곳(예약 현황 창)에서 보낸 표시가 바뀌었을 때
+        public void RefreshSent() { if (!IsDisposed) Relayout(); }
 
         protected override bool ShowWithoutActivation { get { return true; } }
 
@@ -131,6 +130,7 @@ namespace YbmNaverAlert
                     Sub = c.DetectedAt.ToString("HH:mm", Kst.Inv),
                     Day = c.T.Substring(0, 10),
                     Msg = global::YbmNaverAlert.Msg.Change(c, today),
+                    C = c,
                 });
             lines.InsertRange(0, add);
             Relayout();
@@ -159,7 +159,8 @@ namespace YbmNaverAlert
                 if (shown == MaxLines) break;
                 int h = l.Kind == 0 ? InfoHeight(l) : RowH;
                 var r = new Rectangle(Ui.S(14), y, W - Ui.S(28), h);
-                rows.Add(new Row { L = l, R = r, CopyR = new Rectangle(r.Right - Ui.S(48), r.Y + (r.Height - Ui.S(26)) / 2, Ui.S(48), Ui.S(26)) });
+                int cw = Sent(l) ? Ui.S(86) : Ui.S(48);
+                rows.Add(new Row { L = l, R = r, CopyR = new Rectangle(r.Right - cw, r.Y + (r.Height - Ui.S(26)) / 2, cw, Ui.S(26)) });
                 y += h + Ui.S(4);
                 shown++;
             }
@@ -174,9 +175,11 @@ namespace YbmNaverAlert
 
             okBtn.Location = new Point(W - Ui.S(14) - okBtn.Width, H - FooterH + (FooterH - okBtn.Height) / 2);
             openBtn.Location = new Point(okBtn.Left - Ui.S(8) - openBtn.Width, okBtn.Top);
+            int msgs = 0, sent = 0;
+            foreach (var l in lines) if (l.Msg != null) { msgs++; if (Sent(l)) sent++; }
+            allBtn.Text = msgs > 0 && sent == msgs ? "모두 전송됨" : "모두 복사";
+            Ui.FitBtn(allBtn);
             allBtn.Location = new Point(Ui.S(14), okBtn.Top);
-            int msgs = 0;
-            foreach (var l in lines) if (l.Msg != null) msgs++;
             allBtn.Visible = msgs >= 2;
             closeRect = new Rectangle(W - Ui.S(40), (HeaderH - Ui.S(30)) / 2, Ui.S(30), Ui.S(30));
 
@@ -214,10 +217,7 @@ namespace YbmNaverAlert
                 Ui.Text(g, booked ? "예약" : "취소", Ui.SmallBold, booked ? Ui.Green : Ui.Red, badge, Ui.CenterMid);
                 var cr = row.CopyR;
                 Ui.Text(g, l.Main, Ui.BodyBold, Ui.Ink, new Rectangle(badge.Right + Ui.S(10), r.Y, Math.Max(0, cr.Left - Ui.S(6) - badge.Right - Ui.S(10)), r.Height), Ui.LeftMid);
-                bool done = DateTime.UtcNow < l.CopiedUntil;
-                Ui.FillRound(g, cr, Ui.S(7), done ? Ui.GreenBg : Ui.Surface);
-                Ui.DrawRound(g, cr, Ui.S(7), done ? Ui.Green : Ui.LineStrong);
-                Ui.Text(g, done ? "복사됨" : "복사", Ui.SmallBold, done ? Ui.Green : Ui.Ink2, cr, Ui.CenterMid);
+                Ui.CopyButton(g, cr, Sent(l) ? "이미 전송됨" : null);
             }
 
             if (hidden > 0)

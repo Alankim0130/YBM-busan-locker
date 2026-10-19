@@ -2033,13 +2033,29 @@
       .map(function (sl) { return sl.t.slice(11, 16) + " " + sl.b + "명"; });
     return "<" + it.name + (day === today ? "" : " " + nbDayLabel(day)) + " 상담예약자 명단>\n" + (rows.length ? rows.join("\n") : "예약 없음");
   }
-  function nbCopy(text, btn) {
-    function ok() {
-      toast("복사했어요 — 카카오톡에 붙여넣으세요");
-      if (btn) { btn.textContent = "복사됨"; btn.classList.add("done"); setTimeout(function () { btn.textContent = "복사"; btn.classList.remove("done"); }, 1500); }
-    }
+  // 복사하고 나면 그 버튼은 '이미 전송됨'으로 남긴다 (이 PC 브라우저 기준, 다시 눌러도 복사는 된다)
+  function nbCopy(text, onDone) {
+    function ok() { toast("복사했어요 — 카카오톡에 붙여넣으세요"); if (onDone) onDone(); }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () { fallbackCopy(text, ok); });
     else fallbackCopy(text, ok);
+  }
+  var NB_ROSTER = "nb_roster_sent_v1";
+  function nbEvKey(e) { return e.at + "|" + e.name + "|" + e.t + "|" + e.kind; }
+  function nbMarkEventSent(e) {
+    var all = nbGet(NB_EVTS, []), key = nbEvKey(e);
+    all.forEach(function (x) { if (nbEvKey(x) === key && !x.sent) x.sent = new Date().toISOString(); });
+    nbSet(NB_EVTS, all);
+  }
+  function nbRosterSent(day, id) { var m = nbGet(NB_ROSTER, {}); return !!m[day + "|" + id]; }
+  function nbMarkRosterSent(day, id) {
+    if (!nbData || day !== nbData.today) return;   // 아침 명단은 오늘 것만
+    var m = nbGet(NB_ROSTER, {}), keep = {};
+    Object.keys(m).forEach(function (k) { if (k.indexOf(day + "|") === 0) keep[k] = m[k]; });   // 지난 날 표시는 지운다
+    keep[day + "|" + id] = true;
+    nbSet(NB_ROSTER, keep);
+  }
+  function nbCopyBtn(attr, sentLabel, title) {
+    return '<button class="nb-copy' + (sentLabel ? " sent" : "") + '" type="button" ' + attr + ' title="' + title + '">' + (sentLabel || "복사") + "</button>";
   }
 
   function nbRender() {
@@ -2058,7 +2074,7 @@
       if (!it.ok) { html += '</div><div class="nb-err">조회 실패<br><small>' + esc(it.error || "") + "</small></div></div>"; return; }
       var slots = it.slots.filter(function (sl) { return sl.t.slice(0, 10) === nbDay && (sl.open || sl.b > 0); }).sort(function (a, b) { return a.t < b.t ? -1 : a.t > b.t ? 1 : 0; });
       var booked = slots.reduce(function (n, sl) { return n + sl.b; }, 0);
-      html += '<span class="nb-tot' + (booked ? " has" : "") + '">' + booked + '건</span><button class="nb-copy" type="button" data-id="' + esc(it.id) + '" title="카톡으로 보낼 상담예약자 명단 복사">복사</button></div>';
+      html += '<span class="nb-tot' + (booked ? " has" : "") + '">' + booked + "건</span>" + nbCopyBtn('data-id="' + esc(it.id) + '"', nbRosterSent(nbDay, it.id) ? "전송됨" : "", "카톡으로 보낼 상담예약자 명단 복사") + "</div>";
       if (!slots.length) { html += '<div class="nb-none">예약 가능한 시간 없음</div></div>'; return; }
       html += '<div class="nb-slots">';
       slots.forEach(function (sl) {
@@ -2073,7 +2089,7 @@
       b.onclick = function () {
         var id = b.getAttribute("data-id");
         var it = nbData.items.filter(function (x) { return x.id === id; })[0];
-        if (it && it.ok) nbCopy(nbSummaryText(it, nbDay, nbData.today), b);
+        if (it && it.ok) nbCopy(nbSummaryText(it, nbDay, nbData.today), function () { nbMarkRosterSent(nbDay, id); nbRender(); });
       };
     });
     var evs = nbGet(NB_EVTS, []).filter(function (e) { return e.t && e.t.slice(0, 10) === nbData.today; }).slice(0, 30);
@@ -2082,11 +2098,11 @@
           var bk = e.kind === "booked";
           return '<div class="nb-ev ' + (bk ? "booked" : "canceled") + '"><span class="log-badge ' + (bk ? "in" : "discard") + '">' + (bk ? "예약" : "취소") + "</span>" +
             "<b>" + esc(e.name) + "</b><span>" + esc(nbWhen(e.t)) + (e.diff > 1 ? " · " + e.diff + "건" : "") + '</span><span class="nb-at">' + logYmd(e.at).slice(5).replace("-", "/") + " " + logHm(e.at) + " 감지</span>" +
-            '<button class="nb-copy" type="button" data-i="' + i + '" title="강사님께 보낼 메시지 복사">복사</button></div>';
+            nbCopyBtn('data-i="' + i + '"', e.sent ? "이미 전송됨" : "", "강사님께 보낼 메시지 복사") + "</div>";
         }).join("") + "</div>"
       : '<div class="log-empty">오늘 감지된 예약·취소가 없습니다.</div>';
     $("nbEvents").querySelectorAll(".nb-copy").forEach(function (b) {
-      b.onclick = function () { var e = evs[+b.getAttribute("data-i")]; if (e) nbCopy(nbChangeText(e, nbData.today), b); };
+      b.onclick = function () { var e = evs[+b.getAttribute("data-i")]; if (e) nbCopy(nbChangeText(e, nbData.today), function () { nbMarkEventSent(e); nbRender(); }); };
     });
   }
 

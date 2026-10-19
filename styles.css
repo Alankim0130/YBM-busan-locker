@@ -648,7 +648,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
 .nb-one{margin:10px 0 2px;font-size:14px;color:var(--ink);}
 .nb-copy{border:1px solid var(--line-strong);background:var(--surface);border-radius:7px;padding:3px 9px;font:inherit;font-size:12px;font-weight:700;color:var(--ink-2);cursor:pointer;margin-left:6px;}
 .nb-copy:hover{background:var(--surface-2);}
-.nb-copy.done{background:#e3f3ec;border-color:#1d7a54;color:#1d7a54;}
+.nb-copy.sent{background:var(--surface-2);color:var(--ink-3);}
 .nb-head .nb-tot{margin-left:auto;}
 .nb-head a{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .nb-head .nb-tot,.nb-copy{white-space:nowrap;flex:none;}

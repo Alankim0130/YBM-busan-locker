@@ -156,8 +156,13 @@ namespace YbmNaverAlert
                 Store.SaveSnap(next);
                 var back = Store.LoadSnap();
                 Ok(back != null && back.Count == next.Count && back.All(kv => next[kv.Key] == kv.Value), "store: snap 왕복");
+                ch[0].SentAt = new DateTime(2026, 10, 15, 12, 5, 0);
                 Store.SaveEvents(ch);
                 var evs = Store.LoadEvents();
+                Ok(evs[0].SentAt == ch[0].SentAt && !evs[1].SentAt.HasValue, "store: '이미 전송됨' 표시 왕복");
+                Store.SaveRosterSent(new[] { "2026-10-15|4139011", "2026-10-14|3736463" }, "2026-10-15");
+                var rs = Store.LoadRosterSent("2026-10-15");
+                Ok(rs.Count == 1 && rs.Contains("2026-10-15|4139011") && Store.LoadRosterSent("2026-10-16").Count == 0, "store: 아침 명단 '전송됨'은 그날 것만");
                 Ok(evs.Count == ch.Count && evs[0].Name == ch[0].Name && evs[0].T == ch[0].T && evs[0].Booked == ch[0].Booked && evs[0].DetectedAt == at, "store: 이력 왕복");
             }
             finally

@@ -62,7 +62,10 @@ namespace YbmNaverAlert
                     int diff, b, s;
                     if (!int.TryParse(f[5], NumberStyles.Integer, Inv, out diff) || !int.TryParse(f[6], NumberStyles.Integer, Inv, out b) || !int.TryParse(f[7], NumberStyles.Integer, Inv, out s)) continue;
                     if (f[4].Length < 16) continue;
-                    list.Add(new Change { DetectedAt = at, Booked = f[1] == "1", ItemId = f[2], Name = f[3], T = f[4], Diff = diff, B = b, S = s });
+                    DateTime sent;
+                    DateTime? sentAt = null;
+                    if (f.Length >= 9 && DateTime.TryParseExact(f[8], "yyyy-MM-dd HH:mm:ss", Inv, DateTimeStyles.None, out sent)) sentAt = sent;
+                    list.Add(new Change { DetectedAt = at, Booked = f[1] == "1", ItemId = f[2], Name = f[3], T = f[4], Diff = diff, B = b, S = s, SentAt = sentAt });
                 }
             }
             catch (Exception e) { Log("이력 읽기 실패: " + e.Message); }
@@ -77,9 +80,31 @@ namespace YbmNaverAlert
                 {
                     c.DetectedAt.ToString("yyyy-MM-dd HH:mm:ss", Inv), c.Booked ? "1" : "0", c.ItemId, c.Name, c.T,
                     c.Diff.ToString(Inv), c.B.ToString(Inv), c.S.ToString(Inv),
+                    c.SentAt.HasValue ? c.SentAt.Value.ToString("yyyy-MM-dd HH:mm:ss", Inv) : "",
                 })));
             }
             catch (Exception e) { Log("이력 저장 실패: " + e.Message); }
+        }
+
+        // 아침 명단을 보낸 강사 — "yyyy-MM-dd|강사번호" (오늘 것만 남긴다)
+        public static HashSet<string> LoadRosterSent(string today)
+        {
+            var set = new HashSet<string>(StringComparer.Ordinal);
+            var path = P("roster_sent.txt");
+            try
+            {
+                if (File.Exists(path))
+                    foreach (var line in File.ReadAllLines(path, Utf8))
+                        if (line.StartsWith(today + "|", StringComparison.Ordinal)) set.Add(line.Trim());
+            }
+            catch (Exception e) { Log("명단 전송 기록 읽기 실패: " + e.Message); }
+            return set;
+        }
+
+        public static void SaveRosterSent(IEnumerable<string> keys, string today)
+        {
+            try { WriteAtomic(P("roster_sent.txt"), keys.Where(k => k.StartsWith(today + "|", StringComparison.Ordinal)).OrderBy(k => k, StringComparer.Ordinal)); }
+            catch (Exception e) { Log("명단 전송 기록 저장 실패: " + e.Message); }
         }
 
         static void WriteAtomic(string path, IEnumerable<string> lines)

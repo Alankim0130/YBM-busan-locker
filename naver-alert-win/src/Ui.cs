@@ -99,6 +99,21 @@ namespace YbmNaverAlert
             return b;
         }
 
+        // [복사] 버튼 — 보냈으면 회색 '이미 전송됨'(눌러도 다시 복사된다)
+        public static void CopyButton(Graphics g, Rectangle r, string sentLabel)
+        {
+            bool sent = sentLabel != null;
+            FillRound(g, r, S(7), sent ? Surface2 : Surface);
+            DrawRound(g, r, S(7), LineStrong);
+            Text(g, sent ? sentLabel : "복사", SmallBold, sent ? Ink3 : Ink2, r, CenterMid);
+        }
+
+        public static void FitBtn(Button b)
+        {
+            int w = TextRenderer.MeasureText(b.Text, b.Font).Width + S(30);
+            b.Width = Math.Max(w, S(40));
+        }
+
         // 내장 PNG(16~64px)에서 원하는 크기에 가까운 아이콘을 만든다
         public static Icon MakeIcon(int want)
         {
