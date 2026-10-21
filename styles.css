@@ -300,6 +300,9 @@ button.log-badge:hover{filter:brightness(.95);box-shadow:0 0 0 2px rgba(0,0,0,.0
 .log-done{border:1px solid #2f9e6e;background:var(--surface);color:#1d7a54;border-radius:7px;padding:5px 11px;
   font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
 .log-done:hover{background:#eafaf2;}
+.log-discard{border:1px solid #e3a597;background:var(--surface);color:#b23a22;border-radius:7px;padding:5px 11px;margin-left:6px;
+  font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
+.log-discard:hover{background:#fbe3de;}
 .log-confirm{border:1px solid var(--focus);background:var(--surface);color:#2b56ad;border-radius:7px;padding:5px 11px;
   font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .15s;}
 .log-confirm:hover{background:#eef3fb;}

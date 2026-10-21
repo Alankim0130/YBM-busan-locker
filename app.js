@@ -1539,7 +1539,8 @@
     rows.forEach(function (l) {
       var d = l.detail || {}; var meta = logBadge(l);
       var proc = "";
-      if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>' : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button>';
+      if (l.action === "return") proc = d.refunded ? '<span class="proc-done">✓ 환급완료</span>'
+        : '<button class="log-done" data-id="' + l.id + '">반납완료 처리</button><button class="log-discard" data-id="' + l.id + '" title="보증금 환급 없이 폐기로 바꿉니다">폐기로 변경</button>';
       else if (l.action === "rent") proc = d.paid_confirmed ? '<span class="proc-done">✓ 입금확인</span>' : '<button class="log-confirm" data-id="' + l.id + '">입금확인</button>';
       // 편집 모드에서는 은행·계좌를 눌러 바로 수정, 평소에는 읽기 전용 + 복사
       var bankCell = logEdit
@@ -1571,6 +1572,10 @@
     var byId = {}; rows.forEach(function (l) { byId[l.id] = l; });
     area.querySelectorAll("button.log-badge").forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); logTypeMenu(byId[b.getAttribute("data-id")], b); }; });
     area.querySelectorAll(".log-done").forEach(function (b) { b.onclick = function () { logMarkRefunded(byId[b.getAttribute("data-id")]); }; });
+    // 반납신청 → 폐기 (연락두절 등으로 보증금 미환급) — 구분 배지 메뉴와 같은 처리
+    area.querySelectorAll(".log-discard").forEach(function (b) {
+      b.onclick = function () { logChangeType(byId[b.getAttribute("data-id")], LOGTYPES.filter(function (o) { return o.k === "discard"; })[0]); };
+    });
     area.querySelectorAll(".log-confirm").forEach(function (b) { b.onclick = function () { logMarkPaid(byId[b.getAttribute("data-id")]); }; });
     area.querySelectorAll(".la-copy").forEach(function (b) { b.onclick = function () { var l = byId[b.getAttribute("data-id")]; var d = l.detail || {}; copyText(copyAcct(d.student_name || "", d.bank || "", d.refund_account || "")); }; });
     area.querySelectorAll(".name-btn").forEach(function (b) { b.onclick = function () { logEditName(byId[b.getAttribute("data-id")]); }; });
