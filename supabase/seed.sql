@@ -20,12 +20,15 @@ insert into classes (category, name, sort) values
   ('일본어',     'JLPT',            61)
 on conflict (category, name) do nothing;
 
--- ---------- 사물함 127칸 ----------
+-- ---------- 사물함 185칸 ----------
 -- 번호는 좌상단부터 오른쪽 방향. 키 큰 칸은 맨 윗줄(row 1).
 --   1층: 6x5, 1-30        (키 큰 칸 없음)
 --   2층: 5x5, 31-55       (키 큰 칸 없음)
 --   3층: 6x6, 56-91       (56-61 = 맨 윗줄 키 큰 칸)
+--   4층: 3x6, 92-109      (키 큰 칸 없음)
 --   7층: 6x6, 1-36 새번호  (1-6   = 맨 윗줄 키 큰 칸)
+--   8층: 6x5, 1-30 새번호  (키 큰 칸 없음, floor=9 — 8은 2관)
+--   2관 3층: 110-119      (floor=8)
 
 insert into lockers (floor, number, col, "row", is_tall)
 select 1, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, false
@@ -60,6 +63,12 @@ select 8, 110 + gs,
        case when gs < 5 then gs + 1 else gs - 4 end,
        false
 from generate_series(0, 9) gs
+on conflict (floor, number) do nothing;
+
+-- ---------- 본관 8층(floor=9): 가로 6 x 세로 5, 1~30 (키 큰 칸 없음) ----------
+insert into lockers (floor, number, col, "row", is_tall)
+select 9, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, false
+from generate_series(0, 29) gs
 on conflict (floor, number) do nothing;
 
 -- ---------- 고장난 사물함 표시: 7층 26번 ----------

@@ -58,6 +58,8 @@
     { id: 3, name: "3층", building: "본관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
     { id: 4, name: "4층", building: "본관", cols: 3, rows: 6, start: 92,  tallCount: 0 },
     { id: 7, name: "7층", building: "본관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+    // 본관 8층: DB 층 번호 8은 2관이 쓰고 있어 9로 저장
+    { id: 9, name: "8층", building: "본관", cols: 6, rows: 5, start: 1,   tallCount: 0 },
     // 2관 3층: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
     { id: 8, name: "3층", building: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
       custom: {
@@ -241,12 +243,13 @@
 
   function renderFloorList() {
     var list = $("floorList"); list.innerHTML = "";
+    var shown = FLOORS.filter(function (f) { return !f.hidden; });
     // 건물별 빈칸 합계
     var bstats = {};
-    FLOORS.forEach(function (f) { var c = counts(f); if (!bstats[f.building]) bstats[f.building] = { free: 0, total: 0 }; bstats[f.building].free += c.free; bstats[f.building].total += f.total; });
+    shown.forEach(function (f) { var c = counts(f); if (!bstats[f.building]) bstats[f.building] = { free: 0, total: 0 }; bstats[f.building].free += c.free; bstats[f.building].total += f.total; });
     var activeFloor = floorById(currentId);
     var lastBuilding = null;
-    FLOORS.forEach(function (f) {
+    shown.forEach(function (f) {
       if (f.building && f.building !== lastBuilding) {
         lastBuilding = f.building;
         var collapsed = isCollapsed(f.building);
@@ -285,7 +288,7 @@
     el.innerHTML = "";
     var byB = {};
     var order = [];
-    FLOORS.forEach(function (f) { if (!byB[f.building]) { byB[f.building] = []; order.push(f.building); } byB[f.building].push(f); });
+    FLOORS.forEach(function (f) { if (f.hidden) return; if (!byB[f.building]) { byB[f.building] = []; order.push(f.building); } byB[f.building].push(f); });
     order.forEach(function (b) {
       var grp = document.createElement("div"); grp.className = "fp-group";
       var lab = document.createElement("span"); lab.className = "fp-bldg"; lab.textContent = b; grp.appendChild(lab);
@@ -1240,7 +1243,10 @@
     function build(res) {
       if (res.error) throw res.error;
       LOCKERS = {};
-      (res.data || []).forEach(function (l) { LOCKERS[l.floor + "-" + l.number] = l; });
+      var rows = res.data || [], have = {};
+      rows.forEach(function (l) { LOCKERS[l.floor + "-" + l.number] = l; have[l.floor] = true; });
+      // 사물함이 아직 DB에 없는 층(추가 SQL 실행 전)은 숨김. DB가 통째로 비어 있으면 전부 표시
+      FLOORS.forEach(function (f) { f.hidden = rows.length > 0 && !have[f.id]; });
     }
     return sb.from("lockers").select("id, floor, number, broken, needs_reset").then(function (res) {
       // needs_reset 컬럼이 아직 없으면(스키마 미적용) 빼고 재시도

@@ -209,6 +209,8 @@
       { id: 3, name: "본관 3층", cols: 6, rows: 6, start: 56,  tallCount: 6 },
       { id: 4, name: "본관 4층", cols: 3, rows: 6, start: 92,  tallCount: 0 },
       { id: 7, name: "본관 7층", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+      // 본관 8층: DB 층 번호 8은 2관이 쓰고 있어 9로 저장
+      { id: 9, name: "본관 8층", cols: 6, rows: 5, start: 1,   tallCount: 0 },
       // 2관: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
       { id: 8, name: "2관 3층", cols: 3, rows: 5, start: 110, tallCount: 0,
         custom: {
@@ -234,6 +236,7 @@
     function renderTabs() {
       var t = $("tabs"); t.innerHTML = "";
       FLOORS.forEach(function (f) {
+        if (f.hidden) return;
         var b = document.createElement("button");
         b.className = "tab" + (f.id === currentId ? " active" : "");
         b.innerHTML = '<span class="tn">' + f.name + '</span><span class="tc">빈 ' + freeCount(f) + "</span>";
@@ -294,7 +297,10 @@
       return sb.from("locker_status").select("floor,number,occupied,pending,broken").then(function (res) {
         if (res.error) { if (!loaded) $("msg").textContent = "현황을 불러오지 못했습니다. 잠시 후 새로고침해 주세요."; return; }
         STATUS = {};
-        (res.data || []).forEach(function (r) { STATUS[r.floor + "-" + r.number] = r.broken ? "broken" : r.occupied ? "used" : (r.pending ? "pending" : "free"); });
+        var rows = res.data || [], have = {};
+        rows.forEach(function (r) { STATUS[r.floor + "-" + r.number] = r.broken ? "broken" : r.occupied ? "used" : (r.pending ? "pending" : "free"); have[r.floor] = true; });
+        // 사물함이 아직 DB에 없는 층(추가 SQL 실행 전)은 탭을 숨겨 신청을 막음
+        FLOORS.forEach(function (f) { f.hidden = rows.length > 0 && !have[f.id]; });
         if (!loaded) { loaded = true; $("msg").hidden = true; $("app").hidden = false; }
         render(); stamp(); refreshAppliedBar();
       });

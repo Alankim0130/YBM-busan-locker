@@ -17,6 +17,10 @@
  *      이벤트 소스 '시간 기반' → '시간 단위 타이머' → '1시간마다' (원하면 매일)
  */
 
+// DB 층 번호 → '현황' 탭 표시 이름(이 순서로 정렬). 8은 2관이 먼저 써서 본관 8층은 9
+var FLOOR_ORDER = [1, 2, 3, 4, 7, 9, 8];
+var FLOOR_NAMES = { 1: '본관 1층', 2: '본관 2층', 3: '본관 3층', 4: '본관 4층', 7: '본관 7층', 9: '본관 8층', 8: '2관 3층' };
+
 function backupToSheet() {
   var props = PropertiesService.getScriptProperties();
   var URL = props.getProperty('SUPABASE_URL');
@@ -40,8 +44,8 @@ function backupToSheet() {
     var closing = r.classes ? (r.classes.closing_date || '') : '';
     var deadline = closing ? addDays(closing, 10) : '';
     return [fl, num, r.student_name, r.phone || '', cls, closing, deadline, r.started_on || '', statusOf(closing)];
-  }).sort(function (a, b) { return (a[0] - b[0]) || (a[1] - b[1]); })
-    .forEach(function (row) { view.push(row); });
+  }).sort(function (a, b) { return (FLOOR_ORDER.indexOf(a[0]) - FLOOR_ORDER.indexOf(b[0])) || (a[1] - b[1]); })
+    .forEach(function (row) { row[0] = FLOOR_NAMES[row[0]] || row[0]; view.push(row); });
   writeTab(ss, '현황', view);
 
   // ---- 2) 원자료 탭 (복구용) ----
