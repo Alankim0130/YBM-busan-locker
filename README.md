@@ -22,7 +22,7 @@
 Supabase 대시보드 `SQL Editor`에서 **순서대로** 실행합니다.
 
 1. `supabase/schema.sql` — 테이블 · 인덱스 · RLS 정책 생성
-2. `supabase/seed.sql` — 사물함 185칸(본관 1·2·3·4·7·8층, 2관 3층) 데이터 입력
+2. `supabase/seed.sql` — 사물함 185칸(1·2·3·4·7·8층) 데이터 입력
 
 > 시드를 다시 실행해도 중복되지 않도록 `on conflict (floor, number) do nothing` 처리되어 있습니다.
 

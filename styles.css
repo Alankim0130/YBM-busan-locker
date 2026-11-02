@@ -75,10 +75,8 @@ aside{width:236px;flex-shrink:0;background:var(--surface);border-right:1px solid
 .floor-group .fg-caret{font-size:10px;color:var(--ink-3);transition:transform .2s;display:inline-block;}
 .floor-group.collapsed .fg-caret{transform:rotate(-90deg);}
 .floor-group .fg-active{text-transform:none;letter-spacing:0;color:var(--brand);font-weight:700;font-size:13px;}
-/* 사물함 상단 빠른 층 선택 바 — PC: 한 줄(2관이 1관 오른쪽) / 모바일: 건물별 줄바꿈 */
-.floor-pills{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:10px;}
-.fp-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
-.floor-pills .fp-bldg{font-size:11px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;min-width:30px;}
+/* 사물함 상단 빠른 층 선택 바 */
+.floor-pills{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;}
 .floor-pills .fp{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;}
 .floor-pills .fp:hover{border-color:var(--line-strong);color:var(--ink);}
 .floor-pills .fp.active{background:linear-gradient(180deg,#2a3342,var(--brand));border-color:var(--brand-2);color:#fff;box-shadow:0 4px 10px -3px rgba(16,24,40,.4);}
@@ -582,9 +580,7 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;text-decorat
   .grid{gap:6px;}
   .stage-top{padding:10px 14px 2px;}
   .stage-top h2{font-size:16px;}
-  /* 모바일: 건물별로 한 줄씩(2관 3층이 1관 아래) */
-  .floor-pills{flex-direction:column;align-items:flex-start;margin-top:7px;gap:5px;}
-  .fp-group{flex-wrap:wrap;}
+  .floor-pills{margin-top:7px;gap:5px;}
   .move-banner{margin:10px 14px 0;}
 
   /* 갱신 마감 대시보드: 좁은 화면에서는 한 줄에 다 못 넣으므로 줄바꿈 */

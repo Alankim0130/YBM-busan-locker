@@ -19,7 +19,7 @@ create table if not exists classes (
 -- 사물함 마스터
 create table if not exists lockers (
   id        bigint generated always as identity primary key,
-  floor     int  not null,            -- 본관 1,2,3,4,7 / 2관=8 / 본관 8층=9
+  floor     int  not null,            -- 1,2,3,4,7 / 8층=9 (8은 예전 2관 번호라 비어 있음)
   number    int  not null,            -- 층 내 표시 번호
   col       int  not null,            -- 격자 위치(가로)
   "row"     int  not null,            -- 격자 위치(세로)

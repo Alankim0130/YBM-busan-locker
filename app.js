@@ -53,19 +53,21 @@
 
   /* ---------- 실제 층 구성 ---------- */
   var FLOORS = [
-    { id: 1, name: "1층", building: "본관", cols: 6, rows: 5, start: 1,   tallCount: 0 },
-    { id: 2, name: "2층", building: "본관", cols: 5, rows: 5, start: 31,  tallCount: 0 },
-    { id: 3, name: "3층", building: "본관", cols: 6, rows: 6, start: 56,  tallCount: 6 },
-    { id: 4, name: "4층", building: "본관", cols: 3, rows: 6, start: 92,  tallCount: 0 },
-    { id: 7, name: "7층", building: "본관", cols: 6, rows: 6, start: 1,   tallCount: 6 },
-    // 본관 8층: DB 층 번호 8은 2관이 쓰고 있어 9로 저장
-    { id: 9, name: "8층", building: "본관", cols: 6, rows: 5, start: 1,   tallCount: 0 },
-    // 2관 3층: 110~114 세로 한 줄 / 115~119 세로 한 줄, 가운데(2열)는 엘리베이터.
-    { id: 8, name: "3층", building: "2관", cols: 3, rows: 5, start: 110, tallCount: 0,
-      custom: {
-        lockers: [[110,1,1],[111,1,2],[112,1,3],[113,1,4],[114,1,5],[115,3,1],[116,3,2],[117,3,3],[118,3,4],[119,3,5]],
-        blocks: [{ label: "🛗", sub: "엘리베이터", col: 2, row: 1, rowSpan: 5 }]
-      } }
+    // 1층: 1~30(가로 6 × 세로 5) 오른쪽에 예전 2관 사물함 세로 두 줄(7열 110~114, 8열 115~119)
+    { id: 1, name: "1층", cols: 8, rows: 5, start: 1,   tallCount: 0,
+      custom: { lockers: [
+        [1,1,1],[2,2,1],[3,3,1],[4,4,1],[5,5,1],[6,6,1],[110,7,1],[115,8,1],
+        [7,1,2],[8,2,2],[9,3,2],[10,4,2],[11,5,2],[12,6,2],[111,7,2],[116,8,2],
+        [13,1,3],[14,2,3],[15,3,3],[16,4,3],[17,5,3],[18,6,3],[112,7,3],[117,8,3],
+        [19,1,4],[20,2,4],[21,3,4],[22,4,4],[23,5,4],[24,6,4],[113,7,4],[118,8,4],
+        [25,1,5],[26,2,5],[27,3,5],[28,4,5],[29,5,5],[30,6,5],[114,7,5],[119,8,5]
+      ] } },
+    { id: 2, name: "2층", cols: 5, rows: 5, start: 31,  tallCount: 0 },
+    { id: 3, name: "3층", cols: 6, rows: 6, start: 56,  tallCount: 6 },
+    { id: 4, name: "4층", cols: 3, rows: 6, start: 92,  tallCount: 0 },
+    { id: 7, name: "7층", cols: 6, rows: 6, start: 1,   tallCount: 6 },
+    // 8층: DB 층 번호는 9 (8은 예전 2관이 쓰던 번호)
+    { id: 9, name: "8층", cols: 6, rows: 5, start: 1,   tallCount: 0 }
   ];
   FLOORS.forEach(function (f) {
     if (f.custom) {
@@ -98,8 +100,11 @@
 
   function floorById(id) { return FLOORS.find(function (f) { return f.id === id; }); }
   function keyOf(f, n) { return f.id + "-" + n; }
-  // 위치 표시용 라벨: 건물(관)을 앞에 붙임. (이름에 이미 관이 들어간 2관은 중복 방지)
-  function locLabel(f) { return f ? ((f.building && f.building !== f.name) ? f.building + " " + f.name : f.name) : ""; }
+  // 예전 2관(DB 층 번호 8)의 110~119번은 1층으로 옮김. 이동 SQL(supabase/move_2gwan_to_1f.sql)
+  // 실행 전 데이터도 1층으로 읽어서, 실행 전후 어느 때나 화면이 똑같이 보이게 함
+  function dbFloor(fl) { return fl === 8 ? 1 : fl; }
+  // 위치 표시용 라벨
+  function locLabel(f) { return f ? f.name : ""; }
   function locName(floorId) { return locLabel(floorById(floorId)); }
 
   /* ---------- 마감일 / 상태 ---------- */
@@ -230,40 +235,27 @@
   var moveSourceKey = null; // 이동 모드일 때 출발 칸
   var grid = $("grid"), drawer = $("drawer");
 
-  // 건물(관) 접기/펼치기 상태 — 기본은 접힘, 펼치면 explicit false 저장. localStorage 유지.
-  var collapsedBuildings = {};
-  try { collapsedBuildings = JSON.parse(localStorage.getItem("ybm_collapsed_v1") || "{}") || {}; } catch (e) {}
-  function isCollapsed(b) { return collapsedBuildings[b] !== false; } // 미설정이면 접힘
-  function saveCollapsed() { try { localStorage.setItem("ybm_collapsed_v1", JSON.stringify(collapsedBuildings)); } catch (e) {} }
-  function toggleBuilding(b) {
-    collapsedBuildings[b] = !isCollapsed(b); // 접힘이면 펼치고(false), 펼침이면 접음(true)
-    saveCollapsed();
-    renderFloorList();
-  }
+  // 층 목록 접기/펼치기 — 기본은 접힘(아래 메뉴가 밀리지 않게). 펼친 상태는 localStorage 유지
+  var floorsOpen = false;
+  try { floorsOpen = localStorage.getItem("ybm_floors_open_v1") === "1"; } catch (e) {}
+  function setFloorsOpen(v) { floorsOpen = v; try { localStorage.setItem("ybm_floors_open_v1", v ? "1" : "0"); } catch (e) {} }
 
   function renderFloorList() {
     var list = $("floorList"); list.innerHTML = "";
     var shown = FLOORS.filter(function (f) { return !f.hidden; });
-    // 건물별 빈칸 합계
-    var bstats = {};
-    shown.forEach(function (f) { var c = counts(f); if (!bstats[f.building]) bstats[f.building] = { free: 0, total: 0 }; bstats[f.building].free += c.free; bstats[f.building].total += f.total; });
-    var activeFloor = floorById(currentId);
-    var lastBuilding = null;
+    var free = 0, total = 0;
+    shown.forEach(function (f) { free += counts(f).free; total += f.total; });
+    // 접혀 있으면 헤더에 "전체 - 2층" 처럼 지금 보는 층 표시
+    var cur = floorById(currentId);
+    var h = document.createElement("button");
+    h.className = "floor-group" + (floorsOpen ? "" : " collapsed");
+    h.innerHTML = '<span class="fg-caret">▾</span><span class="fg-name">전체</span>' +
+      (!floorsOpen && cur ? '<span class="fg-active">- ' + esc(cur.name) + "</span>" : "") +
+      '<span class="fg-meta"><b>' + free + "</b> / " + total + " 빈칸</span>";
+    h.onclick = function () { setFloorsOpen(!floorsOpen); renderFloorList(); };
+    list.appendChild(h);
+    if (!floorsOpen) return;
     shown.forEach(function (f) {
-      if (f.building && f.building !== lastBuilding) {
-        lastBuilding = f.building;
-        var collapsed = isCollapsed(f.building);
-        // 접혀 있고 현재 보고 있는 층이 이 건물이면 헤더에 "1관 - 2층" 처럼 현재 층 표시
-        var showActive = collapsed && activeFloor && activeFloor.building === f.building && activeFloor.name !== f.building;
-        var h = document.createElement("button");
-        h.className = "floor-group" + (collapsed ? " collapsed" : "");
-        h.innerHTML = '<span class="fg-caret">▾</span><span class="fg-name">' + esc(f.building) + "</span>" +
-          (showActive ? '<span class="fg-active">- ' + esc(activeFloor.name) + "</span>" : "") +
-          '<span class="fg-meta"><b>' + bstats[f.building].free + "</b> / " + bstats[f.building].total + " 빈칸</span>";
-        (function (b) { h.onclick = function () { toggleBuilding(b); }; })(f.building);
-        list.appendChild(h);
-      }
-      if (isCollapsed(f.building)) return; // 접힌 건물의 층 버튼은 숨김
       var c = counts(f);
       var btn = document.createElement("button");
       btn.className = "floor-btn" + (f.id === currentId ? " active" : "");
@@ -277,31 +269,23 @@
           '<span class="seg" style="flex:' + c.reset + ';background:var(--reset)"></span>' +
           '<span class="seg" style="flex:' + c.broken + ';background:var(--broken)"></span>' +
         "</div>";
-      btn.onclick = function () { currentId = f.id; collapsedBuildings[f.building] = true; saveCollapsed(); showView("lockers"); closeDrawer(); renderAll(); };
+      btn.onclick = function () { currentId = f.id; setFloorsOpen(false); showView("lockers"); closeDrawer(); renderAll(); };
       list.appendChild(btn);
     });
   }
 
-  // 사물함 화면 상단의 빠른 층 선택 바 — 건물별로 한 줄씩
+  // 사물함 화면 상단의 빠른 층 선택 바
   function renderFloorPills() {
     var el = $("floorPills"); if (!el) return;
     el.innerHTML = "";
-    var byB = {};
-    var order = [];
-    FLOORS.forEach(function (f) { if (f.hidden) return; if (!byB[f.building]) { byB[f.building] = []; order.push(f.building); } byB[f.building].push(f); });
-    order.forEach(function (b) {
-      var grp = document.createElement("div"); grp.className = "fp-group";
-      var lab = document.createElement("span"); lab.className = "fp-bldg"; lab.textContent = b; grp.appendChild(lab);
-      byB[b].forEach(function (f) { grp.appendChild(makePill(f)); });
-      el.appendChild(grp);
-    });
-    function makePill(f) {
+    FLOORS.forEach(function (f) {
+      if (f.hidden) return;
       var p = document.createElement("button");
       p.className = "fp" + (f.id === currentId ? " active" : "");
       p.textContent = f.name;
-      p.onclick = function () { currentId = f.id; collapsedBuildings[f.building] = true; saveCollapsed(); showView("lockers"); closeDrawer(); renderAll(); };
-      return p;
-    }
+      p.onclick = function () { currentId = f.id; setFloorsOpen(false); showView("lockers"); closeDrawer(); renderAll(); };
+      el.appendChild(p);
+    });
   }
 
   function makeLockerCell(f, n) {
@@ -352,7 +336,7 @@
     grid.style.gridAutoRows = "";
     grid.innerHTML = "";
     if (f.custom) {
-      f.custom.blocks.forEach(function (b) {
+      (f.custom.blocks || []).forEach(function (b) {
         var d = document.createElement("div");
         d.className = "locker-block";
         d.style.gridColumn = String(b.col);
@@ -1002,7 +986,7 @@
     var cols = "id, floor, number, student_name, birth, phone, bank, refund_account, created_at";
     function done(res) {
       if (res.error) return;
-      REQUESTS = res.data || [];
+      REQUESTS = (res.data || []).map(function (q) { q.floor = dbFloor(q.floor); return q; });
       renderReqCount();
       if ($("reqView").classList.contains("open")) renderReq();
     }
@@ -1244,7 +1228,7 @@
       if (res.error) throw res.error;
       LOCKERS = {};
       var rows = res.data || [], have = {};
-      rows.forEach(function (l) { LOCKERS[l.floor + "-" + l.number] = l; have[l.floor] = true; });
+      rows.forEach(function (l) { l.floor = dbFloor(l.floor); LOCKERS[l.floor + "-" + l.number] = l; have[l.floor] = true; });
       // 사물함이 아직 DB에 없는 층(추가 SQL 실행 전)은 숨김. DB가 통째로 비어 있으면 전부 표시
       FLOORS.forEach(function (f) { f.hidden = rows.length > 0 && !have[f.id]; });
     }
@@ -1264,7 +1248,7 @@
       RENTALS = {};
       (res.data || []).forEach(function (row) {
         if (!row.lockers) return;
-        RENTALS[row.lockers.floor + "-" + row.lockers.number] = {
+        RENTALS[dbFloor(row.lockers.floor) + "-" + row.lockers.number] = {
           id: row.id, name: row.student_name, phone: row.phone, birth: row.birth, class_id: row.class_id,
           extended_months: row.extended_months || 0, bank: row.bank, refund_account: row.refund_account,
           pay_method: row.pay_method || "transfer", contact_planned: !!row.contact_planned,
@@ -1476,7 +1460,7 @@
   var logFmtT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false });
   function logYmd(ts) { return logFmtD.format(new Date(ts)); }
   function logHm(ts) { return logFmtT.format(new Date(ts)); }
-  function logLocker(l) { if (!l.lockers) return "—"; var f = floorById(l.lockers.floor); return (f ? locLabel(f) : l.lockers.floor + "층") + " " + l.lockers.number + "번"; }
+  function logLocker(l) { if (!l.lockers) return "—"; var f = floorById(dbFloor(l.lockers.floor)); return (f ? locLabel(f) : l.lockers.floor + "층") + " " + l.lockers.number + "번"; }
   var LOGMETA = { rent: { t: "입금", c: "in" }, extend: { t: "연장", c: "ext" }, move: { t: "이동", c: "mv" }, discard: { t: "폐기", c: "discard" } };
 
   function openLogs() {

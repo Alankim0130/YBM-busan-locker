@@ -22,13 +22,12 @@ on conflict (category, name) do nothing;
 
 -- ---------- 사물함 185칸 ----------
 -- 번호는 좌상단부터 오른쪽 방향. 키 큰 칸은 맨 윗줄(row 1).
---   1층: 6x5, 1-30        (키 큰 칸 없음)
+--   1층: 6x5, 1-30        (키 큰 칸 없음) + 오른쪽 세로 두 줄 110-119 (예전 2관 사물함)
 --   2층: 5x5, 31-55       (키 큰 칸 없음)
 --   3층: 6x6, 56-91       (56-61 = 맨 윗줄 키 큰 칸)
 --   4층: 3x6, 92-109      (키 큰 칸 없음)
 --   7층: 6x6, 1-36 새번호  (1-6   = 맨 윗줄 키 큰 칸)
---   8층: 6x5, 1-30 새번호  (키 큰 칸 없음, floor=9 — 8은 2관)
---   2관 3층: 110-119      (floor=8)
+--   8층: 6x5, 1-30 새번호  (키 큰 칸 없음, floor=9 — 8은 예전 2관이 쓰던 번호)
 
 insert into lockers (floor, number, col, "row", is_tall)
 select 1, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, false
@@ -50,22 +49,21 @@ select 7, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, (gs / 6) = 0
 from generate_series(0, 35) gs
 on conflict (floor, number) do nothing;
 
--- ---------- 1관 4층: 가로 3 x 세로 6, 92~109 (18칸, 키 큰 칸 없음) ----------
+-- ---------- 4층: 가로 3 x 세로 6, 92~109 (18칸, 키 큰 칸 없음) ----------
 insert into lockers (floor, number, col, "row", is_tall)
 select 4, 92 + gs, (gs % 3) + 1, (gs / 3) + 1, false
 from generate_series(0, 17) gs
 on conflict (floor, number) do nothing;
 
--- ---------- 2관(floor=8): 110~114 세로 한 줄(1열) / 115~119 세로 한 줄(3열), 가운데는 엘리베이터 ----------
+-- ---------- 1층 오른쪽: 예전 2관 사물함 세로 두 줄 (7열 110~114, 8열 115~119) ----------
+-- 아직 2관(floor=8)에 있는 DB면 건너뜀 — 그때는 move_2gwan_to_1f.sql 로 옮긴다
 insert into lockers (floor, number, col, "row", is_tall)
-select 8, 110 + gs,
-       case when gs < 5 then 1 else 3 end,
-       case when gs < 5 then gs + 1 else gs - 4 end,
-       false
+select 1, 110 + gs, case when gs < 5 then 7 else 8 end, (gs % 5) + 1, false
 from generate_series(0, 9) gs
+where not exists (select 1 from lockers where floor = 8)
 on conflict (floor, number) do nothing;
 
--- ---------- 본관 8층(floor=9): 가로 6 x 세로 5, 1~30 (키 큰 칸 없음) ----------
+-- ---------- 8층(floor=9): 가로 6 x 세로 5, 1~30 (키 큰 칸 없음) ----------
 insert into lockers (floor, number, col, "row", is_tall)
 select 9, 1 + gs, (gs % 6) + 1, (gs / 6) + 1, false
 from generate_series(0, 29) gs
